@@ -5,7 +5,7 @@ import {
   ServerConfig,
   serverConfigStore,
 } from "../../../../models/ServerConfig.ts";
-import { MastodonPost } from "../../../../schemas/mastodon/MastodonPost.ts";
+import { Status } from "../../../../schemas/mastodon/Status.ts";
 import { Account } from "../../../../schemas/mastodon/Account.ts";
 
 const personaToAccount = (
@@ -15,9 +15,9 @@ const personaToAccount = (
   return {
     id: persona.name,
     username: persona.name,
-    acct: `${persona.name}@tapir.social`,
+    acct: persona.name,
     display_name: persona.displayName,
-    locked: false,
+    locked: true,
     bot: false,
     discoverable: true,
     group: false,
@@ -38,8 +38,9 @@ const personaToAccount = (
 };
 
 const localPostToMastodon =
-  (persona: Persona, serverConfig: ServerConfig) =>
-  (post: LocalPost): MastodonPost => {
+  (persona: Persona, serverConfig: ServerConfig) => (
+    post: LocalPost,
+  ): Status => {
     return {
       id: post.id,
       created_at: post.createdAt,

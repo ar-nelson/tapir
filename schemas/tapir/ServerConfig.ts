@@ -4,6 +4,7 @@ export const schema = {
   schema: {
     loginName: "string",
     url: "string",
+    domain: "string",
     dataDir: "string",
   },
 } as const;

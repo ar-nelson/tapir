@@ -8,6 +8,7 @@ export interface ServerConfigStore {
 const MOCK_SERVER_CONFIG: ServerConfig = {
   loginName: "tapir",
   url: "http://localhost:8000",
+  domain: "tapir.social",
   dataDir: "data",
 };
 
@@ -18,4 +19,3 @@ export class MockServerConfigStore implements ServerConfigStore {
 }
 
 export const serverConfigStore = new MockServerConfigStore();
-
