@@ -1,3 +1,5 @@
+import { InjectableAbstract, Singleton } from "$/lib/inject.ts";
+
 export interface LocalPost {
   id: string;
   persona: string;
@@ -5,13 +7,14 @@ export interface LocalPost {
   content: string;
 }
 
-export interface LocalPostStore {
-  listPosts(
+@InjectableAbstract()
+export abstract class LocalPostStore {
+  abstract listPosts(
     persona: string,
     pageSize?: number,
     startAtId?: string,
   ): Promise<readonly LocalPost[]>;
-  getPost(id: string): Promise<LocalPost | null>;
+  abstract getPost(id: string): Promise<LocalPost | null>;
 }
 
 const MOCK_POSTS: readonly LocalPost[] = [{
@@ -27,13 +30,12 @@ const MOCK_POSTS: readonly LocalPost[] = [{
   content: "just setting up my tpir",
 }];
 
-export class MockLocalPostStore implements LocalPostStore {
-  async listPosts(persona: string): Promise<readonly LocalPost[]> {
+@Singleton(LocalPostStore)
+export class MockLocalPostStore extends LocalPostStore {
+  async listPosts(persona: string) {
     return persona === "tapir" ? MOCK_POSTS : [];
   }
-  async getPost(id: string): Promise<LocalPost | null> {
+  async getPost(id: string) {
     return MOCK_POSTS.find((it) => it.id === id) ?? null;
   }
 }
-
-export const localPostStore = new MockLocalPostStore();

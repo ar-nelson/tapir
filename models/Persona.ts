@@ -1,12 +1,15 @@
+import { InjectableAbstract, Singleton } from "$/lib/inject.ts";
+
 export interface Persona {
   readonly name: string;
   readonly displayName: string;
   readonly createdAt: string;
 }
 
-export interface PersonaStore {
-  listPersonas(): Promise<readonly Persona[]>;
-  getPersona(name: string): Promise<Persona | null>;
+@InjectableAbstract()
+export abstract class PersonaStore {
+  abstract listPersonas(): Promise<readonly Persona[]>;
+  abstract getPersona(name: string): Promise<Persona | null>;
 }
 
 const MOCK_PERSONA: Persona = {
@@ -15,13 +18,12 @@ const MOCK_PERSONA: Persona = {
   createdAt: "2023-02-03T19:35:27-0500",
 };
 
-export class MockPersonaStore implements PersonaStore {
-  async listPersonas(): Promise<readonly Persona[]> {
+@Singleton(PersonaStore)
+export class MockPersonaStore extends PersonaStore {
+  async listPersonas() {
     return [MOCK_PERSONA];
   }
-  async getPersona(name: string): Promise<Persona | null> {
+  async getPersona(name: string) {
     return name === "tapir" ? MOCK_PERSONA : null;
   }
 }
-
-export const personaStore = new MockPersonaStore();

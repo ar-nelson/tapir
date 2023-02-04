@@ -1,34 +1,38 @@
 import { Handlers, RouteConfig } from "$fresh/server.ts";
 import { Head } from "$fresh/runtime.ts";
-import { LocalPost, localPostStore } from "../models/LocalPost.ts";
-import { Persona, personaStore } from "../models/Persona.ts";
-import { ServerConfig, serverConfigStore } from "../models/ServerConfig.ts";
-import { Toot } from "../components/Toot.tsx";
+import { Injector } from "$/lib/inject.ts";
+import { LocalPost, LocalPostStore } from "$/models/LocalPost.ts";
+import { Persona, PersonaStore } from "$/models/Persona.ts";
+import { ServerConfig, ServerConfigStore } from "$/models/ServerConfig.ts";
+import { Toot } from "$/components/Toot.tsx";
+
+interface Params {
+  serverConfig: ServerConfig;
+  persona: Persona;
+  posts: readonly LocalPost[];
+}
 
 export const config: RouteConfig = {
   routeOverride: "/@:name",
 };
 
-export const handler: Handlers = {
+export const handler: Handlers<Params, { injector: Injector }> = {
   async GET(_req, ctx) {
-    const serverConfig = await serverConfigStore.getServerConfig();
-    const persona = await personaStore.getPersona(ctx.params.name);
-    // if (!persona) {
-    //   return ctx.renderNotFound();
-    // }
+    const serverConfigStore = ctx.state.injector.resolve(ServerConfigStore),
+      personaStore = ctx.state.injector.resolve(PersonaStore),
+      localPostStore = ctx.state.injector.resolve(LocalPostStore),
+      serverConfig = await serverConfigStore.getServerConfig(),
+      persona = await personaStore.getPersona(ctx.params.name);
+    if (!persona) {
+      return ctx.renderNotFound();
+    }
     const posts = await localPostStore.listPosts(ctx.params.name);
     return ctx.render({ serverConfig, persona, posts });
   },
 };
 
 export default function PersonaTimeline(
-  { data: { serverConfig, persona, posts } }: {
-    data: {
-      serverConfig: ServerConfig;
-      persona: Persona;
-      posts: readonly LocalPost[];
-    };
-  },
+  { data: { serverConfig, persona, posts } }: { data: Params },
 ) {
   return (
     <>

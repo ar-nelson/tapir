@@ -1,8 +1,10 @@
-import { ServerConfig } from "../schemas/tapir/ServerConfig.ts";
-export type { ServerConfig } from "../schemas/tapir/ServerConfig.ts";
+import { InjectableAbstract, Singleton } from "$/lib/inject.ts";
+import { ServerConfig } from "$/schemas/tapir/ServerConfig.ts";
+export type { ServerConfig } from "$/schemas/tapir/ServerConfig.ts";
 
-export interface ServerConfigStore {
-  getServerConfig(): Promise<ServerConfig>;
+@InjectableAbstract()
+export abstract class ServerConfigStore {
+  abstract getServerConfig(): Promise<ServerConfig>;
 }
 
 const MOCK_SERVER_CONFIG: ServerConfig = {
@@ -12,10 +14,9 @@ const MOCK_SERVER_CONFIG: ServerConfig = {
   dataDir: "data",
 };
 
+@Singleton(ServerConfigStore)
 export class MockServerConfigStore implements ServerConfigStore {
-  async getServerConfig(): Promise<ServerConfig> {
+  async getServerConfig() {
     return MOCK_SERVER_CONFIG;
   }
 }
-
-export const serverConfigStore = new MockServerConfigStore();

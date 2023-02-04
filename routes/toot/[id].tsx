@@ -1,30 +1,37 @@
 import { Handlers } from "$fresh/server.ts";
 import { Head } from "$fresh/runtime.ts";
-import { LocalPost, localPostStore } from "../../models/LocalPost.ts";
-import { Persona, personaStore } from "../../models/Persona.ts";
-import { ServerConfig, serverConfigStore } from "../../models/ServerConfig.ts";
-import { Toot } from "../../components/Toot.tsx";
+import { Injector } from "$/lib/inject.ts";
+import { LocalPost, LocalPostStore } from "$/models/LocalPost.ts";
+import { Persona, PersonaStore } from "$/models/Persona.ts";
+import { ServerConfig, ServerConfigStore } from "$/models/ServerConfig.ts";
+import { Toot } from "$/components/Toot.tsx";
 
-export const handler: Handlers = {
+interface Params {
+  serverConfig: ServerConfig;
+  persona: Persona;
+  post: LocalPost;
+}
+
+export const handler: Handlers<Params, { injector: Injector }> = {
   async GET(_req, ctx) {
-    const serverConfig = await serverConfigStore.getServerConfig();
-    const post = await localPostStore.getPost(ctx.params.id);
+    const serverConfigStore = ctx.state.injector.resolve(ServerConfigStore),
+      personaStore = ctx.state.injector.resolve(PersonaStore),
+      localPostStore = ctx.state.injector.resolve(LocalPostStore),
+      serverConfig = await serverConfigStore.getServerConfig(),
+      post = await localPostStore.getPost(ctx.params.id);
     if (!post) {
       return ctx.renderNotFound();
     }
     const persona = await personaStore.getPersona(post.persona);
+    if (!persona) {
+      return ctx.renderNotFound();
+    }
     return ctx.render({ serverConfig, persona, post });
   },
 };
 
 export default function SinglePost(
-  { data: { serverConfig, persona, post } }: {
-    data: {
-      serverConfig: ServerConfig;
-      persona: Persona;
-      post: LocalPost;
-    };
-  },
+  { data: { serverConfig, persona, post } }: { data: Params },
 ) {
   return (
     <>
