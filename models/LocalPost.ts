@@ -10,7 +10,7 @@ export interface LocalPost {
 @InjectableAbstract()
 export abstract class LocalPostStore {
   abstract listPosts(
-    persona: string,
+    persona?: string,
     pageSize?: number,
     startAtId?: string,
   ): Promise<readonly LocalPost[]>;
@@ -18,6 +18,11 @@ export abstract class LocalPostStore {
 }
 
 const MOCK_POSTS: readonly LocalPost[] = [{
+  id: "01GRJCHG47RH0ZXC41MA9Y32HW",
+  persona: "tapir",
+  createdAt: "2023-02-05T22:33:19-0500",
+  content: "tapir has learned to communicate with elk",
+}, {
   id: "01GREP1D6Z1DF4KQJ0XR8RQW2H",
   persona: "tapir",
   createdAt: "2023-02-04T12:02:13-0500",
@@ -32,8 +37,8 @@ const MOCK_POSTS: readonly LocalPost[] = [{
 
 @Singleton(LocalPostStore)
 export class MockLocalPostStore extends LocalPostStore {
-  async listPosts(persona: string) {
-    return persona === "tapir" ? MOCK_POSTS : [];
+  async listPosts(persona?: string) {
+    return (!persona || persona === "tapir") ? MOCK_POSTS : [];
   }
   async getPost(id: string) {
     return MOCK_POSTS.find((it) => it.id === id) ?? null;

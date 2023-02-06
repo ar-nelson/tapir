@@ -8,10 +8,7 @@ export async function handler(
   if (
     rsp.status === 404 && rsp.headers.get("content-type") !== "application/json"
   ) {
-    return new Response('{"error":"Not Found"}}', {
-      status: 404,
-      headers: { "content-type": "application/json" },
-    });
+    return Response.json({ error: "Not Found" }, { status: 404 });
   }
   return rsp;
 }

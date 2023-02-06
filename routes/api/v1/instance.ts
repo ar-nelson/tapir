@@ -5,6 +5,6 @@ import { MastodonApiService } from "$/services/MastodonApiService.ts";
 export const handler: Handlers<void, { injector: Injector }> = {
   async GET(_req, ctx) {
     const service = ctx.state.injector.resolve(MastodonApiService);
-    return Response.json(await service.publicTimeline({}));
+    return Response.json(await service.instance());
   },
 };

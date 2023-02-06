@@ -12,20 +12,34 @@ export async function handler(
   ctx: MiddlewareHandlerContext<State>,
 ) {
   ctx.state.injector = globalInjector;
-  const rsp = await ctx.next();
-  if (
+  let rsp = await ctx.next();
+
+  if (req.method === "OPTIONS" && rsp.status === 405) {
+    rsp = new Response(null, {
+      status: 204,
+      headers: {
+        Allow: "POST, PUT, DELETE, GET, PATCH, OPTIONS",
+      },
+    });
+  } else if (
     rsp.status === 404 &&
     !/^application\/(?:\w+\+)?json$/.test(
       rsp.headers.get("content-type") ?? "",
     ) &&
     /^application\/(?:\w+\+)?json$/.test(req.headers.get("accept") ?? "")
   ) {
-    return new Response('{"error":"Not Found"}}', {
-      status: 404,
-      headers: {
-        "content-type": req.headers.get("accept") ?? "application/json",
-      },
-    });
+    rsp = Response.json({ error: "Not Found" }, { status: 404 });
   }
+
+  // allow everything because CORS sucks
+  // TODO: might need to change this someday
+  rsp.headers.append("Access-Control-Allow-Origin", "*");
+  rsp.headers.append(
+    "Access-Control-Allow-Methods",
+    "POST, PUT, DELETE, GET, PATCH, OPTIONS",
+  );
+  rsp.headers.append("Access-Control-Allow-Headers", "*");
+  rsp.headers.append("Access-Control-Max-Age", "86400");
+
   return rsp;
 }
