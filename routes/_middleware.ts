@@ -7,10 +7,25 @@ interface State {
 
 const globalInjector = new Injector();
 
-export function handler(
-  _req: Request,
+export async function handler(
+  req: Request,
   ctx: MiddlewareHandlerContext<State>,
 ) {
   ctx.state.injector = globalInjector;
-  return ctx.next();
+  const rsp = await ctx.next();
+  if (
+    rsp.status === 404 &&
+    !/^application\/(?:\w+\+)?json$/.test(
+      rsp.headers.get("content-type") ?? "",
+    ) &&
+    /^application\/(?:\w+\+)?json$/.test(req.headers.get("accept") ?? "")
+  ) {
+    return new Response('{"error":"Not Found"}}', {
+      status: 404,
+      headers: {
+        "content-type": req.headers.get("accept") ?? "application/json",
+      },
+    });
+  }
+  return rsp;
 }
