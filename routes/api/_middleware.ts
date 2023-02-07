@@ -1,4 +1,5 @@
 import { MiddlewareHandlerContext } from "$fresh/server.ts";
+import { contentTypeIsJson } from "$/lib/urls.ts";
 
 export async function handler(
   _req: Request,
@@ -6,7 +7,8 @@ export async function handler(
 ) {
   const rsp = await ctx.next();
   if (
-    rsp.status === 404 && rsp.headers.get("content-type") !== "application/json"
+    rsp.status === 404 &&
+    !contentTypeIsJson(rsp.headers.get("content-type") ?? "")
   ) {
     return Response.json({ error: "Not Found" }, { status: 404 });
   }

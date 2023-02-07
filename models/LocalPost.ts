@@ -18,6 +18,11 @@ export abstract class LocalPostStore {
 }
 
 const MOCK_POSTS: readonly LocalPost[] = [{
+  id: "01GRQ0VY9N2VY42DTB4E2R9S9F",
+  persona: "tapir",
+  createdAt: "2023-02-07T17:44:52-0500",
+  content: "tapir has learned to communicate with activitypub",
+}, {
   id: "01GRJCHG47RH0ZXC41MA9Y32HW",
   persona: "tapir",
   createdAt: "2023-02-05T22:33:19-0500",

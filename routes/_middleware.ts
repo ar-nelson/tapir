@@ -1,5 +1,6 @@
-import { Injector } from "$/lib/inject.ts";
 import { MiddlewareHandlerContext } from "$fresh/server.ts";
+import { Injector } from "$/lib/inject.ts";
+import { contentTypeIsJson } from "$/lib/urls.ts";
 
 interface State {
   injector: Injector;
@@ -23,10 +24,8 @@ export async function handler(
     });
   } else if (
     rsp.status === 404 &&
-    !/^application\/(?:\w+\+)?json$/.test(
-      rsp.headers.get("content-type") ?? "",
-    ) &&
-    /^application\/(?:\w+\+)?json$/.test(req.headers.get("accept") ?? "")
+    !contentTypeIsJson(rsp.headers.get("content-type") ?? "") &&
+    contentTypeIsJson(req.headers.get("accept") ?? "")
   ) {
     rsp = Response.json({ error: "Not Found" }, { status: 404 });
   }

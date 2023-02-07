@@ -9,7 +9,7 @@ export abstract class ServerConfigStore {
 
 const MOCK_SERVER_CONFIG: ServerConfig = {
   loginName: "tapir",
-  url: "http://localhost:8000",
+  url: "https://tapir.social",
   domain: "tapir.social",
   dataDir: "data",
 };

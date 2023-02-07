@@ -17,6 +17,14 @@ import * as $10 from "./routes/api/v1/timelines/public.ts";
 import * as $11 from "./routes/index.tsx";
 import * as $12 from "./routes/nodeinfo/2.0.ts";
 import * as $13 from "./routes/toot/[id].tsx";
+import * as $14 from "./routes/users/[name]/followers.ts";
+import * as $15 from "./routes/users/[name]/following.ts";
+import * as $16 from "./routes/users/[name]/inbox.ts";
+import * as $17 from "./routes/users/[name]/index.ts";
+import * as $18 from "./routes/users/[name]/outbox.ts";
+import * as $19 from "./routes/users/[name]/statuses/[id]/activity.ts";
+import * as $20 from "./routes/users/[name]/statuses/[id]/index.ts";
+import * as $21 from "./routes/users/_middleware.ts";
 
 const manifest = {
   routes: {
@@ -34,6 +42,14 @@ const manifest = {
     "./routes/index.tsx": $11,
     "./routes/nodeinfo/2.0.ts": $12,
     "./routes/toot/[id].tsx": $13,
+    "./routes/users/[name]/followers.ts": $14,
+    "./routes/users/[name]/following.ts": $15,
+    "./routes/users/[name]/inbox.ts": $16,
+    "./routes/users/[name]/index.ts": $17,
+    "./routes/users/[name]/outbox.ts": $18,
+    "./routes/users/[name]/statuses/[id]/activity.ts": $19,
+    "./routes/users/[name]/statuses/[id]/index.ts": $20,
+    "./routes/users/_middleware.ts": $21,
   },
   islands: {},
   baseUrl: import.meta.url,
