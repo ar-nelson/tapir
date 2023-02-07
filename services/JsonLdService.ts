@@ -1,6 +1,7 @@
 import { Singleton } from "$/lib/inject.ts";
 import { JsonLdContextFetcherService } from "$/services/JsonLdContextFetcherService.ts";
 import { LongTermCache } from "$/services/LongTermCache.ts";
+import { urlJoin } from "$/lib/urls.ts";
 import {
   Context,
   isKeyword,
@@ -10,7 +11,7 @@ import {
 } from "$/lib/jsonld.ts";
 
 @Singleton()
-export class JsonLd {
+export class JsonLdService {
   constructor(
     private readonly contextFetcher: JsonLdContextFetcherService,
     private readonly cache: LongTermCache<Context>,
@@ -42,94 +43,158 @@ export class JsonLd {
     }
   }
 
-  async qualify(
-    document: Record<string, unknown> | unknown[],
-    parentContext?: Context,
-  ): Promise<Record<string, unknown> | unknown[]> {
-    if (Array.isArray(document)) {
-      return Promise.all(document.map((x) => this.qualify(x, parentContext)));
-    }
-    let context = parentContext;
-    if (document["@context"]) {
-      context = await this.buildContext(
-        document["@context"] as JsonLdContext,
-        parentContext,
-      );
-    }
-    if (context == null) {
-      context = new MutableContext();
-    }
-    const expanded = context.qualifyOnce(document);
-    for (const k in expanded) {
-      if (isKeyword(k) && k !== "@value") {
-        continue;
+  async processValue(value: unknown, options: {
+    context: Context;
+    expandTerms: boolean;
+    expandValues: boolean;
+    type?: string;
+    container: string;
+    extras?: Record<string, unknown>;
+    usedLiterals?: Set<string>;
+  }): Promise<unknown> {
+    const { context, expandTerms, expandValues, container } = options;
+    if (Array.isArray(value)) {
+      if (
+        expandValues || container === "@list" || container === "@set" ||
+        value.length !== 1
+      ) {
+        return (await Promise.all(
+          value.map((v) =>
+            this.processValue(v, { ...options, container: "@value" })
+          ),
+        )).flat();
       }
-      const v = expanded[k];
-      if (v && typeof v === "object") {
-        const o = v as JsonLdDocument;
-        if (
-          o["@value"] && typeof o["@value"] === "object" &&
-          o["@type"] !== "@json"
-        ) {
-          if (o["@context"] !== undefined) {
-            const subContext = await this.buildContext(o["@context"], context);
-            o["@value"] = await this.qualify(
-              o["@value"] as JsonLdDocument,
-              subContext,
-            );
+      return this.processValue(value[0], options);
+    }
+    let finalValue = value;
+    if (typeof value === "string") {
+      switch (options.type) {
+        case "@vocab":
+          if (expandTerms) {
+            finalValue = context.expandTerm(value);
           } else {
-            o["@value"] = await this.qualify(
-              o["@value"] as JsonLdDocument,
-              context,
-            );
+            const { compacted, rule } = context.compactTerm(value);
+            if (options.usedLiterals && rule) {
+              options.usedLiterals.add(rule);
+            }
+            finalValue = compacted;
+          }
+          break;
+        case "@id":
+          if (context.base != null) {
+            if (expandTerms && !context.base.includes(":")) {
+              finalValue = urlJoin(context.base, value);
+            }
+            if (!expandTerms && value.startsWith(context.base)) {
+              finalValue = value.slice(context.base.length);
+            }
+          }
+      }
+    } else if (value != null && typeof value === "object") {
+      const map = value as Record<string, unknown>;
+      for (const k of [container, "@value", "@list", "@set"]) {
+        if (k in map) {
+          const { "@type": newType, [k]: containerValue, ...extras } = map;
+          return this.processValue(containerValue, {
+            ...options,
+            type: newType as string ?? options.type,
+            container: k,
+            extras,
+          });
+        }
+      }
+    }
+    if (options.type === "@json") {
+      finalValue = {
+        ...options.extras ?? {},
+        [container]: finalValue,
+        "@type": "@json",
+      };
+    } else if (finalValue && typeof finalValue === "object") {
+      finalValue = await this.processDocument(finalValue as JsonLdDocument, {
+        ...options,
+        internal: true,
+      });
+    } else if (expandValues) {
+      finalValue = {
+        ...options.extras ?? {},
+        [container]: finalValue,
+        ...options.type ? { "@type": options.type } : {},
+      };
+    }
+    return expandValues ? [finalValue] : finalValue;
+  }
+
+  async processDocument(
+    { "@context": contextJson, ...document }: JsonLdDocument,
+    options: {
+      context?: Context;
+      expandTerms?: boolean;
+      expandValues?: boolean;
+      usedLiterals?: Set<string>;
+      internal?: boolean;
+    } = {},
+  ): Promise<JsonLdDocument> {
+    const parentContext = options.context ?? new MutableContext(),
+      context = contextJson
+        ? await this.buildContext(contextJson, parentContext)
+        : parentContext,
+      expandTerms = options.expandTerms ?? true,
+      expandValues = options.expandValues ?? false,
+      processed: Record<string, unknown> = {};
+    for (const [k, v] of Object.entries(document)) {
+      const fullKey = (expandTerms && !isKeyword(k))
+        ? context.expandTerm(k) ?? k
+        : k;
+      let mappedKey = fullKey;
+      if (!expandTerms && !isKeyword(k)) {
+        const container = (v && typeof v === "object")
+            ? Object.keys(v).filter(isKeyword).find((c) =>
+              context.longToShort.has(`${c}:${k}`)
+            )
+            : undefined,
+          { compacted, rule } = context.compactTerm(k, container);
+        if (options.usedLiterals && rule) {
+          options.usedLiterals.add(rule);
+        }
+        mappedKey = compacted;
+      }
+      if (mappedKey === null) {
+        continue;
+      } else if (mappedKey === undefined) {
+        mappedKey = fullKey;
+      }
+      if (isKeyword(mappedKey)) {
+        if (mappedKey === "@type" && typeof v === "string" && !isKeyword(v)) {
+          if (expandTerms) {
+            processed[mappedKey] = context.expandTerm(v);
+          } else {
+            const { compacted, rule } = context.compactTerm(v);
+            if (options.usedLiterals && rule) {
+              options.usedLiterals.add(rule);
+            }
+            processed[mappedKey] = compacted;
           }
         } else {
-          expanded[k] = await this.qualify(o, context);
+          processed[mappedKey] = v;
         }
+      } else {
+        processed[mappedKey] = await this.processValue(v, {
+          ...options,
+          expandTerms,
+          expandValues,
+          context,
+          type: context.types.get(fullKey),
+          container: context.containers.get(fullKey) ?? "@value",
+        });
       }
     }
-    delete expanded["@context"];
-    return expanded;
-  }
-
-  private compactWithoutContext(
-    document: Record<string, unknown> | unknown[],
-    context: Context,
-    usedLiterals: Set<string>,
-  ): Record<string, unknown> | unknown[] {
-    if (Array.isArray(document)) {
-      return document.map((x) =>
-        this.compactWithoutContext(x, context, usedLiterals)
-      );
+    if (expandTerms || (options.internal && !contextJson)) {
+      return processed;
     }
-    const compacted = context.compactOnce(document, usedLiterals);
-    for (const k in compacted) {
-      if (isKeyword(k)) {
-        continue;
-      }
-      const v = compacted[k];
-      if (v && typeof v === "object") {
-        const o = v as JsonLdDocument;
-        if (o["@type"] !== "@json") {
-          compacted[k] = this.compactWithoutContext(o, context, usedLiterals);
-        }
-      }
-    }
-    return compacted;
-  }
-
-  compact(
-    document: Record<string, unknown> | unknown[],
-    context: Context,
-  ): JsonLdDocument {
-    const usedLiterals = new Set<string>(),
-      root = this.compactWithoutContext(document, context, usedLiterals),
-      contextJson = context.toJson(usedLiterals);
-    return Array.isArray(root)
-      ? {
-        "@context": contextJson,
-        "@value": root,
-      }
-      : { ...root, "@context": contextJson };
+    return {
+      "@context": context.toJson(options.usedLiterals),
+      ...processed,
+    };
   }
 }

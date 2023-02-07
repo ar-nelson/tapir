@@ -8,15 +8,11 @@ export interface Context {
   readonly shortToLong: ReadonlyMap<string, string | null>;
   readonly longToShort: ReadonlyMap<string, string>;
   readonly types: ReadonlyMap<string, string>;
+  readonly containers: ReadonlyMap<string, string>;
   iriJoin(prefix: string, suffix: string): string;
-  resolveName(name: string, isPrefix?: boolean): string | null | undefined;
-  resolveTerm(term: string): string | null | undefined;
+  expandName(name: string, isPrefix?: boolean): string | null | undefined;
+  expandTerm(term: string): string | null | undefined;
   compactTerm(term: string): { compacted: string; rule?: string };
-  qualifyOnce(document: JsonLdDocument): JsonLdDocument;
-  compactOnce(
-    document: JsonLdDocument,
-    usedLiterals?: Set<string>,
-  ): JsonLdDocument;
   toJson(
     usedLiterals?: ReadonlySet<string>,
   ): string | JsonLdContext | (string | JsonLdContext)[];
@@ -30,6 +26,7 @@ export class MutableContext implements Context {
   readonly shortToLong = new Map<string, string | null>();
   readonly longToShort = new Map<string, string>();
   readonly types = new Map<string, string>();
+  readonly containers = new Map<string, string>();
 
   parse(
     json: JsonLdContext,
@@ -48,22 +45,26 @@ export class MutableContext implements Context {
       this.literals = new Set([...this.literals, ...Object.keys(json)]);
     }
     if (typeof json["@base"] === "string") {
-      this.base = this.resolveTerm(json["@base"], json);
+      this.base = this.expandTerm(json["@base"], json);
     }
     if (typeof json["@vocab"] === "string") {
-      this.vocab = this.resolveTerm(json["@vocab"], json);
+      this.vocab = this.expandTerm(json["@vocab"], json);
     }
     for (const [k, v] of Object.entries(json)) {
       if (isKeyword(k)) {
         continue;
       }
-      const resolvedKey = (isIri(k) && this.resolveTerm(k)) || k,
+      const resolvedKey = (isIri(k) && this.expandTerm(k)) || k,
         preId = (v && typeof v === "object")
           ? (typeof v["@id"] === "string" ? v["@id"] : k)
           : v,
         preType = (v && typeof v === "object" && typeof v["@type"] === "string")
           ? v["@type"]
-          : undefined;
+          : undefined,
+        container =
+          (v && typeof v === "object" && typeof v["@container"] === "string")
+            ? v["@container"]
+            : undefined;
       if (isIri(resolvedKey) && preId && isIri(preId)) {
         throw new JsonLdError(
           `cannot map IRI ${JSON.stringify(resolvedKey)} to another IRI ${
@@ -71,19 +72,32 @@ export class MutableContext implements Context {
           } in @context`,
         );
       }
-      const id = preId && this.resolveTerm(preId, json),
+      if (container != null && !isKeyword(container)) {
+        throw new JsonLdError(
+          `@container must be a keyword; got ${
+            JSON.stringify(container)
+          } instead`,
+        );
+      }
+      const id = preId && this.expandTerm(preId, json),
         type = (!preType || isKeyword(preType))
           ? preType
-          : this.resolveTerm(preType, json);
+          : this.expandTerm(preType, json);
       if (id !== undefined && id !== resolvedKey) {
         this.shortToLong.set(resolvedKey, id);
-        if (id) this.longToShort.set(id, resolvedKey);
+        if (id) {
+          if (container) {
+            this.longToShort.set(`${container}:${id}`, resolvedKey);
+          } else this.longToShort.set(id, resolvedKey);
+        }
       }
       if (id && type) {
         this.types.set(id, type);
       }
+      if (id && container) {
+        this.containers.set(id, container);
+      }
     }
-    console.log(JSON.stringify(Object.entries(this.types)));
   }
 
   merge(ctx: Context) {
@@ -100,6 +114,9 @@ export class MutableContext implements Context {
     for (const [k, v] of ctx.types) {
       this.types.set(k, v);
     }
+    for (const [k, v] of ctx.containers) {
+      this.containers.set(k, v);
+    }
   }
 
   iriJoin(prefix: string, suffix: string): string {
@@ -109,7 +126,7 @@ export class MutableContext implements Context {
     return urlJoin(prefix, suffix);
   }
 
-  resolveName(
+  expandName(
     name: string,
     isPrefix = false,
     parseContext?: JsonLdContext,
@@ -122,9 +139,9 @@ export class MutableContext implements Context {
     } else if (parseContext && Object.hasOwnProperty.call(parseContext, name)) {
       const entry: string | null | JsonLdContextEntry = parseContext[name];
       if (!entry || typeof entry === "string") {
-        return this.resolveTerm(entry, parseContext, [name, ...history]);
+        return this.expandTerm(entry, parseContext, [name, ...history]);
       } else if (typeof entry["@id"] === "string") {
-        return this.resolveTerm(entry["@id"], parseContext, [
+        return this.expandTerm(entry["@id"], parseContext, [
           name,
           ...history,
         ]);
@@ -137,7 +154,7 @@ export class MutableContext implements Context {
     return undefined;
   }
 
-  resolveTerm(
+  expandTerm(
     term: string | null,
     parseContext?: JsonLdContext,
     history: string[] = [],
@@ -150,7 +167,7 @@ export class MutableContext implements Context {
     }
     const compactIriMatch = /^([^:]+):([^:]+)$/.exec(term);
     if (compactIriMatch) {
-      const prefix = this.resolveName(
+      const prefix = this.expandName(
         compactIriMatch[1],
         true,
         parseContext,
@@ -160,12 +177,21 @@ export class MutableContext implements Context {
         return this.iriJoin(prefix, compactIriMatch[2]);
       }
     }
-    return this.resolveName(term, false, parseContext, history);
+    return this.expandName(term, false, parseContext, history);
   }
 
-  compactTerm(term: string): { compacted: string; rule?: string } {
+  compactTerm(
+    term: string,
+    container?: string,
+  ): { compacted: string; rule?: string } {
     if (isKeyword(term)) {
       return { compacted: term };
+    }
+    if (container && this.longToShort.has(`${container}:${term}`)) {
+      return {
+        compacted: this.longToShort.get(`${container}:${term}`)!,
+        rule: this.longToShort.get(`${container}:${term}`)!,
+      };
     }
     if (this.longToShort.has(term)) {
       return {
@@ -186,74 +212,21 @@ export class MutableContext implements Context {
     return { compacted: term };
   }
 
-  qualifyOnce(document: JsonLdDocument): JsonLdDocument {
-    return Object.fromEntries(
-      Object.entries(document).flatMap(([k, v]) => {
-        if (isKeyword(k)) {
-          if (k === "@type" && typeof v === "string" && !isKeyword(v)) {
-            return [[k, this.resolveTerm(v)]];
-          }
-          return [[k, v]];
-        }
-        const mappedKey = this.resolveTerm(k);
-        if (mappedKey === undefined) {
-          throw new JsonLdError(`cannot resolve term ${JSON.stringify(k)}`);
-        } else if (mappedKey === null) {
-          return [];
-        }
-        const type = this.types.get(mappedKey);
-        if (type !== "@json") {
-          if (v && typeof v === "object" && "@value" in v) {
-            return [[mappedKey, (v as Record<string, unknown>)["@value"]]];
-          }
-          return [[mappedKey, v]];
-        }
-        if (v && typeof v === "object" && "@value" in v) {
-          return [[mappedKey, { ...v, "@type": type }]];
-        }
-        return [[mappedKey, { "@value": v, "@type": type }]];
-      }),
-    );
-  }
-
-  compactOnce(
-    { "@context": _, ...document }: JsonLdDocument,
-    usedLiterals?: Set<string>,
-  ): JsonLdDocument {
-    const compactTerm = (term: string): string => {
-      const { compacted, rule } = this.compactTerm(term);
-      if (usedLiterals && rule != null && this.literals.has(rule)) {
-        usedLiterals.add(rule);
-      }
-      return compacted;
-    };
-    return Object.fromEntries(
-      Object.entries(document).map(([k, v]) => {
-        if (isKeyword(k)) {
-          if (k === "@type" && typeof v === "string" && !isKeyword(v)) {
-            return [k, compactTerm(v)];
-          }
-          return [k, v];
-        }
-        const mappedKey = compactTerm(k);
-        if (
-          v && typeof v === "object" && "@value" in v &&
-          (v as Record<string, unknown>)["@type"] !== "@json"
-        ) {
-          return [mappedKey, (v as Record<string, unknown>)["@value"]];
-        }
-        return [mappedKey, v];
-      }),
-    );
-  }
-
   toJson(
     usedLiterals?: ReadonlySet<string>,
   ): string | JsonLdContext | (string | JsonLdContext)[] {
     const literals: JsonLdContext = {};
     for (const lit of this.literals) {
       if (!usedLiterals || usedLiterals.has(lit)) {
-        literals[lit] = this.shortToLong.get(lit)!;
+        if (isKeyword(lit)) {
+          if (lit === "@base" && this.base) {
+            literals[lit] = this.base;
+          } else if (lit === "@vocab" && this.vocab) {
+            literals[lit] = this.vocab;
+          }
+        } else {
+          literals[lit] = this.shortToLong.get(lit)!;
+        }
       }
     }
     if (this.urls) {
@@ -270,12 +243,14 @@ export class MutableContext implements Context {
 export interface JsonLdContextEntry {
   "@id"?: string;
   "@type"?: string;
+  "@container"?: string;
 }
 
 export interface JsonLdContextMeta {
   "@id"?: string;
   "@vocab"?: string;
   "@base"?: string;
+  "@language"?: string;
   "@version"?: 1 | 1.1;
 }
 
