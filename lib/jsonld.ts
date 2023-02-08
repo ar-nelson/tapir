@@ -184,9 +184,6 @@ export class MutableContext implements Context {
     term: string,
     container?: string,
   ): { compacted: string; rule?: string } {
-    if (isKeyword(term)) {
-      return { compacted: term };
-    }
     if (container && this.longToShort.has(`${container}:${term}`)) {
       return {
         compacted: this.longToShort.get(`${container}:${term}`)!,

@@ -147,7 +147,7 @@ export class JsonLdService {
         ? context.expandTerm(k) ?? k
         : k;
       let mappedKey = fullKey;
-      if (!expandTerms && !isKeyword(k)) {
+      if (!expandTerms) {
         const container = (v && typeof v === "object")
             ? Object.keys(v).filter(isKeyword).find((c) =>
               context.longToShort.has(`${c}:${k}`)
@@ -164,8 +164,8 @@ export class JsonLdService {
       } else if (mappedKey === undefined) {
         mappedKey = fullKey;
       }
-      if (isKeyword(mappedKey)) {
-        if (mappedKey === "@type" && typeof v === "string" && !isKeyword(v)) {
+      if (isKeyword(fullKey)) {
+        if (fullKey === "@type" && typeof v === "string" && !isKeyword(v)) {
           if (expandTerms) {
             processed[mappedKey] = context.expandTerm(v);
           } else {
