@@ -4,6 +4,8 @@ import { key } from "$/schemas/activitypub/namespace.ts";
 
 export const schema = {
   schema: {
+    ...ObjectCommon,
+
     "@id": "string",
     "@type": [
       "enum",
@@ -36,8 +38,6 @@ export const schema = {
       key.Update,
       key.View,
     ],
-
-    ...ObjectCommon,
 
     [key.actor]: ["ref", "ObjectOrLinkRef"],
     [key.object]: ["optional", ["ref", "ObjectOrLinkRefs"]],

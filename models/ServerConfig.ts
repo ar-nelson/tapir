@@ -1,13 +1,20 @@
 import { InjectableAbstract, Singleton } from "$/lib/inject.ts";
-import { ServerConfig } from "$/schemas/tapir/ServerConfig.ts";
-export type { ServerConfig } from "$/schemas/tapir/ServerConfig.ts";
+import { generateKeyPair } from "$/lib/signatures.ts";
+
+export interface ServerConfig {
+  loginName: string;
+  url: string;
+  domain: string;
+  dataDir: string;
+  keyPair: CryptoKeyPair;
+}
 
 @InjectableAbstract()
 export abstract class ServerConfigStore {
   abstract getServerConfig(): Promise<ServerConfig>;
 }
 
-const MOCK_SERVER_CONFIG: ServerConfig = {
+const MOCK_SERVER_CONFIG = {
   loginName: "tapir",
   url: "https://tapir.social",
   domain: "tapir.social",
@@ -16,7 +23,12 @@ const MOCK_SERVER_CONFIG: ServerConfig = {
 
 @Singleton(ServerConfigStore)
 export class MockServerConfigStore implements ServerConfigStore {
-  async getServerConfig() {
-    return MOCK_SERVER_CONFIG;
+  private readonly config: Promise<ServerConfig> = (async () => {
+    const keyPair = await generateKeyPair();
+    return { ...MOCK_SERVER_CONFIG, keyPair };
+  })();
+
+  getServerConfig() {
+    return this.config;
   }
 }

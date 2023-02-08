@@ -9,6 +9,7 @@ import {
   key,
   Object,
 } from "$/schemas/activitypub/mod.ts";
+import { publicKeyToPem } from "$/lib/signatures.ts";
 import * as urls from "$/lib/urls.ts";
 import { getLogger } from "https://deno.land/std@0.176.0/log/mod.ts";
 
@@ -36,6 +37,9 @@ export class ActivityPubService {
       [key.preferredUsername]: persona.name,
       [key.url]: urls.profile(persona.name, serverConfig.url),
       [key.summary]: "tapir has learned to communicate with activitypub",
+      [key.published]: persona.createdAt,
+      [key.manuallyApprovesFollowers]: true,
+      [key.discoverable]: false,
 
       [key.inbox]: urls.activityPubInbox(persona.name, serverConfig.url),
       [key.outbox]: urls.activityPubOutbox(persona.name, serverConfig.url),
@@ -49,6 +53,16 @@ export class ActivityPubService {
       ),
 
       [key.icon]: urls.urlJoin(serverConfig.url, "tapir-avatar.jpg"),
+
+      [key.publicKey]: {
+        "@id": `${
+          urls.activityPubRoot(persona.name, serverConfig.url)
+        }#main-key`,
+        [key.owner]: urls.activityPubRoot(persona.name, serverConfig.url),
+        [key.publicKeyPem]: await publicKeyToPem(
+          serverConfig.keyPair.publicKey,
+        ),
+      },
     };
   }
 

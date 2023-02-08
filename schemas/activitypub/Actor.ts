@@ -4,6 +4,8 @@ import { key } from "$/schemas/activitypub/namespace.ts";
 
 export const schema = {
   schema: {
+    ...ObjectCommon,
+
     "@id": "string",
     "@type": [
       "enum",
@@ -13,8 +15,6 @@ export const schema = {
       key.Person,
       key.Service,
     ],
-
-    ...ObjectCommon,
 
     [key.inbox]: "string",
     [key.outbox]: "string",
@@ -32,10 +32,11 @@ export const schema = {
       [key.sharedInbox]: ["optional", "string"],
     }],
 
-    [key.publicKey]: ["optional", {
+    [key.publicKey]: {
+      "@id": ["optional", "string"],
       [key.owner]: "string",
       [key.publicKeyPem]: "string",
-    }],
+    },
     [key.manuallyApprovesFollowers]: ["optional", "boolean"],
     [key.discoverable]: ["optional", "boolean"],
     [key.featured]: ["optional", "string"],

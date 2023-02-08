@@ -121,7 +121,7 @@ export class MastodonApiService {
 
   private async lookupPersona(name: string): Promise<Persona | undefined> {
     const serverConfig = await this.serverConfigStore.getServerConfig(),
-      nameMatch = /^[@]?([^@:]+)(?:[@]([^@:]+))$/.exec(name);
+      nameMatch = /^[@]?([^@:]+)(?:[@]([^@:]+))?$/.exec(name);
     if (!nameMatch || (nameMatch[2] && nameMatch[2] !== serverConfig.domain)) {
       this.log.info(
         `not a valid account for this server: ${JSON.stringify(name)}`,
