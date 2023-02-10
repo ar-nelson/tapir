@@ -3,12 +3,10 @@ import { WebFingerResponse } from "$/schemas/webfinger/WebFingerResponse.ts";
 import { ServerConfigStore } from "$/models/ServerConfig.ts";
 import { PersonaStore } from "$/models/Persona.ts";
 import * as urls from "$/lib/urls.ts";
-import { getLogger } from "https://deno.land/std@0.176.0/log/mod.ts";
+import * as log from "https://deno.land/std@0.176.0/log/mod.ts";
 
 @Singleton()
 export class WebFingerService {
-  private readonly log = getLogger("WebFingerService");
-
   constructor(
     private readonly serverConfigStore: ServerConfigStore,
     private readonly personaStore: PersonaStore,
@@ -20,7 +18,7 @@ export class WebFingerService {
     const serverConfig = await this.serverConfigStore.getServerConfig(),
       match = /^acct:[@]?([^@:]+)(?:[@]([^@:]+))?$/i.exec(resource);
     if (!match || (match[2] && match[2] !== serverConfig.domain)) {
-      this.log.info(
+      log.info(
         `not a valid acct resource for this server: ${
           JSON.stringify(resource)
         }`,
@@ -30,7 +28,7 @@ export class WebFingerService {
     const name = match[1],
       persona = await this.personaStore.getPersona(name);
     if (!persona) {
-      this.log.info(
+      log.info(
         `cannot resolve resource ${
           JSON.stringify(resource)
         }: no persona named ${JSON.stringify(name)}`,

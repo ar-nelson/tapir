@@ -11,12 +11,9 @@ import {
 } from "$/schemas/activitypub/mod.ts";
 import { publicKeyToPem } from "$/lib/signatures.ts";
 import * as urls from "$/lib/urls.ts";
-import { getLogger } from "https://deno.land/std@0.176.0/log/mod.ts";
 
 @Singleton()
 export class ActivityPubService {
-  private readonly log = getLogger("ActivityPubService");
-
   constructor(
     private readonly serverConfigStore: ServerConfigStore,
     private readonly personaStore: PersonaStore,
@@ -30,36 +27,34 @@ export class ActivityPubService {
       return undefined;
     }
     return {
-      "@id": urls.activityPubRoot(name, serverConfig.url),
-      "@type": key.Person,
+      id: urls.activityPubRoot(name, serverConfig.url),
+      type: "Person",
 
-      [key.name]: persona.displayName,
-      [key.preferredUsername]: persona.name,
-      [key.url]: urls.profile(persona.name, serverConfig.url),
-      [key.summary]: "tapir has learned to communicate with activitypub",
-      [key.published]: persona.createdAt,
-      [key.manuallyApprovesFollowers]: true,
-      [key.discoverable]: false,
+      name: persona.displayName,
+      preferredUsername: persona.name,
+      url: urls.profile(persona.name, serverConfig.url),
+      summary: "tapir has learned to communicate with activitypub",
+      published: persona.createdAt,
+      manuallyApprovesFollowers: true,
+      discoverable: false,
 
-      [key.inbox]: urls.activityPubInbox(persona.name, serverConfig.url),
-      [key.outbox]: urls.activityPubOutbox(persona.name, serverConfig.url),
-      [key.followers]: urls.activityPubFollowers(
+      inbox: urls.activityPubInbox(persona.name, serverConfig.url),
+      outbox: urls.activityPubOutbox(persona.name, serverConfig.url),
+      followers: urls.activityPubFollowers(
         persona.name,
         serverConfig.url,
       ),
-      [key.following]: urls.activityPubFollowing(
+      following: urls.activityPubFollowing(
         persona.name,
         serverConfig.url,
       ),
 
-      [key.icon]: urls.urlJoin(serverConfig.url, "tapir-avatar.jpg"),
+      icon: urls.urlJoin(serverConfig.url, "tapir-avatar.jpg"),
 
-      [key.publicKey]: {
-        "@id": `${
-          urls.activityPubRoot(persona.name, serverConfig.url)
-        }#main-key`,
-        [key.owner]: urls.activityPubRoot(persona.name, serverConfig.url),
-        [key.publicKeyPem]: await publicKeyToPem(
+      publicKey: {
+        id: `${urls.activityPubRoot(persona.name, serverConfig.url)}#main-key`,
+        owner: urls.activityPubRoot(persona.name, serverConfig.url),
+        publicKeyPem: await publicKeyToPem(
           serverConfig.keyPair.publicKey,
         ),
       },
@@ -69,28 +64,29 @@ export class ActivityPubService {
   private localPostToActivity(serverConfig: ServerConfig) {
     const localPostToNote = this.localPostToNote(serverConfig);
     return (post: LocalPost): Activity => ({
-      "@id": urls.activityPubPostActivity(
+      id: urls.activityPubPostActivity(
         post.persona,
         post.id,
         serverConfig.url,
       ),
-      "@type": key.Create,
-      [key.actor]: urls.activityPubRoot(post.persona, serverConfig.url),
-      [key.published]: post.createdAt,
-      [key.to]: key.Public,
-      [key.cc]: urls.activityPubFollowers(post.persona, serverConfig.url),
-      [key.object]: localPostToNote(post),
+      type: "Create",
+      actor: urls.activityPubRoot(post.persona, serverConfig.url),
+      published: post.createdAt,
+      to: key.Public,
+      cc: urls.activityPubFollowers(post.persona, serverConfig.url),
+      object: localPostToNote(post),
     });
   }
 
   private localPostToNote(serverConfig: ServerConfig) {
     return (post: LocalPost): Object => ({
-      "@id": urls.activityPubPost(post.persona, post.id, serverConfig.url),
-      "@type": key.Note,
-      [key.url]: urls.localPost(post.id, serverConfig.url),
-      [key.attributedTo]: urls.profile(post.persona, serverConfig.url),
-      [key.content]: post.content,
-      [key.updated]: post.createdAt,
+      id: urls.activityPubPost(post.persona, post.id, serverConfig.url),
+      type: "Note",
+      url: urls.localPost(post.id, serverConfig.url),
+      attributedTo: urls.profile(post.persona, serverConfig.url),
+      content: post.content,
+      published: post.createdAt,
+      updated: post.createdAt,
     });
   }
 
@@ -104,13 +100,11 @@ export class ActivityPubService {
       return undefined;
     }
     return {
-      "@id": urls.activityPubOutbox(personaName, serverConfig.url),
-      "@type": key.OrderedCollection,
+      id: urls.activityPubOutbox(personaName, serverConfig.url),
+      type: "OrderedCollection",
 
-      [key.totalItems]: posts.length,
-      [key.items]: {
-        "@list": posts.map(this.localPostToActivity(serverConfig)),
-      },
+      totalItems: posts.length,
+      orderedItems: posts.map(this.localPostToActivity(serverConfig)),
     };
   }
 
@@ -136,5 +130,27 @@ export class ActivityPubService {
       return undefined;
     }
     return this.localPostToNote(serverConfig)(post);
+  }
+
+  async getFollowers(personaName: string): Promise<Collection | undefined> {
+    const serverConfig = await this.serverConfigStore.getServerConfig();
+    return {
+      id: urls.activityPubFollowers(personaName, serverConfig.url),
+      type: "OrderedCollectionPage",
+
+      totalItems: 0,
+      orderedItems: [],
+    };
+  }
+
+  async getFollowing(personaName: string): Promise<Collection | undefined> {
+    const serverConfig = await this.serverConfigStore.getServerConfig();
+    return {
+      id: urls.activityPubFollowing(personaName, serverConfig.url),
+      type: "OrderedCollectionPage",
+
+      totalItems: 0,
+      orderedItems: [],
+    };
   }
 }

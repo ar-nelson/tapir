@@ -4,7 +4,6 @@ import { Persona, PersonaStore } from "$/models/Persona.ts";
 import { LocalPost, LocalPostStore } from "$/models/LocalPost.ts";
 import { Account, Instance, Status } from "$/schemas/mastodon/mod.ts";
 import * as urls from "$/lib/urls.ts";
-import { getLogger } from "https://deno.land/std@0.176.0/log/mod.ts";
 
 export enum TimelineFilter {
   LocalAndRemote,
@@ -33,8 +32,6 @@ export interface AccountStatusesOptions extends StatusesOptions {
 
 @Singleton()
 export class MastodonApiService {
-  private readonly log = getLogger("MastodonApiService");
-
   constructor(
     private readonly serverConfigStore: ServerConfigStore,
     private readonly personaStore: PersonaStore,

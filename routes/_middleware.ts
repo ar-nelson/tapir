@@ -1,6 +1,7 @@
 import { MiddlewareHandlerContext } from "$fresh/server.ts";
 import { Injector } from "$/lib/inject.ts";
 import { contentTypeIsJson } from "$/lib/urls.ts";
+import * as log from "https://deno.land/std@0.176.0/log/mod.ts";
 
 interface State {
   injector: Injector;
@@ -39,6 +40,17 @@ export async function handler(
   );
   rsp.headers.append("Access-Control-Allow-Headers", "*");
   rsp.headers.append("Access-Control-Max-Age", "86400");
+
+  const path = new URL(req.url).pathname;
+  if (rsp.status >= 400) {
+    log.warning(
+      `${req.method} ${path}: ${rsp.status} (${req.headers.get("user-agent")})`,
+    );
+  } else {
+    log.info(
+      `${req.method} ${path}: ${rsp.status} (${req.headers.get("user-agent")})`,
+    );
+  }
 
   return rsp;
 }
