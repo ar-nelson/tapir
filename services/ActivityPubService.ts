@@ -102,6 +102,10 @@ export class ActivityPubService {
       content: post.content,
       published: post.createdAt,
       updated: post.createdAt,
+      to: key.Public,
+      cc: urls.activityPubFollowers(post.persona, serverConfig.url),
+      summary: null,
+      attachment: [],
     });
   }
 
