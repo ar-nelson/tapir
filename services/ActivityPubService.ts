@@ -44,7 +44,7 @@ export class ActivityPubService {
       name: persona.displayName,
       preferredUsername: persona.name,
       url: urls.profile(persona.name, serverConfig.url),
-      summary: "tapir has learned to communicate with activitypub",
+      summary: "look at me. i'm the fediverse now.",
       published: persona.createdAt,
       manuallyApprovesFollowers: true,
       discoverable: false,
@@ -60,7 +60,11 @@ export class ActivityPubService {
         serverConfig.url,
       ),
 
-      icon: urls.urlJoin(serverConfig.url, "tapir-avatar.jpg"),
+      icon: {
+        type: "Image",
+        mediaType: "image/jpeg",
+        url: urls.urlJoin(serverConfig.url, "tapir-avatar.jpg"),
+      },
 
       publicKey: {
         id: `${urls.activityPubRoot(persona.name, serverConfig.url)}#main-key`,
@@ -165,18 +169,26 @@ export class ActivityPubService {
     };
   }
 
-  sendActivity(
+  async sendActivity(
     asPersona: string,
     url: string,
     activity: Activity,
   ): Promise<Response> {
-    return this.httpClient.fetchActivityPub(asPersona, url, {
+    const rsp = await this.httpClient.fetchActivityPub(asPersona, url, {
       method: "POST",
       headers: {
         "content-type": CONTENT_TYPE,
       },
       body: JSON.stringify({ "@context": defaultContext, ...activity }),
     });
+    if (rsp.status < 400) {
+      log.info(`${activity.type} response: ${rsp.status}`);
+    } else {
+      log.error(
+        `${activity.type} failed: HTTP ${rsp.status} - ${await rsp.text()}`,
+      );
+    }
+    return rsp;
   }
 
   private readonly isActor = matchesSchema(ActorSchema);
@@ -224,48 +236,42 @@ export class ActivityPubService {
         log.info(
           `Follow from actor ${actor.name} with inbox URL ${actor.inbox}`,
         );
-        const serverConfig = await this.serverConfigStore.getServerConfig(),
-          rsp = await this.sendActivity(
-            personaName,
-            actor.inbox,
-            {
-              id: `${Math.random()}`,
-              type: "Reject",
-              actor: urls.activityPubRoot(personaName, serverConfig.url),
-              to: actor.id,
-              published: new Date().toISOString(),
-              object: activity.id,
-            },
-          );
-        if (rsp.status < 400) {
-          log.info(
-            `Follow rejection for ${activity.id} response: ${rsp.status}`,
-          );
-        } else {
-          log.error(
-            `Sending follow rejection for ${activity.id} failed: HTTP ${rsp.status} - ${await rsp
-              .text()}`,
-          );
-        }
+        const serverConfig = await this.serverConfigStore.getServerConfig();
+        await this.sendActivity(
+          personaName,
+          actor.inbox,
+          {
+            id: `${Math.random()}`,
+            type: "Reject",
+            actor: urls.activityPubRoot(personaName, serverConfig.url),
+            to: actor.id,
+            published: new Date().toISOString(),
+            object: activity.id,
+          },
+        );
+        await this.sendActivity(
+          personaName,
+          actor.inbox,
+          {
+            id: `${Math.random()}`,
+            type: "Update",
+            actor: urls.activityPubRoot(personaName, serverConfig.url),
+            to: actor.id,
+            published: new Date().toISOString(),
+            object: await this.getPersona(personaName)!,
+          },
+        );
         const localPostToActivity = this.localPostToActivity(serverConfig),
           posts = await this.localPostStore.listPosts(personaName);
         for (const post of posts.toReversed()) {
           log.info(`Sending post ${post.id} to ${actor.inbox}`);
-          const rsp = await this.sendActivity(
+          await this.sendActivity(
             personaName,
             actor.inbox,
             localPostToActivity(post),
           );
-          if (rsp.status < 400) {
-            log.info(`Post ${post.id} response: ${rsp.status}`);
-          } else {
-            log.error(
-              `Sending post ${post.id} failed: HTTP ${rsp.status} - ${await rsp
-                .text()}`,
-            );
-          }
         }
-        return new Response(null, { status: 201 });
+        return new Response(null, { status: 202 });
       }
       default:
         return Response.json({ error: "Not supported" }, { status: 400 });
