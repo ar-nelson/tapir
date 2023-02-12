@@ -1,4 +1,5 @@
 import { matchesSchema } from "https://deno.land/x/spartanschema@v1.0.1/mod.ts";
+import { ulid } from "https://esm.sh/ulidx@0.5.0";
 import { Singleton } from "$/lib/inject.ts";
 import { ServerConfig, ServerConfigStore } from "$/models/ServerConfig.ts";
 import { PersonaStore } from "$/models/Persona.ts";
@@ -245,7 +246,7 @@ export class ActivityPubService {
           personaName,
           actor.inbox,
           {
-            id: `${Math.random()}`,
+            id: ulid(),
             type: "Reject",
             actor: urls.activityPubRoot(personaName, serverConfig.url),
             to: actor.id,
@@ -257,7 +258,7 @@ export class ActivityPubService {
           personaName,
           actor.inbox,
           {
-            id: `${Math.random()}`,
+            id: ulid(),
             type: "Update",
             actor: urls.activityPubRoot(personaName, serverConfig.url),
             to: actor.id,
@@ -265,21 +266,14 @@ export class ActivityPubService {
             object: await this.getPersona(personaName)!,
           },
         );
-        const localPostToNote = this.localPostToNote(serverConfig),
+        const localPostToActivity = this.localPostToActivity(serverConfig),
           posts = await this.localPostStore.listPosts(personaName);
         for (const post of posts.toReversed()) {
-          log.info(`Sending post update ${post.id} to ${actor.inbox}`);
+          log.info(`Sending post ${post.id} to ${actor.inbox}`);
           await this.sendActivity(
             personaName,
             actor.inbox,
-            {
-              id: `${Math.random()}`,
-              type: "Update",
-              actor: urls.activityPubRoot(personaName, serverConfig.url),
-              to: actor.id,
-              published: post.updatedAt,
-              object: localPostToNote(post),
-            },
+            localPostToActivity(post),
           );
         }
         return new Response(null, { status: 202 });
