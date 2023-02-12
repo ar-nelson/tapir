@@ -101,7 +101,7 @@ export class ActivityPubService {
       attributedTo: urls.profile(post.persona, serverConfig.url),
       content: post.content,
       published: post.createdAt,
-      updated: post.createdAt,
+      updated: post.updatedAt ?? post.createdAt,
       to: key.Public,
       cc: urls.activityPubFollowers(post.persona, serverConfig.url),
       summary: null,
@@ -265,14 +265,21 @@ export class ActivityPubService {
             object: await this.getPersona(personaName)!,
           },
         );
-        const localPostToActivity = this.localPostToActivity(serverConfig),
+        const localPostToNote = this.localPostToNote(serverConfig),
           posts = await this.localPostStore.listPosts(personaName);
         for (const post of posts.toReversed()) {
-          log.info(`Sending post ${post.id} to ${actor.inbox}`);
+          log.info(`Sending post update ${post.id} to ${actor.inbox}`);
           await this.sendActivity(
             personaName,
             actor.inbox,
-            localPostToActivity(post),
+            {
+              id: `${Math.random()}`,
+              type: "Update",
+              actor: urls.activityPubRoot(personaName, serverConfig.url),
+              to: actor.id,
+              published: post.updatedAt,
+              object: localPostToNote(post),
+            },
           );
         }
         return new Response(null, { status: 202 });
