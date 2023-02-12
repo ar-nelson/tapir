@@ -249,7 +249,7 @@ export class ActivityPubService {
         }
         const localPostToActivity = this.localPostToActivity(serverConfig),
           posts = await this.localPostStore.listPosts(personaName);
-        for (const post of posts) {
+        for (const post of posts.toReversed()) {
           log.info(`Sending post ${post.id} to ${actor.inbox}`);
           const rsp = await this.sendActivity(
             personaName,

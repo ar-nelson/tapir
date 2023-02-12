@@ -4,6 +4,7 @@ import { Persona, PersonaStore } from "$/models/Persona.ts";
 import { LocalPost, LocalPostStore } from "$/models/LocalPost.ts";
 import { Account, Instance, Status } from "$/schemas/mastodon/mod.ts";
 import * as urls from "$/lib/urls.ts";
+import * as log from "https://deno.land/std@0.176.0/log/mod.ts";
 
 export enum TimelineFilter {
   LocalAndRemote,
@@ -120,14 +121,14 @@ export class MastodonApiService {
     const serverConfig = await this.serverConfigStore.getServerConfig(),
       nameMatch = /^[@]?([^@:]+)(?:[@]([^@:]+))?$/.exec(name);
     if (!nameMatch || (nameMatch[2] && nameMatch[2] !== serverConfig.domain)) {
-      this.log.info(
+      log.info(
         `not a valid account for this server: ${JSON.stringify(name)}`,
       );
       return undefined;
     }
     const persona = await this.personaStore.getPersona(nameMatch[1]);
     if (!persona) {
-      this.log.info(`account does not exist: ${JSON.stringify(nameMatch[1])}`);
+      log.info(`account does not exist: ${JSON.stringify(nameMatch[1])}`);
       return undefined;
     }
     return persona;

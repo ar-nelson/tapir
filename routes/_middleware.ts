@@ -14,9 +14,9 @@ export async function handler(
   ctx: MiddlewareHandlerContext<State>,
 ) {
   ctx.state.injector = globalInjector;
+  const method = req.method, userAgent = req.headers.get("user-agent");
   let rsp = await ctx.next();
-
-  if (req.method === "OPTIONS" && rsp.status === 405) {
+  if (method === "OPTIONS" && rsp.status === 405) {
     rsp = new Response(null, {
       status: 204,
       headers: {
@@ -43,13 +43,9 @@ export async function handler(
 
   const path = new URL(req.url).pathname;
   if (rsp.status >= 400) {
-    log.warning(
-      `${req.method} ${path}: ${rsp.status} (${req.headers.get("user-agent")})`,
-    );
+    log.warning(`${method} ${path}: ${rsp.status} (${userAgent})`);
   } else {
-    log.info(
-      `${req.method} ${path}: ${rsp.status} (${req.headers.get("user-agent")})`,
-    );
+    log.info(`${method} ${path}: ${rsp.status} (${userAgent})`);
   }
 
   return rsp;
