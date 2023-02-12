@@ -18,6 +18,12 @@ export abstract class LocalPostStore {
 }
 
 const MOCK_POSTS: readonly LocalPost[] = [{
+  id: "01GS1QE3YSC9H68R526RJMXNX4",
+  persona: "tapir",
+  createdAt: "2023-02-11T21:32:14-0500",
+  content:
+    `Tapir Fact: Tapirs don't like to be followed. In fact, you could say they "reject all follow requests" because they "don't support that feature yet". Please don't take it personally.`,
+}, {
   id: "01GS1P8RWDS2PX05WCJE0JCM15",
   persona: "tapir",
   createdAt: "2023-02-11T21:11:57-0500",
