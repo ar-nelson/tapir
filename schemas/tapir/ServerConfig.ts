@@ -6,6 +6,28 @@ export const schema = {
     url: "string",
     domain: "string",
     dataDir: "string",
+    publicKey: {
+      kty: ["enum", "RSA"],
+      alg: ["enum", "RS256"],
+      n: "string",
+      e: "string",
+      key_ops: ["tuple", ["enum", "verify"]],
+      ext: ["enum", true],
+    },
+    privateKey: {
+      kty: ["enum", "RSA"],
+      alg: ["enum", "RS256"],
+      n: "string",
+      e: "string",
+      d: "string",
+      p: "string",
+      q: "string",
+      dp: "string",
+      dq: "string",
+      qi: "string",
+      key_ops: ["tuple", ["enum", "sign"]],
+      ext: ["enum", true],
+    },
   },
 } as const;
 

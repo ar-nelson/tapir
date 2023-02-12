@@ -1,11 +1,9 @@
 import { MiddlewareHandlerContext } from "$fresh/server.ts";
 import { contentTypeIsJson } from "$/lib/urls.ts";
+import { CONTENT_TYPE } from "$/schemas/activitypub/mod.ts";
 import defaultContext from "$/schemas/activitypub/defaultContext.json" assert {
   type: "json",
 };
-
-const contentType =
-  'application/ld+json; profile="https://www.w3.org/ns/activitystreams"';
 
 export async function handler(
   req: Request,
@@ -36,7 +34,7 @@ export async function handler(
       {
         headers: {
           ...rsp.headers,
-          "content-type": contentType,
+          "content-type": CONTENT_TYPE,
         },
       },
     );
