@@ -244,7 +244,7 @@ export function rowQuery<C extends Columns>(spec: C, query: Query<C>) {
 export interface DatabaseTable<C extends Columns> {
   get(options: {
     where?: Query<C>;
-    orderBy?: [keyof C, Order][];
+    orderBy?: [keyof C & string, Order][];
     limit?: number;
   }): AsyncIterable<OutRow<C>>;
 
@@ -273,4 +273,6 @@ export abstract class DatabaseService<Spec extends DatabaseSpec> {
   abstract table<K extends keyof Spec["tables"]>(
     name: K,
   ): DatabaseTable<ColumnsOf<Spec, K>>;
+
+  abstract close(): Promise<void>;
 }

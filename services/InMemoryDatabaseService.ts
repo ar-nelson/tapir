@@ -17,15 +17,7 @@ import {
 } from "$/services/DatabaseService.ts";
 import { UlidService } from "$/services/UlidService.ts";
 import { Constructor, Singleton } from "$/lib/inject.ts";
-
-function mapObject<T extends Record<string, U>, U, V>(
-  obj: T,
-  fn: <K extends keyof T>(k: K, v: T[K]) => V,
-): { [K in keyof T]: V } {
-  return Object.fromEntries(
-    Object.entries(obj).map(([k, v]) => [k, fn(k, v as any)]),
-  ) as { [K in keyof T]: V };
-}
+import { mapObject } from "$/lib/utils.ts";
 
 export class InMemoryDatabaseTable<C extends Columns, Spec extends TableSpec<C>>
   implements DatabaseTable<C> {
@@ -158,6 +150,10 @@ export class InMemoryDatabaseServiceFactory extends DatabaseServiceFactory {
 
       table(name: keyof Spec["tables"]) {
         return this.tables[name as keyof typeof specTables];
+      }
+
+      close() {
+        return Promise.resolve();
       }
     }
     return Promise.resolve(InMemoryDatabaseService);

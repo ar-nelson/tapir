@@ -36,13 +36,16 @@ export async function testDatabaseService(
 ) {
   overrides.set(DatabaseService, await factory.init(TEST_SPEC));
 
-  function newDb(): [DatabaseService<typeof TEST_SPEC>, UlidService] {
+  function newDb(): Promise<[DatabaseService<typeof TEST_SPEC>, UlidService]> {
     const injector = new Injector(overrides);
-    return [injector.resolve(DatabaseService), injector.resolve(UlidService)];
+    return Promise.all([
+      injector.resolve(DatabaseService),
+      injector.resolve(UlidService),
+    ]);
   }
 
   Deno.test("insert and get one row", async (t) => {
-    const [db, ulid] = newDb(),
+    const [db, ulid] = await newDb(),
       table = db.table("people"),
       id = ulid.next(),
       row = { id, name: "Bob", age: 42 };
@@ -105,10 +108,11 @@ export async function testDatabaseService(
         [],
       );
     });
+    await db.close();
   });
 
   Deno.test("insert and get three rows", async (t) => {
-    const [db, ulid] = newDb(),
+    const [db, ulid] = await newDb(),
       table = db.table("people"),
       id1 = ulid.next(),
       id2 = ulid.next(),
@@ -234,5 +238,7 @@ export async function testDatabaseService(
         [rows[2], rows[0]],
       );
     });
+
+    await db.close();
   });
 }
