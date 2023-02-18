@@ -1,10 +1,11 @@
 import { Constructor } from "$/lib/inject.ts";
-import { ulid } from "https://esm.sh/ulidx@0.5.0";
+import { UlidService } from "$/services/UlidService.ts";
 
 export enum ColumnType {
   Ulid,
   String,
   Integer,
+  Boolean,
   Date,
   Json,
   Blob,
@@ -30,6 +31,7 @@ export type ColumnTypeInValue<T extends ColumnType> = T extends ColumnType.Ulid
   ? string
   : T extends ColumnType.String ? string
   : T extends ColumnType.Integer ? number
+  : T extends ColumnType.Boolean ? boolean
   : T extends ColumnType.Date ? (Date | string)
   : T extends ColumnType.Json ? unknown
   : T extends ColumnType.Blob ? Uint8Array
@@ -39,6 +41,7 @@ export type ColumnTypeOutValue<T extends ColumnType> = T extends ColumnType.Ulid
   ? string
   : T extends ColumnType.String ? string
   : T extends ColumnType.Integer ? number
+  : T extends ColumnType.Boolean ? boolean
   : T extends ColumnType.Date ? Date
   : T extends ColumnType.Json ? unknown
   : T extends ColumnType.Blob ? Uint8Array
@@ -98,14 +101,15 @@ export function inToOut<C extends ColumnSpec<ColumnType>>(
   spec: C,
   value: ColumnInValue<C>,
   useDefaults = true,
+  ulidGenerator?: UlidService,
 ): ColumnOutValue<C> {
   if (value === undefined) {
     if ("default" in spec && useDefaults) {
       return spec.default as ColumnOutValue<C>;
     } else if (spec.nullable) {
       return null as ColumnOutValue<C>;
-    } else if (spec.type === ColumnType.Ulid && useDefaults) {
-      return ulid() as ColumnOutValue<C>;
+    } else if (spec.type === ColumnType.Ulid && useDefaults && ulidGenerator) {
+      return ulidGenerator.next() as ColumnOutValue<C>;
     } else {
       throw new TypeError(
         "Unexpected undefined value for non-nullable database column",
@@ -123,9 +127,14 @@ export function inToOut<C extends ColumnSpec<ColumnType>>(
   }
 }
 
-type Comparator<C extends ColumnSpec<ColumnType>> = (
+export type Comparator<C extends ColumnSpec<ColumnType>> = (
   a: ColumnOutValue<C>,
   b: ColumnOutValue<C>,
+) => number;
+
+export type RowComparator<C extends Columns> = (
+  a: OutRow<C>,
+  b: OutRow<C>,
 ) => number;
 
 export function columnCompare<C extends ColumnSpec<ColumnType>>(
@@ -148,6 +157,12 @@ export function columnCompare<C extends ColumnSpec<ColumnType>>(
     case ColumnType.Integer:
       comparator = ((a: number, b: number) => a - b) as Comparator<C>;
       break;
+    case ColumnType.Boolean:
+      comparator =
+        ((a: boolean, b: boolean) => (a ? 1 : 0) - (b ? 1 : 0)) as Comparator<
+          C
+        >;
+      break;
     case ColumnType.Date:
       comparator =
         ((a: Date, b: Date) => a.valueOf() - b.valueOf()) as Comparator<C>;
@@ -161,6 +176,15 @@ export function columnCompare<C extends ColumnSpec<ColumnType>>(
     return (a, b) => -comparator(a, b);
   }
   return comparator;
+}
+
+export function rowCompare<C extends Columns>(
+  spec: C,
+  column: keyof C,
+  order = Order.Ascending,
+): RowComparator<C> {
+  const cmp = columnCompare(spec[column], order);
+  return (a, b) => cmp(a[column], b[column]);
 }
 
 export function columnQuery<C extends ColumnSpec<ColumnType>>(
@@ -223,6 +247,8 @@ export interface DatabaseTable<C extends Columns> {
     orderBy?: [keyof C, Order][];
     limit?: number;
   }): AsyncIterable<OutRow<C>>;
+
+  count(where: Query<C>): Promise<number>;
 
   insert(rows: InRow<C>[]): Promise<void>;
 

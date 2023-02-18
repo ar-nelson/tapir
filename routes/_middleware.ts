@@ -1,13 +1,20 @@
 import { MiddlewareHandlerContext } from "$fresh/server.ts";
-import { Injector } from "$/lib/inject.ts";
+import { AbstractConstructor, Constructor, Injector } from "$/lib/inject.ts";
 import { contentTypeIsJson } from "$/lib/urls.ts";
+import { LocalPostStore, MockLocalPostStore } from "$/models/LocalPost.ts";
+import { MockPersonaStore, PersonaStore } from "$/models/Persona.ts";
 import * as log from "https://deno.land/std@0.176.0/log/mod.ts";
 
 interface State {
   injector: Injector;
 }
 
-const globalInjector = new Injector();
+const globalInjector = new Injector(
+  new Map<AbstractConstructor, Constructor>([
+    [LocalPostStore, MockLocalPostStore],
+    [PersonaStore, MockPersonaStore],
+  ]),
+);
 
 export async function handler(
   req: Request,

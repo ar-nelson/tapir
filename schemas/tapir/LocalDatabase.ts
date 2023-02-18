@@ -1,6 +1,6 @@
 import { ColumnType, DatabaseSpec } from "$/services/DatabaseService.ts";
 
-const { Integer, String, Date, Ulid } = ColumnType;
+const { Integer, String, Boolean, Date, Ulid } = ColumnType;
 
 export enum PostType {
   Note = 0,
@@ -17,8 +17,10 @@ export const LocalDatabaseSpec = {
       primaryKey: "name",
       columns: {
         name: { type: String },
+        main: { type: Boolean, default: false },
         displayName: { type: String },
         summary: { type: String, default: "" },
+        requestToFollow: { type: Boolean, default: false },
         createdAt: { type: Date },
         updatedAt: { type: Date },
       },
@@ -30,7 +32,7 @@ export const LocalDatabaseSpec = {
         persona: { type: String, foreignKey: "persona" },
         type: { type: Integer },
         createdAt: { type: Date },
-        updatedAt: { type: Date },
+        updatedAt: { type: Date, nullable: true },
         content: { type: String, nullable: true },
         targetLocalPost: {
           type: Ulid,
@@ -91,6 +93,6 @@ export const LocalDatabaseSpec = {
       },
     },
   },
-};
+} as const;
 
 const _typecheck: DatabaseSpec = LocalDatabaseSpec;

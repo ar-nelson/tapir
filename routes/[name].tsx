@@ -5,6 +5,7 @@ import { LocalPost, LocalPostStore } from "$/models/LocalPost.ts";
 import { Persona, PersonaStore } from "$/models/Persona.ts";
 import { ServerConfig, ServerConfigStore } from "$/models/ServerConfig.ts";
 import { Toot } from "$/components/Toot.tsx";
+import { asyncToArray } from "$/lib/utils.ts";
 
 interface Params {
   serverConfig: ServerConfig;
@@ -22,11 +23,13 @@ export const handler: Handlers<Params, { injector: Injector }> = {
       personaStore = ctx.state.injector.resolve(PersonaStore),
       localPostStore = ctx.state.injector.resolve(LocalPostStore),
       serverConfig = await serverConfigStore.getServerConfig(),
-      persona = await personaStore.getPersona(ctx.params.name);
+      persona = await personaStore.get(ctx.params.name);
     if (!persona) {
       return ctx.renderNotFound();
     }
-    const posts = await localPostStore.listPosts(ctx.params.name);
+    const posts = await asyncToArray(
+      localPostStore.list({ persona: ctx.params.name }),
+    );
     return ctx.render({ serverConfig, persona, posts });
   },
 };
@@ -55,7 +58,7 @@ export default function PersonaTimeline(
               authorUrl={`/@${persona.name}`}
               permalinkUrl={`${serverConfig.url}/toot/${post.id}`}
               createdAt={new Date(post.createdAt)}
-              content={post.content}
+              content={post.content ?? ""}
               likes={0}
               boosts={0}
             />

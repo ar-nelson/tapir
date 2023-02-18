@@ -1,11 +1,11 @@
 import { matchesSchema } from "https://deno.land/x/spartanschema@v1.0.1/mod.ts";
-import { ulid } from "https://esm.sh/ulidx@0.5.0";
 import { Singleton } from "$/lib/inject.ts";
 import { ServerConfig, ServerConfigStore } from "$/models/ServerConfig.ts";
 import { PersonaStore } from "$/models/Persona.ts";
 import { LocalPost, LocalPostStore } from "$/models/LocalPost.ts";
 import { HttpClientService } from "$/services/HttpClientService.ts";
 import { JsonLdService } from "$/services/JsonLdService.ts";
+import { UlidService } from "$/services/UlidService.ts";
 import {
   Activity,
   Actor,
@@ -16,6 +16,7 @@ import {
   Object,
 } from "$/schemas/activitypub/mod.ts";
 import { publicKeyToPem } from "$/lib/signatures.ts";
+import { asyncToArray } from "$/lib/utils.ts";
 import * as urls from "$/lib/urls.ts";
 import defaultContext from "$/schemas/activitypub/defaultContext.json" assert {
   type: "json",
@@ -30,11 +31,12 @@ export class ActivityPubService {
     private readonly personaStore: PersonaStore,
     private readonly localPostStore: LocalPostStore,
     private readonly jsonLd: JsonLdService,
+    private readonly ulid: UlidService,
   ) {}
 
   async getPersona(name: string): Promise<Actor | undefined> {
     const serverConfig = await this.serverConfigStore.getServerConfig(),
-      persona = await this.personaStore.getPersona(name);
+      persona = await this.personaStore.get(name);
     if (!persona) {
       return undefined;
     }
@@ -114,8 +116,10 @@ export class ActivityPubService {
     personaName: string,
   ): Promise<Collection | undefined> {
     const serverConfig = await this.serverConfigStore.getServerConfig(),
-      persona = await this.personaStore.getPersona(personaName),
-      posts = await this.localPostStore.listPosts(personaName);
+      persona = await this.personaStore.get(personaName),
+      posts = await asyncToArray(
+        this.localPostStore.list({ persona: personaName }),
+      );
     if (!persona) {
       return undefined;
     }
@@ -133,7 +137,7 @@ export class ActivityPubService {
     postId: string,
   ): Promise<Activity | undefined> {
     const serverConfig = await this.serverConfigStore.getServerConfig(),
-      post = await this.localPostStore.getPost(postId);
+      post = await this.localPostStore.get(postId);
     if (!post || post.persona !== personaName) {
       return undefined;
     }
@@ -145,7 +149,7 @@ export class ActivityPubService {
     postId: string,
   ): Promise<Object | undefined> {
     const serverConfig = await this.serverConfigStore.getServerConfig(),
-      post = await this.localPostStore.getPost(postId);
+      post = await this.localPostStore.get(postId);
     if (!post || post.persona !== personaName) {
       return undefined;
     }
@@ -246,7 +250,7 @@ export class ActivityPubService {
           personaName,
           actor.inbox,
           {
-            id: ulid(),
+            id: this.ulid.next(),
             type: "Reject",
             actor: urls.activityPubRoot(personaName, serverConfig.url),
             to: actor.id,
@@ -258,7 +262,7 @@ export class ActivityPubService {
           personaName,
           actor.inbox,
           {
-            id: ulid(),
+            id: this.ulid.next(),
             type: "Update",
             actor: urls.activityPubRoot(personaName, serverConfig.url),
             to: actor.id,
@@ -267,7 +271,9 @@ export class ActivityPubService {
           },
         );
         const localPostToActivity = this.localPostToActivity(serverConfig),
-          posts = await this.localPostStore.listPosts(personaName);
+          posts = await asyncToArray(
+            this.localPostStore.list({ persona: personaName }),
+          );
         for (const post of posts.toReversed()) {
           log.info(`Sending post ${post.id} to ${actor.inbox}`);
           await this.sendActivity(

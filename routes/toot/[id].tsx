@@ -18,11 +18,11 @@ export const handler: Handlers<Params, { injector: Injector }> = {
       personaStore = ctx.state.injector.resolve(PersonaStore),
       localPostStore = ctx.state.injector.resolve(LocalPostStore),
       serverConfig = await serverConfigStore.getServerConfig(),
-      post = await localPostStore.getPost(ctx.params.id);
+      post = await localPostStore.get(ctx.params.id);
     if (!post) {
       return ctx.renderNotFound();
     }
-    const persona = await personaStore.getPersona(post.persona);
+    const persona = await personaStore.get(post.persona);
     if (!persona) {
       return ctx.renderNotFound();
     }
@@ -49,7 +49,7 @@ export default function SinglePost(
           authorUrl={`/@${persona.name}`}
           permalinkUrl={`${serverConfig.url}/toot/${post.id}`}
           createdAt={new Date(post.createdAt)}
-          content={post.content}
+          content={post.content ?? ""}
           likes={0}
           boosts={0}
         />

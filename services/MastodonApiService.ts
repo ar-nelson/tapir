@@ -3,6 +3,7 @@ import { ServerConfig, ServerConfigStore } from "$/models/ServerConfig.ts";
 import { Persona, PersonaStore } from "$/models/Persona.ts";
 import { LocalPost, LocalPostStore } from "$/models/LocalPost.ts";
 import { Account, Instance, Status } from "$/schemas/mastodon/mod.ts";
+import { asyncToArray } from "$/lib/utils.ts";
 import * as urls from "$/lib/urls.ts";
 import * as log from "https://deno.land/std@0.176.0/log/mod.ts";
 
@@ -40,9 +41,7 @@ export class MastodonApiService {
   ) {}
 
   async instance(): Promise<Instance> {
-    const serverConfig = await this.serverConfigStore.getServerConfig(),
-      personas = await this.personaStore.listPersonas(),
-      posts = await this.localPostStore.listPosts();
+    const serverConfig = await this.serverConfigStore.getServerConfig();
 
     return {
       "uri": serverConfig.domain,
@@ -53,8 +52,8 @@ export class MastodonApiService {
       "version": "3.5.3",
       "urls": {},
       "stats": {
-        "user_count": personas.length,
-        "status_count": posts.length,
+        "user_count": await this.personaStore.count(),
+        "status_count": await this.localPostStore.count(),
         "domain_count": 1,
       },
       "thumbnail": null,
@@ -85,24 +84,26 @@ export class MastodonApiService {
           "max_expiration": 2629746,
         },
       },
-      "contact_account": this.personaToAccount(personas[0], serverConfig),
+      "contact_account": this.personaToAccount(
+        await this.personaStore.getMain(),
+        serverConfig,
+      ),
       "rules": [],
     };
   }
 
   async publicTimeline(options: TimelineOptions): Promise<Status[]> {
     const serverConfig = await this.serverConfigStore.getServerConfig(),
-      posts = await this.localPostStore.listPosts(
-        undefined,
-        options.limit ?? 20,
-      ),
+      posts = await asyncToArray(this.localPostStore.list({
+        limit: options.limit ?? 20,
+      })),
       personas = new Map<string, Promise<Persona>>();
     return Promise.all(posts.map(async (p) => {
       let persona: Persona;
       if (personas.has(p.persona)) {
         persona = await personas.get(p.persona)!;
       } else {
-        const promise = this.personaStore.getPersona(p.persona).then(
+        const promise = this.personaStore.get(p.persona).then(
           (persona) => {
             if (!persona) {
               throw new Error(`no persona ${JSON.stringify(p.persona)}`);
@@ -126,7 +127,7 @@ export class MastodonApiService {
       );
       return undefined;
     }
-    const persona = await this.personaStore.getPersona(nameMatch[1]);
+    const persona = await this.personaStore.get(nameMatch[1]);
     if (!persona) {
       log.info(`account does not exist: ${JSON.stringify(nameMatch[1])}`);
       return undefined;
@@ -154,20 +155,20 @@ export class MastodonApiService {
       return undefined;
     }
     const serverConfig = await this.serverConfigStore.getServerConfig(),
-      posts = await this.localPostStore.listPosts(
-        persona.name,
-        options.limit ?? 20,
-      );
+      posts = await asyncToArray(this.localPostStore.list({
+        persona: persona.name,
+        limit: options.limit ?? 20,
+      }));
     return posts.map(this.localPostToStatus(persona, serverConfig));
   }
 
   async status(id: string): Promise<Status | undefined> {
-    const post = await this.localPostStore.getPost(id);
+    const post = await this.localPostStore.get(id);
     if (!post) {
       return undefined;
     }
     const serverConfig = await this.serverConfigStore.getServerConfig(),
-      persona = await this.personaStore.getPersona(post.persona);
+      persona = await this.personaStore.get(post.persona);
     if (!persona) {
       return undefined;
     }
@@ -220,7 +221,7 @@ export class MastodonApiService {
       reblogs_count: 0,
       favourites_count: 0,
       edited_at: null,
-      content: post.content,
+      content: post.content ?? "",
       reblog: null,
       application: {
         name: "Tapir",

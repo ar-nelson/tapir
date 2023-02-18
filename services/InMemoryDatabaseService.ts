@@ -1,5 +1,4 @@
 import {
-  columnCompare,
   Columns,
   DatabaseService,
   DatabaseServiceFactory,
@@ -12,9 +11,11 @@ import {
   PrimaryKey,
   Query,
   QueryOp,
+  rowCompare,
   rowQuery,
   TableSpec,
 } from "$/services/DatabaseService.ts";
+import { UlidService } from "$/services/UlidService.ts";
 import { Constructor, Singleton } from "$/lib/inject.ts";
 
 function mapObject<T extends Record<string, U>, U, V>(
@@ -28,11 +29,14 @@ function mapObject<T extends Record<string, U>, U, V>(
 
 export class InMemoryDatabaseTable<C extends Columns, Spec extends TableSpec<C>>
   implements DatabaseTable<C> {
-  constructor(private readonly spec: Spec) {}
+  constructor(
+    private readonly spec: Spec,
+    private readonly ulid: UlidService,
+  ) {}
 
   readonly table = new Map<PrimaryKey<C, Spec>, OutRow<C>>();
 
-  private readonly query = function* query(
+  private *query(
     this: InMemoryDatabaseTable<C, Spec>,
     where: Query<C>,
   ): Iterable<PrimaryKey<C, Spec>> {
@@ -53,9 +57,9 @@ export class InMemoryDatabaseTable<C extends Columns, Spec extends TableSpec<C>>
         }
       }
     }
-  };
+  }
 
-  readonly get = async function* get(
+  async *get(
     this: InMemoryDatabaseTable<C, Spec>,
     options: {
       where?: Query<C>;
@@ -67,18 +71,16 @@ export class InMemoryDatabaseTable<C extends Columns, Spec extends TableSpec<C>>
     const limit = options.limit ?? Infinity;
     let n = 0;
     if (options.orderBy?.length) {
-      const cmp = ([key, ord]: [keyof C, Order]) =>
-        columnCompare(this.spec.columns[key], ord);
+      const cmp = ([col, ord]: [keyof C, Order]) =>
+        rowCompare(this.spec.columns, col, ord);
       iter = [...iter].sort(
-        options.orderBy.slice(1).reduce(
+        options.orderBy.reduce(
           (last, ord) => {
-            const nextCmp = cmp(ord);
-            return (a, b) => {
-              const lastCmp = last(a, b);
-              return lastCmp === 0 ? nextCmp(a, b) : lastCmp;
-            };
+            const next = cmp(ord);
+            return (a, b) =>
+              last(a, b) || next(this.table.get(a)!, this.table.get(b)!);
           },
-          cmp(options.orderBy[0]),
+          (_a: PrimaryKey<C, Spec>, _b: PrimaryKey<C, Spec>) => 0,
         ),
       );
     }
@@ -86,11 +88,22 @@ export class InMemoryDatabaseTable<C extends Columns, Spec extends TableSpec<C>>
       if (n++ >= limit) return;
       yield this.table.get(k)!;
     }
-  };
+  }
+
+  count(where: Query<C>): Promise<number> {
+    let n = 0;
+    for (const _ of this.query(where)) {
+      n++;
+    }
+    return Promise.resolve(n);
+  }
 
   insert(rows: InRow<C>[]): Promise<void> {
     for (const inRow of rows) {
-      const row = mapObject(inRow, (k, v) => inToOut(this.spec.columns[k], v));
+      const row = mapObject(
+        inRow,
+        (k, v) => inToOut(this.spec.columns[k], v, true, this.ulid),
+      );
       this.table.set(row[this.spec.primaryKey] as PrimaryKey<C, Spec>, {
         ...row,
       });
@@ -129,9 +142,13 @@ export class InMemoryDatabaseServiceFactory extends DatabaseServiceFactory {
   ): Promise<Constructor<DatabaseService<Spec>>> {
     @Singleton()
     class InMemoryDatabaseService extends DatabaseService<Spec> {
+      constructor(private readonly ulid: UlidService) {
+        super();
+      }
+
       private readonly tables = mapObject(
         specTables,
-        (_k, v) => new InMemoryDatabaseTable(v),
+        (_k, v) => new InMemoryDatabaseTable(v, this.ulid),
       ) as {
         [K in keyof typeof specTables]: InMemoryDatabaseTable<
           (typeof specTables)[K]["columns"],

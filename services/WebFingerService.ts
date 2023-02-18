@@ -26,7 +26,7 @@ export class WebFingerService {
       return undefined;
     }
     const name = match[1],
-      persona = await this.personaStore.getPersona(name);
+      persona = await this.personaStore.get(name);
     if (!persona) {
       log.info(
         `cannot resolve resource ${
