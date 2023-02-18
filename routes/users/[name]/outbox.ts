@@ -4,7 +4,7 @@ import { ActivityPubService } from "$/services/ActivityPubService.ts";
 
 export const handler: Handlers<void, { injector: Injector }> = {
   async GET(_req, ctx) {
-    const service = ctx.state.injector.resolve(ActivityPubService),
+    const service = await ctx.state.injector.resolve(ActivityPubService),
       posts = await service.getPostCollection(ctx.params.name);
     if (!posts) {
       return Response.json({ error: "Record not found" }, { status: 404 });

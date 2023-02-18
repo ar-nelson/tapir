@@ -12,8 +12,8 @@ const isActivity = matchesSchema(ActivitySchema);
 
 export const handler: Handlers<void, { injector: Injector }> = {
   async POST(req, ctx) {
-    const service = ctx.state.injector.resolve(ActivityPubService),
-      jsonld = ctx.state.injector.resolve(JsonLdService),
+    const service = await ctx.state.injector.resolve(ActivityPubService),
+      jsonld = await ctx.state.injector.resolve(JsonLdService),
       compacted = await jsonld.processDocument({
         ...await jsonld.processDocument(await req.json()),
         "@context": defaultContext,

@@ -19,9 +19,11 @@ export const config: RouteConfig = {
 
 export const handler: Handlers<Params, { injector: Injector }> = {
   async GET(_req, ctx) {
-    const serverConfigStore = ctx.state.injector.resolve(ServerConfigStore),
-      personaStore = ctx.state.injector.resolve(PersonaStore),
-      localPostStore = ctx.state.injector.resolve(LocalPostStore),
+    const serverConfigStore = await ctx.state.injector.resolve(
+        ServerConfigStore,
+      ),
+      personaStore = await ctx.state.injector.resolve(PersonaStore),
+      localPostStore = await ctx.state.injector.resolve(LocalPostStore),
       serverConfig = await serverConfigStore.getServerConfig(),
       persona = await personaStore.get(ctx.params.name);
     if (!persona) {

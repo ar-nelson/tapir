@@ -5,7 +5,7 @@ import { WebFingerService } from "$/services/WebFingerService.ts";
 export const handler: Handlers<void, { injector: Injector }> = {
   async GET(req, ctx) {
     const url = new URL(req.url),
-      service = ctx.state.injector.resolve(WebFingerService),
+      service = await ctx.state.injector.resolve(WebFingerService),
       resource = url.searchParams.get("resource");
     if (resource == null) {
       return Response.json({ error: "No resource given" }, { status: 400 });

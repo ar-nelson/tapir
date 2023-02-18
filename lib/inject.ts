@@ -19,6 +19,17 @@ export type AbstractConstructor<T extends object = object> = abstract new (
   ...args: any[]
 ) => T;
 
+/**
+ * A special type of constructor that can be inserted into the `overrides` map
+ * of an `Injector`. It makes the injection of one type dependent on other
+ * types, by first constructing a `ConditionalResolver` with the available
+ * properties, then injecting the result of that resolver's `resolve` method.
+ */
+export abstract class ConditionalResolver<T extends object> {
+  abstract resolve(): Promise<Constructor<T>>;
+  isSingleton = false;
+}
+
 interface InjectableMetadata<T extends object> {
   readonly classes: readonly Constructor<T>[];
 }
@@ -108,7 +119,7 @@ export function Singleton<T extends object>(
 export class Injector {
   private readonly resolved = new Map<
     Constructor | AbstractConstructor,
-    () => object
+    () => Promise<object>
   >();
 
   constructor(
@@ -122,21 +133,29 @@ export class Injector {
    * Creates an instance of `Type` by calling its constructor with injected
    * arguments. `Type` does not have to be `@Injectable`.
    */
-  inject<T extends object>(Type: Constructor<T>): T {
+  async inject<T extends object>(Type: Constructor<T>): Promise<T> {
     if (this.isInjectable(Type)) {
       return this.resolve(Type);
     }
-    return new Type(...this.getDependencies(Type).map(this.resolve.bind(this)));
+    return new Type(
+      ...await Promise.all(
+        this.getDependencies(Type).map((d) => this.resolve(d)),
+      ),
+    );
   }
 
   /**
    * Creates or looks up an instance of the `@Injectable` class `Type`.
    */
-  resolve<T extends object>(
+  async resolve<T extends object>(
     Type: Constructor<T> | AbstractConstructor<T>,
-  ): T {
+    history: (Constructor | AbstractConstructor)[] = [],
+  ): Promise<T> {
     if (this.resolved.has(Type)) {
-      return this.resolved.get(Type)!() as T;
+      return this.resolved.get(Type)!() as Promise<T>;
+    }
+    if (history.includes(Type)) {
+      throw new Error("Recursion in dependency injection");
     }
     const option = this.getInjectionOptions(Type).find(({ injected }) =>
       this.hasDependencies(injected)
@@ -148,9 +167,32 @@ export class Injector {
     }
     const deps = this.getDependencies(option.injected),
       resolve = this.resolve.bind(this),
-      construct = () => new option.injected(...deps.map(resolve)),
-      instance = construct();
-    this.resolved.set(Type, option.isSingleton ? (() => instance) : construct);
+      newHistory = [...history, Type];
+    let isSingleton = option.isSingleton,
+      construct = async () =>
+        new option.injected(
+          ...await Promise.all(deps.map((d) => resolve(d, newHistory))),
+        ),
+      instance = await construct();
+    while (instance instanceof ConditionalResolver) {
+      console.log("got a conditional resolver!");
+      const i = instance,
+        constructParent = isSingleton
+          ? (() => Promise.resolve(i))
+          : construct as () => Promise<ConditionalResolver<T>>;
+      isSingleton = instance.isSingleton;
+      const ctor = await instance.resolve(),
+        deps = this.getDependencies(ctor);
+      construct = async () =>
+        new (await (await constructParent()).resolve())(
+          ...await Promise.all(deps.map((d) => resolve(d, newHistory))),
+        );
+      instance = await construct();
+    }
+    this.resolved.set(
+      Type,
+      isSingleton ? (() => Promise.resolve(instance)) : construct,
+    );
     return instance;
   }
 
@@ -192,7 +234,13 @@ export class Injector {
   }
 
   private getDependencies(Type: Constructor): Constructor[] {
-    return Reflect.getOwnMetadata("design:paramtypes", Type) || [];
+    const meta = Reflect.getOwnMetadata("design:paramtypes", Type);
+    if (meta == null && Type.length > 0) {
+      throw new TypeError(
+        `Cannot inject dependencies of constructor ${Type.name}: no paramtypes metadata`,
+      );
+    }
+    return meta || [];
   }
 
   private hasDependencies(Type: Constructor, history = [Type]): boolean {

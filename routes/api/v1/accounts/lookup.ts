@@ -5,7 +5,7 @@ import { MastodonApiService } from "$/services/MastodonApiService.ts";
 export const handler: Handlers<void, { injector: Injector }> = {
   async GET(req, ctx) {
     const url = new URL(req.url),
-      service = ctx.state.injector.resolve(MastodonApiService),
+      service = await ctx.state.injector.resolve(MastodonApiService),
       acct = url.searchParams.get("acct");
     if (acct == null) {
       return Response.json({ error: "No acct parameter given" }, {
