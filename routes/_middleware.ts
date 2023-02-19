@@ -1,18 +1,51 @@
 import { MiddlewareHandlerContext } from "$fresh/server.ts";
-import { AbstractConstructor, Constructor, Injector } from "$/lib/inject.ts";
+import {
+  AbstractConstructor,
+  ConditionalResolver,
+  Constructor,
+  Injectable,
+  Injector,
+} from "$/lib/inject.ts";
 import { contentTypeIsJson } from "$/lib/urls.ts";
-import { LocalPostStore, MockLocalPostStore } from "$/models/LocalPost.ts";
-import { MockPersonaStore, PersonaStore } from "$/models/Persona.ts";
+import { dirExists } from "$/lib/utils.ts";
+import { ServerConfigStore } from "$/models/ServerConfig.ts";
+import { LocalDatabaseSpec } from "$/schemas/tapir/LocalDatabase.ts";
+import { DatabaseService } from "$/services/DatabaseService.ts";
+import { InMemoryDatabaseServiceFactory } from "$/services/InMemoryDatabaseService.ts";
+import { SqliteDatabaseServiceFactory } from "$/services/SqliteDatabaseService.ts";
 import * as log from "https://deno.land/std@0.176.0/log/mod.ts";
+import * as path from "https://deno.land/std@0.176.0/path/mod.ts";
 
 interface State {
   injector: Injector;
 }
 
+@Injectable()
+class LocalDatabaseSelector
+  extends ConditionalResolver<DatabaseService<typeof LocalDatabaseSpec>> {
+  constructor(private readonly serverConfigStore: ServerConfigStore) {
+    super();
+  }
+
+  async resolve() {
+    const config = await this.serverConfigStore.getServerConfig();
+    if (!await dirExists(config.dataDir)) {
+      await Deno.mkdir(config.dataDir, { recursive: true });
+    }
+    switch (config.localDatabase.type) {
+      case "inmemory":
+        return new InMemoryDatabaseServiceFactory().init(LocalDatabaseSpec);
+      case "sqlite":
+        return new SqliteDatabaseServiceFactory(
+          path.join(config.dataDir, config.localDatabase.path ?? "local.db"),
+        ).init(LocalDatabaseSpec);
+    }
+  }
+}
+
 const globalInjector = new Injector(
   new Map<AbstractConstructor, Constructor>([
-    [LocalPostStore, MockLocalPostStore],
-    [PersonaStore, MockPersonaStore],
+    [DatabaseService, LocalDatabaseSelector],
   ]),
 );
 

@@ -175,7 +175,6 @@ export class Injector {
         ),
       instance = await construct();
     while (instance instanceof ConditionalResolver) {
-      console.log("got a conditional resolver!");
       const i = instance,
         constructParent = isSingleton
           ? (() => Promise.resolve(i))
@@ -237,7 +236,8 @@ export class Injector {
     const meta = Reflect.getOwnMetadata("design:paramtypes", Type);
     if (meta == null && Type.length > 0) {
       throw new TypeError(
-        `Cannot inject dependencies of constructor ${Type.name}: no paramtypes metadata`,
+        `Cannot inject dependencies of constructor ${Type.name}: no paramtypes metadata.
+Did you forget @Injectable?`,
       );
     }
     return meta || [];

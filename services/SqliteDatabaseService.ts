@@ -13,6 +13,7 @@ import {
 import { UlidService } from "$/services/UlidService.ts";
 import { Constructor, Singleton } from "$/lib/inject.ts";
 import { DB as Sqlite } from "https://deno.land/x/sqlite@v3.7.0/mod.ts";
+import { fileExistsSync } from "$/lib/utils.ts";
 import * as sql from "$/lib/sql.ts";
 import type { SqlBuilder } from "$/lib/sql.ts";
 import * as log from "https://deno.land/std@0.176.0/log/mod.ts";
@@ -95,8 +96,7 @@ export class SqliteDatabaseServiceFactory extends DatabaseServiceFactory {
       constructor(private readonly ulid: UlidService) {
         super();
         if (overwrite) {
-          const stat = Deno.statSync(filename);
-          if (stat.isFile || stat.isSymlink) {
+          if (fileExistsSync(filename)) {
             log.warning(
               `Database file ${
                 JSON.stringify(filename)

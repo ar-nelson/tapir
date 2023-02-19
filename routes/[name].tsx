@@ -48,6 +48,7 @@ export default function PersonaTimeline(
       </Head>
       <header>
         <h1>{persona.displayName} (@{persona.name}@{serverConfig.domain})</h1>
+        <p>{persona.summary}</p>
       </header>
       <hr />
       <main>

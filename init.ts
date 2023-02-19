@@ -15,6 +15,7 @@ const json: ServerConfig = {
   url: `https://${domain}`,
   loginName,
   dataDir: "data",
+  localDatabase: { type: "sqlite" },
   publicKey: (await crypto.subtle.exportKey(
     "jwk",
     keyPair.publicKey,

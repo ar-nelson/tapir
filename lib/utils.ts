@@ -14,3 +14,36 @@ export function mapObject<T extends Record<string, U>, U, V>(
     Object.entries(obj).map(([k, v]) => [k, fn(k, v as any)]),
   ) as { [K in keyof T]: V };
 }
+
+export async function fileExists(path: string): Promise<boolean> {
+  try {
+    return (await Deno.stat(path)).isFile;
+  } catch (e) {
+    if (e instanceof Deno.errors.NotFound) {
+      return false;
+    }
+    throw e;
+  }
+}
+
+export function fileExistsSync(path: string): boolean {
+  try {
+    return Deno.statSync(path).isFile;
+  } catch (e) {
+    if (e instanceof Deno.errors.NotFound) {
+      return false;
+    }
+    throw e;
+  }
+}
+
+export async function dirExists(path: string): Promise<boolean> {
+  try {
+    return (await Deno.stat(path)).isDirectory;
+  } catch (e) {
+    if (e instanceof Deno.errors.NotFound) {
+      return false;
+    }
+    throw e;
+  }
+}

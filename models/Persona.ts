@@ -2,6 +2,7 @@ import { InjectableAbstract, Singleton } from "$/lib/inject.ts";
 import { DatabaseService, Order, QueryOp } from "$/services/DatabaseService.ts";
 import { LocalDatabaseSpec } from "$/schemas/tapir/LocalDatabase.ts";
 import { LocalPostStore } from "$/models/LocalPost.ts";
+import { ServerConfigStore } from "$/models/ServerConfig.ts";
 
 export interface Persona {
   readonly name: string;
@@ -37,16 +38,38 @@ export abstract class PersonaStore {
 @Singleton(PersonaStore)
 export class PersonaStoreImpl extends PersonaStore {
   private readonly table;
+  private readonly init;
 
   constructor(
     db: DatabaseService<typeof LocalDatabaseSpec>,
+    serverConfigStore: ServerConfigStore,
     private readonly localPostStore: LocalPostStore,
   ) {
     super();
     this.table = db.table("persona");
+    const initFn = async () => {
+      for await (
+        const _main of this.table.get({ where: { main: [QueryOp.Eq, true] } })
+      ) {
+        return;
+      }
+      const config = await serverConfigStore.getServerConfig(),
+        now = new Date();
+      this.table.insert([{
+        name: config.loginName,
+        displayName: config.loginName,
+        summary: "tapir was here",
+        requestToFollow: true,
+        main: true,
+        createdAt: now,
+        updatedAt: now,
+      }]);
+    };
+    this.init = initFn();
   }
 
   async *list(): AsyncIterable<Persona> {
+    await this.init;
     for await (
       const p of this.table.get({ orderBy: [["createdAt", Order.Ascending]] })
     ) {
@@ -58,11 +81,13 @@ export class PersonaStoreImpl extends PersonaStore {
     }
   }
 
-  count(): Promise<number> {
+  async count(): Promise<number> {
+    await this.init;
     return this.table.count({});
   }
 
   async getMain(): Promise<Persona> {
+    await this.init;
     for await (
       const p of this.table.get({ where: { main: [QueryOp.Eq, true] } })
     ) {
@@ -78,6 +103,7 @@ export class PersonaStoreImpl extends PersonaStore {
   }
 
   async get(name: string): Promise<Persona | null> {
+    await this.init;
     for await (
       const p of this.table.get({ where: { name: [QueryOp.Eq, name] } })
     ) {
@@ -93,6 +119,7 @@ export class PersonaStoreImpl extends PersonaStore {
   async create(
     persona: Omit<Persona, "createdAt" | "updatedAt">,
   ): Promise<void> {
+    await this.init;
     for await (
       const existing of this.table.get({
         where: { name: [QueryOp.Eq, persona.name] },
@@ -115,6 +142,7 @@ export class PersonaStoreImpl extends PersonaStore {
     name: string,
     update: Partial<Omit<Persona, "name" | "createdAt" | "updatedAt">>,
   ): Promise<void> {
+    await this.init;
     const existing = await this.get(name);
     if (existing == null) {
       throw new Error(
@@ -134,6 +162,7 @@ export class PersonaStoreImpl extends PersonaStore {
   }
 
   async delete(name: string): Promise<void> {
+    await this.init;
     for await (
       const { id } of this.localPostStore.list({ persona: name })
     ) {

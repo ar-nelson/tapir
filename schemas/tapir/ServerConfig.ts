@@ -6,6 +6,7 @@ export const schema = {
     url: "string",
     domain: "string",
     dataDir: "string",
+    localDatabase: ["ref", "DatabaseConfig"],
     publicKey: {
       kty: ["enum", "RSA"],
       alg: ["enum", "RS256"],
@@ -28,6 +29,12 @@ export const schema = {
       key_ops: ["tuple", ["enum", "sign"]],
       ext: ["enum", true],
     },
+  },
+  let: {
+    DatabaseConfig: ["oneof", { "type": ["enum", "inmemory"] }, {
+      "type": ["enum", "sqlite"],
+      "path": ["optional", "string"],
+    }],
   },
 } as const;
 
