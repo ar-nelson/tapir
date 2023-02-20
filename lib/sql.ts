@@ -1,4 +1,3 @@
-import Dex from "https://deno.land/x/dex@1.0.2/mod.ts";
 import {
   Columns,
   ColumnSpec,
@@ -12,96 +11,17 @@ import {
 } from "$/services/DatabaseService.ts";
 import { UlidService } from "$/services/UlidService.ts";
 import { mapObject } from "$/lib/utils.ts";
-
-export interface SqlBuilder {
-  schema: {
-    createTable(name: string, cb: (table: TableBuilder) => void): Sql;
-    dropTable(name: string): Sql;
-    dropTableIfExists(name: string): Sql;
-    renameTable(old: string, new_: string): Sql;
-    hasTable(name: string): Sql;
-    alterTable(name: string, cb: (table: TableBuilder) => void): Sql;
-  };
-  queryBuilder(): QueryBuilder;
-}
-
-export interface QueryBuilder extends Sql {
-  column(...fields: string[]): QueryBuilder;
-  select(field?: string): QueryBuilder;
-  from(table: string): QueryBuilder;
-  where(fields: Record<string, unknown>): QueryBuilder;
-  where(name: string, ...ops: unknown[]): QueryBuilder;
-  whereNot(name: string, ...ops: unknown[]): QueryBuilder;
-  andWhere(name: string, ...ops: unknown[]): QueryBuilder;
-  andWhereNot(name: string, ...ops: unknown[]): QueryBuilder;
-  insert(rows: Record<string, unknown>[]): QueryBuilder;
-  into(table: string): QueryBuilder;
-  delete(table?: string | string[]): QueryBuilder;
-  update(fields: Record<string, unknown>): QueryBuilder;
-  onConflict(name: string): QueryBuilder;
-  merge(): QueryBuilder;
-  count(...columns: string[]): QueryBuilder;
-  limit(count: number): QueryBuilder;
-  offset(count: number): QueryBuilder;
-  orderBy(
-    column: string,
-    direction?: "asc" | "desc",
-    nulls?: "first" | "last",
-  ): QueryBuilder;
-}
-
-export interface TableBuilder {
-  increments(name: string): ColumnBuilder;
-  integer(name: string): ColumnBuilder;
-  float(name: string): ColumnBuilder;
-  boolean(name: string): ColumnBuilder;
-  string(name: string, length?: number): ColumnBuilder;
-  binary(name: string, length?: number): ColumnBuilder;
-  text(name: string): ColumnBuilder;
-  date(name: string): ColumnBuilder;
-  datetime(name: string): ColumnBuilder;
-  decimal(name: string, precision: number): ColumnBuilder;
-  enum(name: string, values: string[]): ColumnBuilder;
-  json(name: string): ColumnBuilder;
-  timestamp(name: string): ColumnBuilder;
-  index(columns: string[], indexName?: string): void;
-
-  dropColumn(name: string): void;
-  dropTimestamps(useCamelCase?: boolean): void;
-  dropIndex(columns: string[], indexName?: string): void;
-}
-
-export interface ColumnBuilder {
-  primary(): ColumnBuilder;
-  references(name: string): ColumnBuilder;
-  unique(): ColumnBuilder;
-  unsigned(): ColumnBuilder;
-  nullable(): ColumnBuilder;
-  notNullable(): ColumnBuilder;
-  defaultTo(value: unknown): ColumnBuilder;
-}
-
-export interface Sql {
-  toString(): string;
-}
-
-export function SqlBuilder(client: "sqlite3" | "postgresql") {
-  return Dex(
-    client === "sqlite3"
-      ? { client: "sqlite3", useNullAsDefault: true }
-      : { client },
-  );
-}
+import * as sql from "$/lib/sql/mod.ts";
 
 export function createColumn(
-  t: TableBuilder,
+  t: sql.Table,
   name: string,
   col: ColumnSpec<ColumnType>,
-): ColumnBuilder {
-  let c: ColumnBuilder;
+): sql.Column {
+  let c: sql.Column;
   switch (col.type) {
     case ColumnType.Ulid:
-      c = t.string(name, 26);
+      c = t.binary(name);
       break;
     case ColumnType.String:
       c = t.text(name);
@@ -124,141 +44,148 @@ export function createColumn(
   }
   if (col.nullable) c = c.nullable();
   else c = c.notNullable();
-  if (col.default) c = c.defaultTo(col.default);
+  if (col.default) c = c.default(col.default);
   return c;
 }
 
 export function createTable(
-  sql: SqlBuilder,
+  schema: sql.Schema,
   name: string,
   table: TableSpec<Columns>,
-): string {
-  return sql.schema.createTable(name, (t) => {
+): string[] {
+  return schema.create(name, (t) => {
     for (const [name, col] of Object.entries(table.columns)) {
       const c = createColumn(t, name, col);
       if (name === table.primaryKey) c.primary();
     }
-  }).toString();
+  });
 }
 
 export function queryWhere(
-  q: QueryBuilder,
+  q: sql.QueryBuilder,
   column: string,
   op: QueryOp,
-  value: unknown,
-  first = true,
-): QueryBuilder {
+  value: sql.DatabaseValues,
+): sql.QueryBuilder {
   switch (op) {
     case QueryOp.Eq:
-      if (first) return q.where(column, value);
-      else return q.andWhere(column, value);
+      return q.where(column, value);
     case QueryOp.Neq:
-      if (first) return q.whereNot(column, value);
-      else return q.andWhereNot(column, value);
+      return q.not(column, value);
     case QueryOp.Gt:
-      if (first) return q.where(column, ">", value);
-      else return q.andWhere(column, ">", value);
+      return q.where(column, new sql.Q(sql.QueryOperator.GreaterThan, value));
     case QueryOp.Gte:
-      if (first) return q.where(column, ">=", value);
-      else return q.andWhere(column, ">=", value);
+      return q.where(
+        column,
+        new sql.Q(sql.QueryOperator.GreaterThanEqual, value),
+      );
     case QueryOp.Lt:
-      if (first) return q.where(column, "<", value);
-      else return q.andWhere(column, "<", value);
+      return q.where(column, new sql.Q(sql.QueryOperator.LowerThan, value));
     case QueryOp.Lte:
-      if (first) return q.where(column, "<=", value);
-      else return q.andWhere(column, "<=", value);
+      return q.where(
+        column,
+        new sql.Q(sql.QueryOperator.LowerThanEqual, value),
+      );
     case QueryOp.Contains:
-      if (first) return q.where(column, "like", `%${value}%`);
-      else return q.andWhere(column, "like", `%${value}%`);
+      return q.where(column, new sql.Q(sql.QueryOperator.In, value));
     case QueryOp.NotContains:
-      if (first) return q.whereNot(column, "like", `%${value}%`);
-      else return q.andWhereNot(column, "like", `%${value}%`);
+      return q.where(column, new sql.Q(sql.QueryOperator.NotIn, value));
   }
 }
 
 export function select<C extends Columns>(
-  sql: SqlBuilder,
   table: string,
-  spec: TableSpec<C>,
+  dialect: sql.DBDialects,
   query: Query<C> = {},
   orderBy: [keyof C & string, Order][] = [],
   limit?: number,
-): string {
-  let q = sql.queryBuilder().select("*").from(table), first = true;
+): { text: string; values: sql.DatabaseValues[] } {
+  let q = new sql.QueryBuilder(table, dialect).select("*");
   for (const [name, [op, value]] of Object.entries(query)) {
-    q = queryWhere(q, name, op, value, first);
-    first = false;
+    q = queryWhere(
+      q,
+      name,
+      op,
+      value,
+    );
   }
   for (const [name, order] of orderBy) {
-    q = q.orderBy(
+    q = q.order(
       name,
-      order === Order.Ascending ? "asc" : "desc",
-      spec.columns[name].nullable ? "first" : undefined,
+      order === Order.Ascending ? "ASC" : "DESC",
     );
   }
   if (limit != null) {
     q = q.limit(limit);
   }
-  return q.toString();
+  return q.toSQL();
 }
 
 export function insert<C extends Columns>(
-  sql: SqlBuilder,
   table: string,
+  dialect: sql.DBDialects,
   spec: TableSpec<C>,
   rows: InRow<C>[],
   ulidService?: UlidService,
-): string {
-  return sql.queryBuilder()
-    .insert(
-      rows.map((r) =>
-        mapObject(r, (k, v) => inToOut(spec.columns[k], v, true, ulidService))
-      ),
-    )
-    .into(table)
-    .toString();
+): { text: string; values: sql.DatabaseValues[] } {
+  return new sql.QueryBuilder(table, dialect).insert(
+    rows.map((r) =>
+      mapObject(r, (k, v) => inToOut(spec.columns[k], v, true, ulidService))
+    ),
+  ).toSQL();
 }
 
 export function update<C extends Columns>(
-  sql: SqlBuilder,
   table: string,
+  dialect: sql.DBDialects,
   spec: TableSpec<C>,
   query: Query<C>,
   fields: Partial<InRow<C>>,
-): string {
-  let q = sql.queryBuilder().from(table).update(
-      mapObject(fields, (k, v) => inToOut(spec.columns[k], v!)),
-    ),
-    first = true;
+): { text: string; values: sql.DatabaseValues[] } {
+  let q = new sql.QueryBuilder(table, dialect).update(
+    mapObject(fields, (k, v) => inToOut(spec.columns[k], v!)),
+  );
   for (const [name, [op, value]] of Object.entries(query)) {
-    q = queryWhere(q, name, op, value, first);
-    first = false;
+    q = queryWhere(
+      q,
+      name,
+      op,
+      value,
+    );
   }
-  return q.toString();
+  return q.toSQL();
 }
 
 export function del<C extends Columns>(
-  sql: SqlBuilder,
   table: string,
+  dialect: sql.DBDialects,
   query: Query<C>,
-): string {
-  let q = sql.queryBuilder().from(table), first = true;
+): { text: string; values: sql.DatabaseValues[] } {
+  let q = new sql.QueryBuilder(table, dialect);
   for (const [name, [op, value]] of Object.entries(query)) {
-    q = queryWhere(q, name, op, value, first);
-    first = false;
+    q = queryWhere(
+      q,
+      name,
+      op,
+      value,
+    );
   }
-  return q.delete().toString();
+  return q.delete().toSQL();
 }
 
 export function count<C extends Columns>(
-  sql: SqlBuilder,
   table: string,
+  dialect: sql.DBDialects,
   query: Query<C>,
-): string {
-  let q = sql.queryBuilder().from(table), first = true;
+): { text: string; values: sql.DatabaseValues[] } {
+  let q = new sql.QueryBuilder(table, dialect);
   for (const [name, [op, value]] of Object.entries(query)) {
-    q = queryWhere(q, name, op, value, first);
-    first = false;
+    q = queryWhere(
+      q,
+      name,
+      op,
+      value,
+    );
   }
-  return q.count().toString();
+  return q.count("*").toSQL();
 }

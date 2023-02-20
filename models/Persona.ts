@@ -1,4 +1,5 @@
 import { InjectableAbstract, Singleton } from "$/lib/inject.ts";
+import { checkPersonaName } from "$/lib/utils.ts";
 import { DatabaseService, Order, QueryOp } from "$/services/DatabaseService.ts";
 import { LocalDatabaseSpec } from "$/schemas/tapir/LocalDatabase.ts";
 import { LocalPostStore } from "$/models/LocalPost.ts";
@@ -129,6 +130,7 @@ export class PersonaStoreImpl extends PersonaStore {
         `A persona named ${JSON.stringify(existing.name)} already exists`,
       );
     }
+    checkPersonaName(persona.name);
     const now = new Date();
     await this.table.insert([{
       ...persona,

@@ -1,5 +1,6 @@
 import {
   Columns,
+  ColumnType,
   DatabaseService,
   DatabaseServiceFactory,
   DatabaseSpec,
@@ -15,18 +16,41 @@ import { Constructor, Singleton } from "$/lib/inject.ts";
 import { DB as Sqlite } from "https://deno.land/x/sqlite@v3.7.0/mod.ts";
 import { fileExistsSync } from "$/lib/utils.ts";
 import * as sql from "$/lib/sql.ts";
-import type { SqlBuilder } from "$/lib/sql.ts";
+import { DatabaseValues, QueryBuilder, Schema } from "$/lib/sql/mod.ts";
 import * as log from "https://deno.land/std@0.176.0/log/mod.ts";
+
+function rowConverter<C extends Columns>(
+  spec: TableSpec<C>,
+): (r: Partial<{ [K in keyof C]: unknown }>) => Partial<OutRow<C>> {
+  return Object.entries(spec.columns).reduce(
+    (last, [k, v]) => {
+      switch (v.type) {
+        case ColumnType.Date:
+          return (r) =>
+            last(r[k] != null ? { ...r, [k]: new Date(r[k] as string) } : r);
+        case ColumnType.Json:
+          return (r) =>
+            last(r[k] != null ? { ...r, [k]: JSON.parse(r[k] as string) } : r);
+        default:
+          return last;
+      }
+    },
+    (r: Partial<{ [K in keyof C]: unknown }>) => r,
+  ) as (r: Partial<{ [K in keyof C]: unknown }>) => Partial<OutRow<C>>;
+}
 
 export class SqliteDatabaseTable<C extends Columns, Spec extends TableSpec<C>>
   implements DatabaseTable<C> {
+  private readonly convertRow;
+
   constructor(
     private readonly name: string,
     private readonly spec: Spec,
-    private readonly sql: SqlBuilder,
     private readonly db: Sqlite,
     private readonly ulid: UlidService,
-  ) {}
+  ) {
+    this.convertRow = rowConverter(spec);
+  }
 
   async *get(
     this: SqliteDatabaseTable<C, Spec>,
@@ -36,41 +60,57 @@ export class SqliteDatabaseTable<C extends Columns, Spec extends TableSpec<C>>
       limit?: number;
     },
   ): AsyncIterable<OutRow<C>> {
-    const query = sql.select(
-      this.sql,
+    const { text, values } = sql.select(
       this.name,
-      this.spec,
+      "sqlite3",
       options.where,
       options.orderBy,
       options.limit,
     );
-    for (const row of this.db.queryEntries<OutRow<C>>(query)) {
-      yield row;
+    for (
+      const row of this.db.queryEntries<{ [K in keyof C]: DatabaseValues }>(
+        text,
+        values,
+      )
+    ) {
+      yield this.convertRow(row) as OutRow<C>;
     }
   }
 
   count(where: Query<C>): Promise<number> {
+    const { text, values } = sql.count(this.name, "sqlite3", where);
     return Promise.resolve(
-      this.db.queryEntries<{ count: number }>(
-        sql.count(this.sql, this.name, where),
-      )[0]["count"],
+      this.db.queryEntries<{ count: number }>(text, values)[0]["count"],
     );
   }
 
   insert(rows: InRow<C>[]): Promise<void> {
-    this.db.query(sql.insert(this.sql, this.name, this.spec, rows, this.ulid));
+    const { text, values } = sql.insert(
+      this.name,
+      "sqlite3",
+      this.spec,
+      rows,
+      this.ulid,
+    );
+    this.db.query(text, values);
     return Promise.resolve();
   }
 
   update(where: Query<C>, fields: Partial<InRow<C>>): Promise<number> {
-    const rows = this.db.query(
-      sql.update(this.sql, this.name, this.spec, where, fields),
-    );
+    const { text, values } = sql.update(
+        this.name,
+        "sqlite3",
+        this.spec,
+        where,
+        fields,
+      ),
+      rows = this.db.query(text, values);
     return Promise.resolve(rows.length);
   }
 
   delete(where: Query<C>): Promise<number> {
-    const rows = this.db.query(sql.del(this.sql, this.name, where));
+    const { text, values } = sql.del(this.name, "sqlite3", where),
+      rows = this.db.query(text, values);
     return Promise.resolve(rows.length);
   }
 }
@@ -91,7 +131,6 @@ export class SqliteDatabaseServiceFactory extends DatabaseServiceFactory {
     @Singleton()
     class InMemoryDatabaseService extends DatabaseService<Spec> {
       private readonly db: Sqlite;
-      private readonly sql: SqlBuilder;
 
       constructor(private readonly ulid: UlidService) {
         super();
@@ -105,16 +144,14 @@ export class SqliteDatabaseServiceFactory extends DatabaseServiceFactory {
             Deno.removeSync(filename);
           }
         }
-        this.sql = sql.SqlBuilder("sqlite3");
         this.db = new Sqlite(filename);
         if (
-          this.db.query(this.sql.schema.hasTable("_version").toString()).length
+          this.db.query(new Schema("sqlite3").hasTable("_version")).length
         ) {
-          const foundVersion = this.db.queryEntries<{ version: number }>(
-            this.sql.queryBuilder().select("version").from("_version").limit(
-              1,
-            ).toString(),
-          )[0].version;
+          const { text, values } = new QueryBuilder("_version", "sqlite3")
+            .select("version").first().toSQL();
+          const foundVersion =
+            this.db.queryEntries<{ version: number }>(text, values)[0].version;
           if (foundVersion !== version) {
             throw new Error(
               `Database version does not match: got ${foundVersion}, expected ${version}, and migrations are not yet supported`,
@@ -126,19 +163,17 @@ export class SqliteDatabaseServiceFactory extends DatabaseServiceFactory {
               JSON.stringify(filename)
             } at version ${version}`,
           );
-          this.db.execute(
-            this.sql.schema.createTable(
-              "_version",
-              (t) => t.integer("version").primary().unique(),
-            ).toString(),
-          );
-          this.db.query(
-            this.sql.queryBuilder().insert([{ version }]).into("_version")
-              .toString(),
-          );
+          const schema = new Schema("sqlite3");
+          schema.create("_version", (t) => t.integer("version").primary());
           for (const [name, spec] of Object.entries(specTables)) {
-            this.db.execute(sql.createTable(this.sql, name, spec));
+            sql.createTable(schema, name, spec);
           }
+          for (const line of schema.query) {
+            this.db.execute(line);
+          }
+          const { text, values } = new QueryBuilder("_version", "sqlite3")
+            .insert([{ version }]).toSQL();
+          this.db.query(text, values);
         }
       }
 
@@ -146,7 +181,6 @@ export class SqliteDatabaseServiceFactory extends DatabaseServiceFactory {
         return new SqliteDatabaseTable(
           name as string,
           specTables[name as keyof typeof specTables],
-          this.sql,
           this.db,
           this.ulid,
         );

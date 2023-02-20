@@ -1,6 +1,7 @@
 import { InjectableAbstract, Singleton } from "$/lib/inject.ts";
 import { DatabaseService, Order, QueryOp } from "$/services/DatabaseService.ts";
 import { LocalDatabaseSpec, PostType } from "$/schemas/tapir/LocalDatabase.ts";
+export { PostType } from "$/schemas/tapir/LocalDatabase.ts";
 import { UlidService } from "$/services/UlidService.ts";
 
 export interface LocalPost {

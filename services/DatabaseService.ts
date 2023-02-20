@@ -43,7 +43,7 @@ export type ColumnTypeOutValue<T extends ColumnType> = T extends ColumnType.Ulid
   : T extends ColumnType.Integer ? number
   : T extends ColumnType.Boolean ? boolean
   : T extends ColumnType.Date ? Date
-  : T extends ColumnType.Json ? unknown
+  : T extends ColumnType.Json ? string
   : T extends ColumnType.Blob ? Uint8Array
   : never;
 
@@ -117,6 +117,8 @@ export function inToOut<C extends ColumnSpec<ColumnType>>(
     }
   }
   switch (spec.type) {
+    case ColumnType.Json:
+      return JSON.stringify(value) as ColumnOutValue<C>;
     case ColumnType.Date:
       if (typeof value === "string") {
         return Date.parse(value) as ColumnOutValue<C>;
