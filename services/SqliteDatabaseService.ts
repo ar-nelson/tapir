@@ -138,7 +138,7 @@ class SqliteDB<Spec extends DatabaseSpec> extends DatabaseService<Spec> {
   ): Promise<number> {
     const db = await this.dbPromise,
       { text, values } = count(table, "sqlite3", where);
-    return db.queryEntries<{ count: number }>(text, values)[0]["count"];
+    return db.query(text, values)[0][0] as number;
   }
 
   async insert<T extends TableOf<Spec>>(

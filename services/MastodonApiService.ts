@@ -2,6 +2,7 @@ import { Singleton } from "$/lib/inject.ts";
 import { ServerConfig, ServerConfigStore } from "$/models/ServerConfig.ts";
 import { Persona, PersonaStore } from "$/models/Persona.ts";
 import { LocalPost, LocalPostStore } from "$/models/LocalPost.ts";
+import { InFollowStore } from "$/models/InFollow.ts";
 import { Account, Instance, Status } from "$/schemas/mastodon/mod.ts";
 import { asyncToArray } from "$/lib/utils.ts";
 import * as urls from "$/lib/urls.ts";
@@ -38,6 +39,7 @@ export class MastodonApiService {
     private readonly serverConfigStore: ServerConfigStore,
     private readonly personaStore: PersonaStore,
     private readonly localPostStore: LocalPostStore,
+    private readonly inFollowStore: InFollowStore,
   ) {}
 
   async instance(): Promise<Instance> {
@@ -84,7 +86,7 @@ export class MastodonApiService {
           "max_expiration": 2629746,
         },
       },
-      "contact_account": this.personaToAccount(
+      "contact_account": await this.#personaToAccount(
         await this.personaStore.getMain(),
         serverConfig,
       ),
@@ -114,7 +116,7 @@ export class MastodonApiService {
         personas.set(p.persona, promise);
         persona = await promise;
       }
-      return this.localPostToStatus(persona, serverConfig)(p);
+      return (await this.#localPostToStatus(persona, serverConfig))(p);
     }));
   }
 
@@ -140,7 +142,7 @@ export class MastodonApiService {
     if (!persona) {
       return undefined;
     }
-    return this.personaToAccount(
+    return this.#personaToAccount(
       persona,
       await this.serverConfigStore.getServerConfig(),
     );
@@ -159,7 +161,7 @@ export class MastodonApiService {
         persona: persona.name,
         limit: options.limit ?? 20,
       }));
-    return posts.map(this.localPostToStatus(persona, serverConfig));
+    return posts.map(await this.#localPostToStatus(persona, serverConfig));
   }
 
   async status(id: string): Promise<Status | undefined> {
@@ -172,13 +174,13 @@ export class MastodonApiService {
     if (!persona) {
       return undefined;
     }
-    return this.localPostToStatus(persona, serverConfig)(post);
+    return (await this.#localPostToStatus(persona, serverConfig))(post);
   }
 
-  private personaToAccount(
+  async #personaToAccount(
     persona: Persona,
     serverConfig: ServerConfig,
-  ): Account {
+  ): Promise<Account> {
     return {
       id: persona.name,
       username: persona.name,
@@ -195,17 +197,17 @@ export class MastodonApiService {
       avatar_static: urls.urlJoin(serverConfig.url, "tapir-avatar.jpg"),
       header: "",
       header_static: "",
-      followers_count: 0,
+      followers_count: await this.inFollowStore.countFollowers(persona.name),
       following_count: 0,
-      statuses_count: 0,
+      statuses_count: await this.localPostStore.count(persona.name),
       last_status_at: persona.createdAt,
       emojis: [],
       fields: [],
     };
   }
 
-  private localPostToStatus(persona: Persona, serverConfig: ServerConfig) {
-    const account = this.personaToAccount(persona, serverConfig);
+  async #localPostToStatus(persona: Persona, serverConfig: ServerConfig) {
+    const account = await this.#personaToAccount(persona, serverConfig);
     return (post: LocalPost): Status => ({
       id: post.id,
       created_at: post.createdAt,

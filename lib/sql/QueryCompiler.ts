@@ -491,6 +491,10 @@ export class QueryCompiler {
   }
 
   private normalizeColumnName(column: string) {
+    if (column === "*") {
+      return column;
+    }
+
     const data = column.split(".");
 
     // If the column name contains a dot, we assume that the
