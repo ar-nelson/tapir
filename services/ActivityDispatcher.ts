@@ -46,6 +46,12 @@ export abstract class ActivityDispatcher {
     fromPersona: string,
     priority: Priority,
   ): Promise<Object>;
+
+  abstract dispatchTo(
+    url: URL,
+    activity: Activity,
+    fromPersona: string,
+  ): Promise<Response>;
 }
 
 @Singleton(ActivityDispatcher)

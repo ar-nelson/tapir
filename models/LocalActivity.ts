@@ -52,7 +52,7 @@ export class LocalActivityStoreImpl extends LocalActivityStore {
         log.info(`Redispatching pending ${json.type} message ${id}`);
         this.dispatcher.dispatch(json, Priority.Soon, () => this.markSent(id));
       }
-    });
+    })();
   }
 
   async *listUnsent(): AsyncIterable<LocalActivity> {

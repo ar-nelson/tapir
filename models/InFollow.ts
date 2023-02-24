@@ -156,11 +156,17 @@ export class InFollowStoreImpl extends InFollowStore {
       }]);
     });
     if (!persona.requestToFollow) {
-      this.#onAccept(params.id, params.persona, params.actor, now);
+      this.#onAccept(params.id, params.persona, params.actor, actor.inbox, now);
     }
   }
 
-  async #onAccept(id: string, persona: string, actor: string, now: Date) {
+  async #onAccept(
+    id: string,
+    persona: string,
+    actor: string,
+    inbox: string,
+    now: Date,
+  ) {
     this.localActivityStore.create({
       type: "Accept",
       actor: urls.activityPubActor(persona, (await this.#serverConfig).url),
@@ -175,7 +181,11 @@ export class InFollowStoreImpl extends InFollowStore {
       // TODO: Handle posts with limited visibility
       const activity = await this.localActivityStore.get(post.id);
       if (activity) {
-        this.activityDispatcher.dispatch(activity.json, Priority.Eventually);
+        this.activityDispatcher.dispatchTo(
+          new URL(inbox),
+          activity.json,
+          persona,
+        );
       }
     }
   }
@@ -191,7 +201,13 @@ export class InFollowStoreImpl extends InFollowStore {
     }
     const now = new Date();
     await this.db.update("inFollow", { id: existing.id }, { acceptedAt: now });
-    this.#onAccept(existing.id, existing.persona, existing.actor, now);
+    this.#onAccept(
+      existing.id,
+      existing.persona,
+      existing.actor,
+      existing.inbox,
+      now,
+    );
   }
 
   async reject(
