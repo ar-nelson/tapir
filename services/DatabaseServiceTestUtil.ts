@@ -2,13 +2,10 @@ import {
   assertArrayIncludes,
   assertEquals,
 } from "https://deno.land/std@0.176.0/testing/asserts.ts";
+import { columnCompare, ColumnType, Q, QueryOperator } from "$/lib/sql/mod.ts";
 import {
-  columnCompare,
-  ColumnType,
   DatabaseService,
   DatabaseServiceFactory,
-  Order,
-  QueryOp,
 } from "$/services/DatabaseService.ts";
 import { UlidService } from "$/services/UlidService.ts";
 import { AbstractConstructor, Constructor, Injector } from "$/lib/inject.ts";
@@ -46,37 +43,36 @@ export async function testDatabaseService(
 
   Deno.test("insert and get one row", async (t) => {
     const [db, ulid] = await newDb(),
-      table = db.table("people"),
       id = ulid.next(),
       row = { id, name: "Bob", age: 42 };
-    await table.insert([row]);
+    await db.insert("people", [row]);
 
     await t.step("select all", async () => {
-      assertEquals(await collect(table.get({})), [row]);
+      assertEquals(await collect(db.get("people", {})), [row]);
     });
     await t.step("where id eq", async () => {
       assertEquals(
-        await collect(table.get({ where: { id: [QueryOp.Eq, id] } })),
+        await collect(db.get("people", { where: { id } })),
         [row],
       );
     });
     await t.step("where name eq", async () => {
       assertEquals(
-        await collect(table.get({ where: { name: [QueryOp.Eq, "Bob"] } })),
+        await collect(db.get("people", { where: { name: "Bob" } })),
         [row],
       );
     });
     await t.step("where age eq", async () => {
       assertEquals(
-        await collect(table.get({ where: { age: [QueryOp.Eq, 42] } })),
+        await collect(db.get("people", { where: { age: 42 } })),
         [row],
       );
     });
     await t.step("where id and name eq", async () => {
       assertEquals(
         await collect(
-          table.get({
-            where: { id: [QueryOp.Eq, id], name: [QueryOp.Eq, "Bob"] },
+          db.get("people", {
+            where: { id: new Q(QueryOperator.Equal, id), name: "Bob" },
           }),
         ),
         [row],
@@ -84,16 +80,14 @@ export async function testDatabaseService(
     });
     await t.step("where id eq different", async () => {
       assertEquals(
-        await collect(table.get({ where: { id: [QueryOp.Eq, ulid.next()] } })),
+        await collect(db.get("people", { where: { id: ulid.next() } })),
         [],
       );
     });
     await t.step("where name eq but id eq different", async () => {
       assertEquals(
         await collect(
-          table.get({
-            where: { id: [QueryOp.Eq, ulid.next()], name: [QueryOp.Eq, "Bob"] },
-          }),
+          db.get("people", { where: { id: ulid.next(), name: "Bob" } }),
         ),
         [],
       );
@@ -101,9 +95,7 @@ export async function testDatabaseService(
     await t.step("where id eq but name eq different", async () => {
       assertEquals(
         await collect(
-          table.get({
-            where: { id: [QueryOp.Eq, id], name: [QueryOp.Eq, "Alice"] },
-          }),
+          db.get("people", { where: { id: id, name: "Alice" } }),
         ),
         [],
       );
@@ -113,7 +105,6 @@ export async function testDatabaseService(
 
   Deno.test("insert and get three rows", async (t) => {
     const [db, ulid] = await newDb(),
-      table = db.table("people"),
       id1 = ulid.next(),
       id2 = ulid.next(),
       id3 = ulid.next(),
@@ -122,7 +113,7 @@ export async function testDatabaseService(
         { id: id2, name: "Bob", age: 42 },
         { id: id3, name: "Charlie", age: 32 },
       ];
-    await table.insert(rows);
+    await db.insert("people", rows);
 
     await t.step("ulids are ordered", () => {
       assertEquals(id1.localeCompare(id2), -1);
@@ -141,7 +132,7 @@ export async function testDatabaseService(
     });
 
     await t.step("select all unordered", async () => {
-      const queryAll = await collect(table.get({}));
+      const queryAll = await collect(db.get("people", {}));
       assertArrayIncludes(queryAll, [rows[0]]);
       assertArrayIncludes(queryAll, [rows[1]]);
       assertArrayIncludes(queryAll, [rows[2]]);
@@ -150,7 +141,7 @@ export async function testDatabaseService(
 
     await t.step("select where age eq", async () => {
       const queryAll = await collect(
-        table.get({ where: { age: [QueryOp.Eq, 32] } }),
+        db.get("people", { where: { age: 32 } }),
       );
       assertArrayIncludes(queryAll, [rows[0]]);
       assertArrayIncludes(queryAll, [rows[2]]);
@@ -159,7 +150,7 @@ export async function testDatabaseService(
 
     await t.step("select where age neq", async () => {
       const queryAll = await collect(
-        table.get({ where: { age: [QueryOp.Neq, 32] } }),
+        db.get("people", { where: { age: new Q(QueryOperator.NotEqual, 32) } }),
       );
       assertArrayIncludes(queryAll, [rows[1]]);
       assertEquals(queryAll.length, 1);
@@ -167,7 +158,9 @@ export async function testDatabaseService(
 
     await t.step("select where age gt", async () => {
       const queryAll = await collect(
-        table.get({ where: { age: [QueryOp.Gt, 32] } }),
+        db.get("people", {
+          where: { age: new Q(QueryOperator.GreaterThan, 32) },
+        }),
       );
       assertArrayIncludes(queryAll, [rows[1]]);
       assertEquals(queryAll.length, 1);
@@ -175,7 +168,9 @@ export async function testDatabaseService(
 
     await t.step("select where age gte", async () => {
       const queryAll = await collect(
-        table.get({ where: { age: [QueryOp.Gte, 32] } }),
+        db.get("people", {
+          where: { age: new Q(QueryOperator.GreaterThanEqual, 32) },
+        }),
       );
       assertArrayIncludes(queryAll, [rows[0]]);
       assertArrayIncludes(queryAll, [rows[1]]);
@@ -185,7 +180,9 @@ export async function testDatabaseService(
 
     await t.step("select where age lt", async () => {
       const queryAll = await collect(
-        table.get({ where: { age: [QueryOp.Lt, 42] } }),
+        db.get("people", {
+          where: { age: new Q(QueryOperator.LowerThan, 42) },
+        }),
       );
       assertArrayIncludes(queryAll, [rows[0]]);
       assertArrayIncludes(queryAll, [rows[2]]);
@@ -194,7 +191,9 @@ export async function testDatabaseService(
 
     await t.step("select where age lte", async () => {
       const queryAll = await collect(
-        table.get({ where: { age: [QueryOp.Lte, 42] } }),
+        db.get("people", {
+          where: { age: new Q(QueryOperator.LowerThanEqual, 42) },
+        }),
       );
       assertArrayIncludes(queryAll, [rows[0]]);
       assertArrayIncludes(queryAll, [rows[1]]);
@@ -204,14 +203,14 @@ export async function testDatabaseService(
 
     await t.step("order by id ascending", async () => {
       assertEquals(
-        await collect(table.get({ orderBy: [["id", Order.Ascending]] })),
+        await collect(db.get("people", { orderBy: [["id", "ASC"]] })),
         rows,
       );
     });
 
     await t.step("order by id descending", async () => {
       assertEquals(
-        await collect(table.get({ orderBy: [["id", Order.Descending]] })),
+        await collect(db.get("people", { orderBy: [["id", "DESC"]] })),
         [rows[2], rows[1], rows[0]],
       );
     });
@@ -219,8 +218,8 @@ export async function testDatabaseService(
     await t.step("order by age then name", async () => {
       assertEquals(
         await collect(
-          table.get({
-            orderBy: [["age", Order.Ascending], ["name", Order.Descending]],
+          db.get("people", {
+            orderBy: [["age", "ASC"], ["name", "DESC"]],
           }),
         ),
         [rows[2], rows[0], rows[1]],
@@ -230,8 +229,8 @@ export async function testDatabaseService(
     await t.step("order by age then name, limit 2", async () => {
       assertEquals(
         await collect(
-          table.get({
-            orderBy: [["age", Order.Ascending], ["name", Order.Descending]],
+          db.get("people", {
+            orderBy: [["age", "ASC"], ["name", "DESC"]],
             limit: 2,
           }),
         ),

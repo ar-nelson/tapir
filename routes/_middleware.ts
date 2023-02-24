@@ -73,19 +73,21 @@ export async function handler(
 
   // allow everything because CORS sucks
   // TODO: might need to change this someday
-  rsp.headers.append("Access-Control-Allow-Origin", "*");
-  rsp.headers.append(
-    "Access-Control-Allow-Methods",
-    "POST, PUT, DELETE, GET, PATCH, OPTIONS",
-  );
-  rsp.headers.append("Access-Control-Allow-Headers", "*");
-  rsp.headers.append("Access-Control-Max-Age", "86400");
+  if (rsp.status < 300 || rsp.status >= 400) {
+    rsp.headers.append("Access-Control-Allow-Origin", "*");
+    rsp.headers.append(
+      "Access-Control-Allow-Methods",
+      "POST, PUT, DELETE, GET, PATCH, OPTIONS",
+    );
+    rsp.headers.append("Access-Control-Allow-Headers", "*");
+    rsp.headers.append("Access-Control-Max-Age", "86400");
 
-  const path = new URL(req.url).pathname;
-  if (rsp.status >= 400) {
-    log.warning(`${method} ${path}: ${rsp.status} (${userAgent})`);
-  } else {
-    log.info(`${method} ${path}: ${rsp.status} (${userAgent})`);
+    const path = new URL(req.url).pathname;
+    if (rsp.status >= 400) {
+      log.warning(`${method} ${path}: ${rsp.status} (${userAgent})`);
+    } else {
+      log.info(`${method} ${path}: ${rsp.status} (${userAgent})`);
+    }
   }
 
   return rsp;

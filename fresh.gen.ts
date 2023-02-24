@@ -9,28 +9,36 @@ import * as $2 from "./routes/[name].tsx";
 import * as $3 from "./routes/_404.tsx";
 import * as $4 from "./routes/_middleware.ts";
 import * as $5 from "./routes/admin/_middleware.ts";
-import * as $6 from "./routes/admin/index.tsx";
-import * as $7 from "./routes/admin/personas/[name].tsx";
-import * as $8 from "./routes/admin/personas/index.tsx";
-import * as $9 from "./routes/admin/toot.tsx";
-import * as $10 from "./routes/api/_middleware.ts";
-import * as $11 from "./routes/api/v1/accounts/[acct]/index.ts";
-import * as $12 from "./routes/api/v1/accounts/[acct]/statuses.ts";
-import * as $13 from "./routes/api/v1/accounts/lookup.ts";
-import * as $14 from "./routes/api/v1/instance.ts";
-import * as $15 from "./routes/api/v1/statuses/[id]/index.ts";
-import * as $16 from "./routes/api/v1/timelines/public.ts";
-import * as $17 from "./routes/index.tsx";
-import * as $18 from "./routes/nodeinfo/2.0.ts";
-import * as $19 from "./routes/toot/[id].tsx";
-import * as $20 from "./routes/users/[name]/followers.ts";
-import * as $21 from "./routes/users/[name]/following.ts";
-import * as $22 from "./routes/users/[name]/inbox.ts";
-import * as $23 from "./routes/users/[name]/index.ts";
-import * as $24 from "./routes/users/[name]/outbox.ts";
-import * as $25 from "./routes/users/[name]/statuses/[id]/activity.ts";
-import * as $26 from "./routes/users/[name]/statuses/[id]/index.ts";
-import * as $27 from "./routes/users/_middleware.ts";
+import * as $6 from "./routes/admin/followers/accept.ts";
+import * as $7 from "./routes/admin/followers/index.tsx";
+import * as $8 from "./routes/admin/followers/reject.ts";
+import * as $9 from "./routes/admin/index.tsx";
+import * as $10 from "./routes/admin/personas/[name].tsx";
+import * as $11 from "./routes/admin/personas/index.tsx";
+import * as $12 from "./routes/admin/toot.tsx";
+import * as $13 from "./routes/ap/_middleware.ts";
+import * as $14 from "./routes/ap/activity/[id].ts";
+import * as $15 from "./routes/ap/actor/[name]/followers.ts";
+import * as $16 from "./routes/ap/actor/[name]/following.ts";
+import * as $17 from "./routes/ap/actor/[name]/inbox.ts";
+import * as $18 from "./routes/ap/actor/[name]/index.ts";
+import * as $19 from "./routes/ap/actor/[name]/outbox.ts";
+import * as $20 from "./routes/ap/object/[id].ts";
+import * as $21 from "./routes/api/_middleware.ts";
+import * as $22 from "./routes/api/v1/accounts/[acct]/index.ts";
+import * as $23 from "./routes/api/v1/accounts/[acct]/statuses.ts";
+import * as $24 from "./routes/api/v1/accounts/lookup.ts";
+import * as $25 from "./routes/api/v1/instance.ts";
+import * as $26 from "./routes/api/v1/statuses/[id]/index.ts";
+import * as $27 from "./routes/api/v1/timelines/public.ts";
+import * as $28 from "./routes/index.tsx";
+import * as $29 from "./routes/nodeinfo/2.0.ts";
+import * as $30 from "./routes/toot/[id].tsx";
+import * as $31 from "./routes/users/[name]/followers.ts";
+import * as $32 from "./routes/users/[name]/following.ts";
+import * as $33 from "./routes/users/[name]/inbox.ts";
+import * as $34 from "./routes/users/[name]/index.ts";
+import * as $35 from "./routes/users/[name]/outbox.ts";
 
 const manifest = {
   routes: {
@@ -40,28 +48,36 @@ const manifest = {
     "./routes/_404.tsx": $3,
     "./routes/_middleware.ts": $4,
     "./routes/admin/_middleware.ts": $5,
-    "./routes/admin/index.tsx": $6,
-    "./routes/admin/personas/[name].tsx": $7,
-    "./routes/admin/personas/index.tsx": $8,
-    "./routes/admin/toot.tsx": $9,
-    "./routes/api/_middleware.ts": $10,
-    "./routes/api/v1/accounts/[acct]/index.ts": $11,
-    "./routes/api/v1/accounts/[acct]/statuses.ts": $12,
-    "./routes/api/v1/accounts/lookup.ts": $13,
-    "./routes/api/v1/instance.ts": $14,
-    "./routes/api/v1/statuses/[id]/index.ts": $15,
-    "./routes/api/v1/timelines/public.ts": $16,
-    "./routes/index.tsx": $17,
-    "./routes/nodeinfo/2.0.ts": $18,
-    "./routes/toot/[id].tsx": $19,
-    "./routes/users/[name]/followers.ts": $20,
-    "./routes/users/[name]/following.ts": $21,
-    "./routes/users/[name]/inbox.ts": $22,
-    "./routes/users/[name]/index.ts": $23,
-    "./routes/users/[name]/outbox.ts": $24,
-    "./routes/users/[name]/statuses/[id]/activity.ts": $25,
-    "./routes/users/[name]/statuses/[id]/index.ts": $26,
-    "./routes/users/_middleware.ts": $27,
+    "./routes/admin/followers/accept.ts": $6,
+    "./routes/admin/followers/index.tsx": $7,
+    "./routes/admin/followers/reject.ts": $8,
+    "./routes/admin/index.tsx": $9,
+    "./routes/admin/personas/[name].tsx": $10,
+    "./routes/admin/personas/index.tsx": $11,
+    "./routes/admin/toot.tsx": $12,
+    "./routes/ap/_middleware.ts": $13,
+    "./routes/ap/activity/[id].ts": $14,
+    "./routes/ap/actor/[name]/followers.ts": $15,
+    "./routes/ap/actor/[name]/following.ts": $16,
+    "./routes/ap/actor/[name]/inbox.ts": $17,
+    "./routes/ap/actor/[name]/index.ts": $18,
+    "./routes/ap/actor/[name]/outbox.ts": $19,
+    "./routes/ap/object/[id].ts": $20,
+    "./routes/api/_middleware.ts": $21,
+    "./routes/api/v1/accounts/[acct]/index.ts": $22,
+    "./routes/api/v1/accounts/[acct]/statuses.ts": $23,
+    "./routes/api/v1/accounts/lookup.ts": $24,
+    "./routes/api/v1/instance.ts": $25,
+    "./routes/api/v1/statuses/[id]/index.ts": $26,
+    "./routes/api/v1/timelines/public.ts": $27,
+    "./routes/index.tsx": $28,
+    "./routes/nodeinfo/2.0.ts": $29,
+    "./routes/toot/[id].tsx": $30,
+    "./routes/users/[name]/followers.ts": $31,
+    "./routes/users/[name]/following.ts": $32,
+    "./routes/users/[name]/inbox.ts": $33,
+    "./routes/users/[name]/index.ts": $34,
+    "./routes/users/[name]/outbox.ts": $35,
   },
   islands: {},
   baseUrl: import.meta.url,

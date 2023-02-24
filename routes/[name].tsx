@@ -6,6 +6,7 @@ import { Persona, PersonaStore } from "$/models/Persona.ts";
 import { ServerConfig, ServerConfigStore } from "$/models/ServerConfig.ts";
 import { Toot } from "$/components/Toot.tsx";
 import { asyncToArray } from "$/lib/utils.ts";
+import * as urls from "$/lib/urls.ts";
 
 interface Params {
   serverConfig: ServerConfig;
@@ -18,13 +19,20 @@ export const config: RouteConfig = {
 };
 
 export const handler: Handlers<Params, { injector: Injector }> = {
-  async GET(_req, ctx) {
+  async GET(req, ctx) {
     const serverConfigStore = await ctx.state.injector.resolve(
         ServerConfigStore,
       ),
-      personaStore = await ctx.state.injector.resolve(PersonaStore),
+      serverConfig = await serverConfigStore.getServerConfig();
+
+    if (urls.contentTypeIsJson(req.headers.get("accept") ?? "")) {
+      return Response.redirect(
+        urls.activityPubActor(ctx.params.name, serverConfig.url),
+      );
+    }
+
+    const personaStore = await ctx.state.injector.resolve(PersonaStore),
       localPostStore = await ctx.state.injector.resolve(LocalPostStore),
-      serverConfig = await serverConfigStore.getServerConfig(),
       persona = await personaStore.get(ctx.params.name);
     if (!persona) {
       return ctx.renderNotFound();

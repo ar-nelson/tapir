@@ -1,28 +1,37 @@
 import { InjectableAbstract, Singleton } from "$/lib/inject.ts";
 import { checkPersonaName } from "$/lib/utils.ts";
-import { DatabaseService, Order, QueryOp } from "$/services/DatabaseService.ts";
+import { DatabaseService } from "$/services/DatabaseService.ts";
 import { LocalDatabaseSpec } from "$/schemas/tapir/LocalDatabase.ts";
 import { LocalPostStore } from "$/models/LocalPost.ts";
 import { ServerConfigStore } from "$/models/ServerConfig.ts";
-
-export interface Persona {
-  readonly name: string;
-  readonly displayName: string;
-  readonly summary: string;
-  readonly requestToFollow: boolean;
-  readonly createdAt: string;
-  readonly updatedAt?: string;
-}
+import {
+  Persona,
+  PersonaStoreReadOnly,
+  PersonaStoreReadOnlyImpl,
+} from "./PersonaStoreReadOnly.ts";
+export * from "./PersonaStoreReadOnly.ts";
 
 @InjectableAbstract()
-export abstract class PersonaStore {
-  abstract list(): AsyncIterable<Persona>;
+export abstract class PersonaStore extends PersonaStoreReadOnly {
+  constructor(private readonly base: PersonaStoreReadOnly) {
+    super();
+  }
 
-  abstract count(): Promise<number>;
+  list() {
+    return this.base.list();
+  }
 
-  abstract getMain(): Promise<Persona>;
+  count() {
+    return this.base.count();
+  }
 
-  abstract get(name: string): Promise<Persona | null>;
+  getMain() {
+    return this.base.getMain();
+  }
+
+  get(name: string) {
+    return this.base.get(name);
+  }
 
   abstract create(
     persona: Omit<Persona, "createdAt" | "updatedAt">,
@@ -38,25 +47,24 @@ export abstract class PersonaStore {
 
 @Singleton(PersonaStore)
 export class PersonaStoreImpl extends PersonaStore {
-  private readonly table;
   private readonly init;
 
   constructor(
-    db: DatabaseService<typeof LocalDatabaseSpec>,
+    base: PersonaStoreReadOnlyImpl,
+    private readonly db: DatabaseService<typeof LocalDatabaseSpec>,
     serverConfigStore: ServerConfigStore,
     private readonly localPostStore: LocalPostStore,
   ) {
-    super();
-    this.table = db.table("persona");
+    super(base);
     const initFn = async () => {
       for await (
-        const _main of this.table.get({ where: { main: [QueryOp.Eq, true] } })
+        const _main of this.db.get("persona", { where: { main: true } })
       ) {
         return;
       }
       const config = await serverConfigStore.getServerConfig(),
         now = new Date();
-      this.table.insert([{
+      await this.db.insert("persona", [{
         name: config.loginName,
         displayName: config.loginName,
         summary: "tapir was here",
@@ -69,52 +77,24 @@ export class PersonaStoreImpl extends PersonaStore {
     this.init = initFn();
   }
 
-  async *list(): AsyncIterable<Persona> {
+  async *list() {
     await this.init;
-    for await (
-      const p of this.table.get({ orderBy: [["createdAt", Order.Ascending]] })
-    ) {
-      yield {
-        ...p,
-        createdAt: p.createdAt.toISOString(),
-        updatedAt: p.updatedAt?.toISOString(),
-      };
-    }
+    yield* super.list();
   }
 
-  async count(): Promise<number> {
+  async count() {
     await this.init;
-    return this.table.count({});
+    return super.count();
   }
 
-  async getMain(): Promise<Persona> {
+  async getMain() {
     await this.init;
-    for await (
-      const p of this.table.get({ where: { main: [QueryOp.Eq, true] } })
-    ) {
-      return {
-        ...p,
-        createdAt: p.createdAt.toISOString(),
-        updatedAt: p.updatedAt?.toISOString(),
-      };
-    }
-    throw new Error(
-      "Database is in an illegal state: a main persona must exist",
-    );
+    return super.getMain();
   }
 
-  async get(name: string): Promise<Persona | null> {
+  async get(name: string) {
     await this.init;
-    for await (
-      const p of this.table.get({ where: { name: [QueryOp.Eq, name] } })
-    ) {
-      return {
-        ...p,
-        createdAt: p.createdAt.toISOString(),
-        updatedAt: p.updatedAt?.toISOString(),
-      };
-    }
-    return null;
+    return super.get(name);
   }
 
   async create(
@@ -122,8 +102,8 @@ export class PersonaStoreImpl extends PersonaStore {
   ): Promise<void> {
     await this.init;
     for await (
-      const existing of this.table.get({
-        where: { name: [QueryOp.Eq, persona.name] },
+      const existing of this.db.get("persona", {
+        where: { name: persona.name },
       })
     ) {
       throw new Error(
@@ -132,7 +112,7 @@ export class PersonaStoreImpl extends PersonaStore {
     }
     checkPersonaName(persona.name);
     const now = new Date();
-    await this.table.insert([{
+    await this.db.insert("persona", [{
       ...persona,
       main: false,
       createdAt: now,
@@ -157,7 +137,7 @@ export class PersonaStoreImpl extends PersonaStore {
     ) {
       throw new TypeError("illegal fields in persona update");
     }
-    await this.table.update({ name: [QueryOp.Eq, name] }, {
+    await this.db.update("persona", { name }, {
       ...update,
       updatedAt: new Date(),
     });
@@ -170,45 +150,6 @@ export class PersonaStoreImpl extends PersonaStore {
     ) {
       await this.localPostStore.delete(id);
     }
-    await this.table.delete({ name: [QueryOp.Eq, name] });
-  }
-}
-
-const MOCK_PERSONA: Persona = {
-  name: "tapir",
-  displayName: "tapir",
-  summary: "look at me. i'm the fediverse now.",
-  requestToFollow: true,
-  createdAt: "2023-02-03T19:35:27-0500",
-};
-
-@Singleton(PersonaStore)
-export class MockPersonaStore extends PersonaStore {
-  async *list() {
-    yield MOCK_PERSONA;
-  }
-
-  count() {
-    return Promise.resolve(1);
-  }
-
-  getMain() {
-    return Promise.resolve(MOCK_PERSONA);
-  }
-
-  get(name: string) {
-    return Promise.resolve(name === "tapir" ? MOCK_PERSONA : null);
-  }
-
-  create() {
-    return Promise.reject(new Error("create is not supported"));
-  }
-
-  update() {
-    return Promise.reject(new Error("update is not supported"));
-  }
-
-  delete() {
-    return Promise.reject(new Error("delete is not supported"));
+    await this.db.delete("persona", { name });
   }
 }

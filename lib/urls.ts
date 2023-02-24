@@ -1,3 +1,5 @@
+import { isPersonaName } from "$/lib/utils.ts";
+
 export function urlJoin(prefix: string, suffix: string): string {
   if (
     prefix.endsWith("/") || prefix.endsWith("#") || prefix.endsWith(":") ||
@@ -16,48 +18,60 @@ export function profile(personaName: string, prefix = "/"): string {
   return urlJoin(prefix, `@${encodeURIComponent(personaName)}`);
 }
 
-export function activityPubRoot(personaName: string, prefix = "/"): string {
-  return urlJoin(prefix, `users/${encodeURIComponent(personaName)}`);
+export function activityPubActor(personaName: string, prefix = "/"): string {
+  return urlJoin(prefix, `ap/actor/${encodeURIComponent(personaName)}`);
+}
+
+export function isActivityPubActor(url: string, prefix = "/"): string | null {
+  url = url.toLowerCase();
+  prefix = urlJoin(prefix, "ap/actor/");
+  if (!url.startsWith(prefix)) return null;
+  const actor = url.slice(prefix.length);
+  if (isPersonaName(actor)) return actor;
+  return null;
 }
 
 export function activityPubInbox(personaName: string, prefix = "/"): string {
-  return `${activityPubRoot(personaName, prefix)}/inbox`;
+  return `${activityPubActor(personaName, prefix)}/inbox`;
 }
 
 export function activityPubOutbox(personaName: string, prefix = "/"): string {
-  return `${activityPubRoot(personaName, prefix)}/outbox`;
+  return `${activityPubActor(personaName, prefix)}/outbox`;
 }
 
-export function activityPubPost(
-  personaName: string,
-  postId: string,
-  prefix = "/",
-): string {
-  return `${activityPubRoot(personaName, prefix)}/statuses/${
-    encodeURIComponent(postId)
-  }`;
+export function activityPubObject(id: string, prefix = "/"): string {
+  return urlJoin(prefix, `ap/object/${encodeURIComponent(id)}`);
 }
 
-export function activityPubPostActivity(
-  personaName: string,
-  postId: string,
-  prefix = "/",
-): string {
-  return `${activityPubPost(personaName, postId, prefix)}/activity`;
+export function activityPubActivity(id: string, prefix = "/"): string {
+  return urlJoin(prefix, `ap/activity/${encodeURIComponent(id)}`);
 }
 
 export function activityPubFollowing(
   personaName: string,
   prefix = "/",
 ): string {
-  return `${activityPubRoot(personaName, prefix)}/following`;
+  return `${activityPubActor(personaName, prefix)}/following`;
 }
 
 export function activityPubFollowers(
   personaName: string,
   prefix = "/",
 ): string {
-  return `${activityPubRoot(personaName, prefix)}/followers`;
+  return `${activityPubActor(personaName, prefix)}/followers`;
+}
+
+export function isActivityPubFollowers(
+  url: string,
+  prefix = "/",
+): string | null {
+  url = url.toLowerCase();
+  prefix = urlJoin(prefix, "ap/actor/");
+  if (!url.startsWith(prefix)) return null;
+  const segments = url.slice(prefix.length).split("/");
+  if (segments.length !== 2 || segments[1] !== "followers") return null;
+  if (isPersonaName(segments[0])) return segments[0];
+  return null;
 }
 
 export function contentTypeIsJson(contentType: string) {

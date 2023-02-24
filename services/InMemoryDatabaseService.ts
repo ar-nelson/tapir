@@ -1,49 +1,75 @@
 import {
-  Columns,
-  DatabaseService,
-  DatabaseServiceFactory,
+  ColumnOf,
+  ColumnsOf,
   DatabaseSpec,
-  DatabaseTable,
+  DB,
   InRow,
   inToOut,
-  Order,
+  JoinChain,
+  OrderDirection,
   OutRow,
   PrimaryKey,
+  Q,
   Query,
-  QueryOp,
+  QueryOperator,
   rowCompare,
   rowQuery,
-  TableSpec,
+  TableOf,
+} from "$/lib/sql/mod.ts";
+import {
+  DatabaseService,
+  DatabaseServiceFactory,
 } from "$/services/DatabaseService.ts";
 import { UlidService } from "$/services/UlidService.ts";
 import { Constructor, Singleton } from "$/lib/inject.ts";
 import { mapObject } from "$/lib/utils.ts";
 
-export class InMemoryDatabaseTable<C extends Columns, Spec extends TableSpec<C>>
-  implements DatabaseTable<C> {
+type TableMapMap<Spec extends DatabaseSpec> = {
+  [T in TableOf<Spec>]: Map<
+    PrimaryKey<Spec, T>,
+    OutRow<ColumnsOf<Spec, T>>
+  >;
+};
+
+export abstract class InMemoryDatabaseService<Spec extends DatabaseSpec>
+  extends DatabaseService<Spec> {
+  private readonly tables: TableMapMap<Spec>;
+
   constructor(
     private readonly spec: Spec,
     private readonly ulid: UlidService,
-  ) {}
+  ) {
+    super();
+    this.tables = mapObject(spec.tables, () => new Map()) as TableMapMap<Spec>;
+  }
 
-  readonly table = new Map<PrimaryKey<C, Spec>, OutRow<C>>();
-
-  private *query(
-    this: InMemoryDatabaseTable<C, Spec>,
-    where: Query<C>,
-  ): Iterable<PrimaryKey<C, Spec>> {
-    if (where[this.spec.primaryKey]?.[0] === QueryOp.Eq) {
-      const k = where[this.spec.primaryKey]![1] as PrimaryKey<C, Spec>;
+  private *query<T extends TableOf<Spec>>(
+    table: T,
+    where: Query<Spec["tables"][T]["columns"]>,
+  ): Iterable<PrimaryKey<Spec, T>> {
+    const pk = this.spec.tables[table].primaryKey,
+      wherePk = where[pk];
+    if (
+      wherePk instanceof Q
+        ? wherePk.operator === QueryOperator.Equal
+        : pk in where
+    ) {
+      const k = (wherePk instanceof Q ? wherePk.value : wherePk) as PrimaryKey<
+        Spec,
+        T
+      >;
       if (
-        this.table.has(k) &&
+        this.tables[table].has(k) &&
         (Object.keys(where).length === 1 ||
-          rowQuery(this.spec.columns, where)(this.table.get(k)!))
+          rowQuery(this.spec.tables[table].columns, where)(
+            this.tables[table].get(k)!,
+          ))
       ) {
         yield k;
       }
     } else {
-      const query = rowQuery(this.spec.columns, where);
-      for (const [k, v] of this.table) {
+      const query = rowQuery(this.spec.tables[table].columns, where);
+      for (const [k, v] of this.tables[table]) {
         if (query(v)) {
           yield k;
         }
@@ -51,111 +77,152 @@ export class InMemoryDatabaseTable<C extends Columns, Spec extends TableSpec<C>>
     }
   }
 
-  async *get(
-    this: InMemoryDatabaseTable<C, Spec>,
-    options: {
-      where?: Query<C>;
-      orderBy?: [keyof C, Order][];
-      limit?: number;
-    },
-  ): AsyncIterable<OutRow<C>> {
-    let iter = options.where ? this.query(options.where) : this.table.keys();
+  get<T extends TableOf<Spec>>(table: T, options?: {
+    where?: Query<ColumnsOf<Spec, T>>;
+    orderBy?: [keyof ColumnsOf<Spec, T>, OrderDirection][];
+    limit?: number;
+  }): AsyncIterable<OutRow<ColumnsOf<Spec, T>>>;
+
+  get<
+    T extends TableOf<Spec>,
+    Returned extends ColumnOf<Spec, T>,
+  >(table: T, options: {
+    returning: Returned[];
+    where?: Query<ColumnsOf<Spec, T>>;
+    orderBy?: [ColumnOf<Spec, T>, OrderDirection][];
+    limit?: number;
+  }): AsyncIterable<Pick<OutRow<ColumnsOf<Spec, T>>, Returned>>;
+
+  async *get<T extends TableOf<Spec>>(tableName: T, options: {
+    returning?: ColumnOf<Spec, T>[];
+    where?: Query<ColumnsOf<Spec, T>>;
+    orderBy?: [ColumnOf<Spec, T>, OrderDirection][];
+    limit?: number;
+  }): AsyncIterable<any> {
+    const table = this.tables[tableName];
+    let iter = options.where
+      ? this.query(tableName, options.where)
+      : table.keys();
     const limit = options.limit ?? Infinity;
     let n = 0;
     if (options.orderBy?.length) {
-      const cmp = ([col, ord]: [keyof C, Order]) =>
-        rowCompare(this.spec.columns, col, ord);
+      const cmp = ([col, ord]: [ColumnOf<Spec, T>, OrderDirection]) =>
+        rowCompare(this.spec.tables[tableName].columns, col, ord);
       iter = [...iter].sort(
         options.orderBy.reduce(
           (last, ord) => {
             const next = cmp(ord);
-            return (a, b) =>
-              last(a, b) || next(this.table.get(a)!, this.table.get(b)!);
+            return (a, b) => last(a, b) || next(table.get(a)!, table.get(b)!);
           },
-          (_a: PrimaryKey<C, Spec>, _b: PrimaryKey<C, Spec>) => 0,
+          (_a: PrimaryKey<Spec, T>, _b: PrimaryKey<Spec, T>) => 0,
         ),
       );
     }
     for (const k of iter) {
       if (n++ >= limit) return;
-      yield this.table.get(k)!;
+      yield table.get(k)!;
     }
   }
 
-  count(where: Query<C>): Promise<number> {
+  join<
+    T extends TableOf<Spec>,
+    Returned extends ColumnOf<Spec, T>,
+  >(options: {
+    table: T;
+    returning: Returned[];
+    where?: Query<ColumnsOf<Spec, T>>;
+    orderBy?: [ColumnOf<Spec, T>, OrderDirection][];
+  }): JoinChain<Spec, T, Pick<OutRow<ColumnsOf<Spec, T>>, Returned>> {
+    throw new Error("join is not yet supported on inmemory db");
+  }
+
+  count<T extends TableOf<Spec>>(
+    table: T,
+    where: Query<ColumnsOf<Spec, T>>,
+  ): Promise<number> {
     let n = 0;
-    for (const _ of this.query(where)) {
+    for (const _ of this.query(table, where)) {
       n++;
     }
     return Promise.resolve(n);
   }
 
-  insert(rows: InRow<C>[]): Promise<void> {
+  insert<T extends TableOf<Spec>>(
+    tableName: T,
+    rows: InRow<ColumnsOf<Spec, T>>[],
+  ): Promise<void> {
+    const spec = this.spec.tables[tableName] as Spec["tables"][T],
+      table = this.tables[tableName];
     for (const inRow of rows) {
       const row = mapObject(
-        inRow,
-        (k, v) => inToOut(this.spec.columns[k], v, true, this.ulid),
-      );
-      this.table.set(row[this.spec.primaryKey] as PrimaryKey<C, Spec>, {
+        spec.columns,
+        (name, col) =>
+          inToOut(col, (inRow as any)[name], true, this.ulid) as any,
+      ) as OutRow<ColumnsOf<Spec, T>>;
+      table.set(row[spec.primaryKey] as PrimaryKey<Spec, T>, {
         ...row,
       });
     }
     return Promise.resolve();
   }
 
-  update(
-    where: Query<C>,
-    fields: Partial<InRow<C>>,
+  update<T extends TableOf<Spec>>(
+    tableName: T,
+    where: Query<ColumnsOf<Spec, T>>,
+    fields: Partial<InRow<ColumnsOf<Spec, T>>>,
   ): Promise<number> {
+    const spec = this.spec.tables[tableName], table = this.tables[tableName];
     let n = 0;
-    for (const k of this.query(where)) {
-      this.table.set(k, {
-        ...this.table.get(k)!,
-        ...mapObject(fields, (k, v) => inToOut(this.spec.columns[k], v!)),
+    for (const k of this.query(tableName, where)) {
+      table.set(k, {
+        ...table.get(k)!,
+        ...mapObject(
+          fields,
+          (k, v) => inToOut(spec.columns[k as ColumnOf<Spec, T>], v as any),
+        ),
       });
       n++;
     }
     return Promise.resolve(n);
   }
 
-  delete(where: Query<C>): Promise<number> {
+  delete<T extends TableOf<Spec>>(
+    tableName: T,
+    where: Query<ColumnsOf<Spec, T>>,
+  ): Promise<number> {
+    const table = this.tables[tableName];
     let n = 0;
-    for (const k of this.query(where)) {
-      this.table.delete(k);
+    for (const k of this.query(tableName, where)) {
+      table.delete(k);
       n++;
     }
     return Promise.resolve(n);
   }
+
+  transaction<R>(callback: (t: DB<Spec>) => Promise<R>): Promise<R> {
+    // FIXME: this is not safe
+    return callback(this);
+  }
+
+  close() {
+    return Promise.resolve();
+  }
 }
 
 export class InMemoryDatabaseServiceFactory extends DatabaseServiceFactory {
+  constructor() {
+    super();
+  }
+
   init<Spec extends DatabaseSpec>(
-    { tables: specTables }: Spec,
+    spec: Spec,
   ): Promise<Constructor<DatabaseService<Spec>>> {
     @Singleton()
-    class InMemoryDatabaseService extends DatabaseService<Spec> {
-      constructor(private readonly ulid: UlidService) {
-        super();
-      }
-
-      private readonly tables = mapObject(
-        specTables,
-        (_k, v) => new InMemoryDatabaseTable(v, this.ulid),
-      ) as {
-        [K in keyof typeof specTables]: InMemoryDatabaseTable<
-          (typeof specTables)[K]["columns"],
-          (typeof specTables)[K]
-        >;
-      };
-
-      table(name: keyof Spec["tables"]) {
-        return this.tables[name as keyof typeof specTables];
-      }
-
-      close() {
-        return Promise.resolve();
+    class InMemoryDatabaseServiceImpl extends InMemoryDatabaseService<Spec> {
+      constructor(ulid: UlidService) {
+        super(spec, ulid);
       }
     }
-    return Promise.resolve(InMemoryDatabaseService);
+    return Promise.resolve(InMemoryDatabaseServiceImpl);
   }
 }

@@ -157,12 +157,18 @@ export class Injector {
     if (history.includes(Type)) {
       throw new Error("Recursion in dependency injection");
     }
-    const option = this.getInjectionOptions(Type).find(({ injected }) =>
-      this.hasDependencies(injected)
-    );
-    if (!option) {
+    const optionsOrMissing = this.getInjectionOptions(Type).map((opt) =>
+        [opt, this.missingDependencies(opt.injected)] as const
+      ),
+      option = optionsOrMissing.find(([, missing]) => !missing.length)?.[0];
+    if (option == null) {
+      const missing = optionsOrMissing.filter(([, missing]) => missing.length)
+        .map((x) => x[1]);
       throw new TypeError(
-        `Type ${Type.name} has no candidates available for dependency injection`,
+        `Type ${Type.name} has no candidates available for dependency injection.
+Missing dependencies: ${
+          missing.map((x) => "(" + x.join(", ") + ")").join(" or ")
+        }`,
       );
     }
     const deps = this.getDependencies(option.injected),
@@ -243,18 +249,20 @@ Did you forget @Injectable?`,
     return meta || [];
   }
 
-  private hasDependencies(Type: Constructor, history = [Type]): boolean {
-    return this.resolved.has(Type) ||
-      this.getDependencies(Type).every((Dep) => {
-        if (history.includes(Dep)) {
-          throw new Error(
-            `Circular dependency in dependency injection for ${Type.name}: ${Dep.name}`,
-          );
-        }
-        return this.resolved.has(Dep) ||
-          this.getInjectionOptions(Dep).some(({ injected }) =>
-            this.hasDependencies(injected, [Dep, ...history])
-          );
-      });
+  private missingDependencies(Type: Constructor, history = [Type]): string[] {
+    if (this.resolved.has(Type)) return [];
+    return this.getDependencies(Type).flatMap((Dep) => {
+      if (history.includes(Dep)) {
+        throw new Error(
+          `Circular dependency in dependency injection for ${Type.name}: ${Dep.name}`,
+        );
+      }
+      if (this.resolved.has(Dep)) return [];
+      const options = this.getInjectionOptions(Dep).map(({ injected }) =>
+        this.missingDependencies(injected, [Dep, ...history])
+      );
+      if (options.some((o) => !o.length)) return [];
+      return [Dep.name, ...options[0] ?? []];
+    });
   }
 }

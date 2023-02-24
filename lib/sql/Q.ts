@@ -27,10 +27,10 @@ export enum QueryOperator {
 }
 
 /** Query expression builder */
-export class Q {
+export class Q<T extends DatabaseValues = DatabaseValues> {
   constructor(
     public operator: QueryOperator,
-    public value: DatabaseValues | DatabaseValues[],
+    public value: T | T[],
   ) {}
 
   // --------------------------------------------------------------------------------
@@ -38,42 +38,42 @@ export class Q {
   // --------------------------------------------------------------------------------
 
   /** The value is one of the given values */
-  public static in(values: DatabaseValues[]): Q {
+  public static in<T extends DatabaseValues>(values: T[]): Q<T> {
     return new Q(QueryOperator.In, values);
   }
 
   /** The value is not one of the given values */
-  public static notIn(values: DatabaseValues[]): Q {
+  public static notIn<T extends DatabaseValues>(values: T[]): Q<T> {
     return new Q(QueryOperator.NotIn, values);
   }
 
   /** The value (number) is between these numbers */
-  public static between(value1: DatabaseValues, value2: DatabaseValues): Q {
+  public static between(value1: number, value2: number): Q<number> {
     return new Q(QueryOperator.Between, [value1, value2]);
   }
 
   /** The value (number) is between these numbers */
-  public static notBetween(value1: DatabaseValues, value2: DatabaseValues): Q {
+  public static notBetween(value1: number, value2: number): Q<number> {
     return new Q(QueryOperator.NotBetween, [value1, value2]);
   }
 
   /** LIKE operator */
-  public static like(value: string): Q {
+  public static like(value: string): Q<string> {
     return new Q(QueryOperator.Like, value);
   }
 
   /** NOT LIKE operator */
-  public static notLike(value: string): Q {
+  public static notLike(value: string): Q<string> {
     return new Q(QueryOperator.NotLike, value);
   }
 
   /** ILIKE (case-insensitive) operator */
-  public static ilike(value: string): Q {
+  public static ilike(value: string): Q<string> {
     return new Q(QueryOperator.Ilike, value);
   }
 
   /** NOT ILIKE (case-insensitive) operator */
-  public static notIlike(value: string): Q {
+  public static notIlike(value: string): Q<string> {
     return new Q(QueryOperator.NotIlike, value);
   }
   // --------------------------------------------------------------------------------
@@ -81,32 +81,32 @@ export class Q {
   // --------------------------------------------------------------------------------
 
   /** Is equal to (=) */
-  public static eq(value: DatabaseValues): Q {
+  public static eq<T extends DatabaseValues>(value: T): Q<T> {
     return new Q(QueryOperator.Equal, value);
   }
 
   /** Is not equal to (!=) */
-  public static neq(value: DatabaseValues): Q {
+  public static neq<T extends DatabaseValues>(value: T): Q<T> {
     return new Q(QueryOperator.NotEqual, value);
   }
 
   /** Greater than (>) */
-  public static gt(value: DatabaseValues): Q {
+  public static gt<T extends DatabaseValues>(value: T): Q<T> {
     return new Q(QueryOperator.GreaterThan, value);
   }
 
   /** Greater than equal (>=) */
-  public static gte(value: DatabaseValues): Q {
+  public static gte<T extends DatabaseValues>(value: T): Q<T> {
     return new Q(QueryOperator.GreaterThanEqual, value);
   }
 
   /** Lower than (<) */
-  public static lt(value: DatabaseValues): Q {
+  public static lt<T extends DatabaseValues>(value: T): Q<T> {
     return new Q(QueryOperator.LowerThan, value);
   }
 
   /** Lower than equal (<=) */
-  public static lte(value: DatabaseValues): Q {
+  public static lte<T extends DatabaseValues>(value: T): Q<T> {
     return new Q(QueryOperator.LowerThanEqual, value);
   }
 
@@ -115,12 +115,12 @@ export class Q {
   // --------------------------------------------------------------------------------
 
   /** The value is null */
-  public static null(): Q {
+  public static null(): Q<null> {
     return new Q(QueryOperator.Null, null);
   }
 
   /** The value is not null */
-  public static notNull(): Q {
+  public static notNull(): Q<null> {
     return new Q(QueryOperator.NotNull, null);
   }
 }

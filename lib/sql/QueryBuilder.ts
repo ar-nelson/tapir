@@ -1,5 +1,5 @@
-import { QueryCompiler } from "./querycompiler.ts";
-import { DatabaseValues, Q } from "./q.ts";
+import { QueryCompiler } from "./QueryCompiler.ts";
+import { DatabaseValues, Q } from "./Q.ts";
 import { DBDialects } from "./TypeUtils.ts";
 
 /**
@@ -461,44 +461,32 @@ export class QueryBuilder {
 
   /** SQL INNER JOIN */
   public innerJoin(table: string, a: string, b: string): QueryBuilder {
-    this.description.joins.push({
-      type: JoinType.Inner,
-      table,
-      columnA: a,
-      columnB: b,
-    });
-
-    return this;
+    return this.joinOfType(JoinType.Inner, table, a, b);
   }
 
   /** SQL FULL OUTER JOIN */
   public fullJoin(table: string, a: string, b: string): QueryBuilder {
-    this.description.joins.push({
-      type: JoinType.Full,
-      table,
-      columnA: a,
-      columnB: b,
-    });
-
-    return this;
+    return this.joinOfType(JoinType.Full, table, a, b);
   }
 
   /** SQL LEFT OUTER JOIN */
   public leftJoin(table: string, a: string, b: string): QueryBuilder {
-    this.description.joins.push({
-      type: JoinType.Left,
-      table,
-      columnA: a,
-      columnB: b,
-    });
-
-    return this;
+    return this.joinOfType(JoinType.Left, table, a, b);
   }
 
   /** SQL RIGHT OUTER JOIN */
   public rightJoin(table: string, a: string, b: string): QueryBuilder {
+    return this.joinOfType(JoinType.Right, table, a, b);
+  }
+
+  public joinOfType(
+    type: JoinType,
+    table: string,
+    a: string,
+    b: string,
+  ): QueryBuilder {
     this.description.joins.push({
-      type: JoinType.Right,
+      type,
       table,
       columnA: a,
       columnB: b,

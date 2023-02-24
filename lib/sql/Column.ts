@@ -7,14 +7,14 @@ export class Column {
   private columnType: ColumnTypes | string;
   private columnInput1?: number | string[];
   private columnInput2?: number;
-  private isNullable: boolean = true;
+  private isNullable = true;
   private defaultValue?: DefaultValueT = undefined;
   private defaultValueIsExpression?: boolean = false;
   private customCol?: string;
-  private isAutoIncrement: boolean = false;
-  private isPrimary: boolean = false;
-  private isUnique: boolean = false;
-  private isUnsigned: boolean = false;
+  private isAutoIncrement = false;
+  private isPrimary = false;
+  private isUnique = false;
+  private isUnsigned = false;
 
   constructor(
     name: string,
@@ -96,13 +96,12 @@ export class Column {
     return this;
   }
 
-  /** Adds a default value to the column 
-   * If the input is string: please note by default it will be wrapped in a single quote string (ex: 'defaultValue'). In case you do not want it be wrapped in a single quote string please consider the optional arg(isExpression) to be set to true.
-  */
-  default(
-    value: DefaultValueT,
-    isExpression: boolean = false,
-  ) {
+  /** Adds a default value to the column
+   * If the input is string: please note by default it will be wrapped in a single quote string (ex: 'defaultValue')
+   * In case you do not want it be wrapped in a single quote string
+   * please consider the optional arg(isExpression) to be set to true.
+   */
+  default(value: DefaultValueT, isExpression = false) {
     this.defaultValue = value;
     this.defaultValueIsExpression = isExpression;
     return this;
@@ -138,11 +137,11 @@ export class Column {
     return this;
   }
 
-  /** 
+  /**
    * This function implementation is inspired by knex project
    * file: https://github.com/knex/knex/blob/da54cf1ecf0acef4b3d3d51cd2656e4faf10d3e9/lib/schema/columncompiler.js, line: 151
    * Yet it depends on the input type unlike the knex project which depends on the column type
-  */
+   */
   private _defaultValueHandler(): string {
     let val = ``;
     if (this.defaultValue === null) {

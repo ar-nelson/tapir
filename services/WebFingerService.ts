@@ -39,7 +39,7 @@ export class WebFingerService {
       subject: `acct:${name}@${serverConfig.domain}`,
       aliases: [
         urls.profile(name, serverConfig.url),
-        urls.activityPubRoot(name, serverConfig.url),
+        urls.activityPubActor(name, serverConfig.url),
       ],
       links: [
         {
@@ -50,7 +50,7 @@ export class WebFingerService {
         {
           "rel": "self",
           "type": "application/activity+json",
-          "href": urls.activityPubRoot(name, serverConfig.url),
+          "href": urls.activityPubActor(name, serverConfig.url),
         },
       ],
     };

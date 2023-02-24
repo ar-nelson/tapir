@@ -4,8 +4,8 @@ import {
   QueryType,
   WhereBinding,
   WhereType,
-} from "./querybuilder.ts";
-import { DatabaseValues, QueryOperator } from "./q.ts";
+} from "./QueryBuilder.ts";
+import { DatabaseValues, QueryOperator } from "./Q.ts";
 import { DBDialects } from "./TypeUtils.ts";
 import { toHex } from "$/lib/utils.ts";
 
@@ -525,7 +525,11 @@ export class QueryCompiler {
     const query: string[] = [];
 
     for (let index = 0; index < bindings.length; index++) {
-      const { type, expression: { operator, value }, column } = bindings[index];
+      let { type, expression: { operator, value }, column } = bindings[index];
+
+      if (this.dialect === "sqlite3") {
+        if (operator === QueryOperator.Ilike) operator = QueryOperator.Like;
+      }
 
       // Get the table name, column name, and the operator.
       // Example: "`users`.`id` = "

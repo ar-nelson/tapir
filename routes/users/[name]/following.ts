@@ -1,14 +1,18 @@
 import { Handlers } from "$fresh/server.ts";
 import { Injector } from "$/lib/inject.ts";
-import { ActivityPubService } from "$/services/ActivityPubService.ts";
+import { ServerConfigStore } from "$/models/ServerConfig.ts";
+import * as urls from "$/lib/urls.ts";
 
 export const handler: Handlers<void, { injector: Injector }> = {
   async GET(_req, ctx) {
-    const service = await ctx.state.injector.resolve(ActivityPubService),
-      posts = await service.getFollowing(ctx.params.name);
-    if (!posts) {
-      return Response.json({ error: "Record not found" }, { status: 404 });
-    }
-    return Response.json(posts);
+    const serverConfigStore = await ctx.state.injector.resolve(
+        ServerConfigStore,
+      ),
+      serverConfig = await serverConfigStore.getServerConfig();
+
+    return Response.redirect(
+      urls.activityPubFollowing(ctx.params.name, serverConfig.url),
+      301,
+    );
   },
 };

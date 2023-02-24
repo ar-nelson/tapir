@@ -19,6 +19,9 @@ export default function AdminIndex() {
           <li>
             <a href="/admin/personas">Personas</a>
           </li>
+          <li>
+            <a href="/admin/followers">Followers</a>
+          </li>
         </ul>
       </main>
     </>

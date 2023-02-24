@@ -10,11 +10,11 @@ export async function asyncToArray<T>(iter: AsyncIterable<T>): Promise<T[]> {
 
 export function mapObject<T extends Record<string, U>, U, V>(
   obj: T,
-  fn: <K extends keyof T>(k: K, v: T[K]) => V,
-): { [K in keyof T]: V } {
+  fn: <K extends keyof T & string>(k: K, v: T[K]) => V,
+): { [K in keyof T & string]: V } {
   return Object.fromEntries(
     Object.entries(obj).map(([k, v]) => [k, fn(k, v as any)]),
-  ) as { [K in keyof T]: V };
+  ) as { [K in keyof T & string]: V };
 }
 
 export async function fileExists(path: string): Promise<boolean> {
@@ -50,8 +50,12 @@ export async function dirExists(path: string): Promise<boolean> {
   }
 }
 
+export function isPersonaName(name: string): boolean {
+  return /^[\w-.]{1,64}$/.test(name);
+}
+
 export function checkPersonaName(name: string): void {
-  if (!/^[\w-.]{1,64}$/.test(name)) {
+  if (!isPersonaName(name)) {
     throw new Error(
       `${
         JSON.stringify(name)

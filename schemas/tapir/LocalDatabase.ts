@@ -1,6 +1,6 @@
-import { ColumnType, DatabaseSpec } from "$/services/DatabaseService.ts";
+import { ColumnType } from "$/lib/sql/mod.ts";
 
-const { Integer, String, Boolean, Date, Ulid } = ColumnType;
+const { Integer, String, Boolean, Date, Ulid, Json } = ColumnType;
 
 export enum PostType {
   Note = 0,
@@ -21,11 +21,12 @@ export const LocalDatabaseSpec = {
         displayName: { type: String },
         summary: { type: String, default: "" },
         requestToFollow: { type: Boolean, default: false },
+        discoverable: { type: Boolean, default: true },
         createdAt: { type: Date },
         updatedAt: { type: Date },
       },
     },
-    localPost: {
+    post: {
       primaryKey: "id",
       columns: {
         id: { type: Ulid },
@@ -49,14 +50,18 @@ export const LocalDatabaseSpec = {
         id: { type: String },
         persona: { type: String, foreignKey: "persona" },
         actor: { type: String },
+        name: { type: String },
+        server: { type: String, foreignKey: "knownServer" },
+        inbox: { type: String },
         createdAt: { type: Date },
+        acceptedAt: { type: Date, nullable: true },
       },
     },
     inBoost: {
       primaryKey: "id",
       columns: {
         id: { type: String },
-        localPost: { type: Ulid, foreignKey: "localPost" },
+        localPost: { type: Ulid, foreignKey: "post" },
         actor: { type: String },
         createdAt: { type: Date },
       },
@@ -65,7 +70,7 @@ export const LocalDatabaseSpec = {
       primaryKey: "id",
       columns: {
         id: { type: String },
-        localPost: { type: Ulid, foreignKey: "localPost" },
+        localPost: { type: Ulid, foreignKey: "post" },
         actor: { type: String },
         createdAt: { type: Date },
         content: { type: String, nullable: true },
@@ -77,8 +82,10 @@ export const LocalDatabaseSpec = {
         id: { type: Ulid },
         persona: { type: String, foreignKey: "persona" },
         actor: { type: String },
-        accepted: { type: Integer },
+        server: { type: String, foreignKey: "knownServer" },
+        outbox: { type: String },
         createdAt: { type: Date },
+        acceptedAt: { type: Date, nullable: true },
         lastUpdateSent: { type: Date },
       },
     },
@@ -92,7 +99,33 @@ export const LocalDatabaseSpec = {
         content: { type: String, nullable: true },
       },
     },
+    knownServer: {
+      primaryKey: "url",
+      columns: {
+        url: { type: String },
+        sharedInbox: { type: String, nullable: true },
+        firstSeen: { type: Date },
+        lastSeen: { type: Date },
+      },
+    },
+    blockedServer: {
+      primaryKey: "domain",
+      columns: {
+        domain: { type: String },
+        createdAt: { type: Date },
+        blockActivity: { type: Boolean, default: true },
+        blockMedia: { type: Boolean, default: true },
+        hideInFeeds: { type: Boolean, default: true },
+      },
+    },
+    activity: {
+      primaryKey: "id",
+      columns: {
+        id: { type: Ulid },
+        json: { type: Json },
+        persona: { type: String, foreignKey: "persona" },
+        sent: { type: Boolean, default: false },
+      },
+    },
   },
 } as const;
-
-const _typecheck: DatabaseSpec = LocalDatabaseSpec;

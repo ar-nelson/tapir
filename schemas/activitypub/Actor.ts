@@ -22,7 +22,8 @@ export const schema = {
 
     liked: ["optional", "string"],
     streams: ["optional", ["array", "string"]],
-    preferredUsername: ["optional", "string"],
+    name: "string",
+    preferredUsername: "string",
     endpoints: ["optional", {
       proxyUrl: ["optional", "string"],
       oauthAuthorizationEndpoint: ["optional", "string"],
@@ -31,11 +32,12 @@ export const schema = {
       sharedInbox: ["optional", "string"],
     }],
 
-    publicKey: {
-      id: ["optional", "string"],
+    publicKey: ["optional", {
+      id: "string",
       owner: "string",
       publicKeyPem: "string",
-    },
+    }],
+
     manuallyApprovesFollowers: ["optional", "boolean"],
     discoverable: ["optional", "boolean"],
     featured: ["optional", "string"],
