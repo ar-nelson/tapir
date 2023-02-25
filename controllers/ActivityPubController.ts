@@ -21,7 +21,7 @@ import { JsonLdDocument } from "$/lib/jsonld.ts";
 import { publicKeyToPem } from "$/lib/signatures.ts";
 import { asyncToArray } from "$/lib/utils.ts";
 import * as urls from "$/lib/urls.ts";
-import * as log from "https://deno.land/std@0.176.0/log/mod.ts";
+import { log } from "$/deps.ts";
 
 export interface HandlerState {
   injector: Injector;

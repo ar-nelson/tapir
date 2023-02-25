@@ -1,4 +1,4 @@
-import { MatchesSchema } from "https://deno.land/x/spartanschema@v1.0.1/mod.ts";
+import { MatchesSchema, matchesSchema } from "$/deps.ts";
 
 export const schema = {
   schema: {
@@ -41,3 +41,5 @@ export const schema = {
 } as const;
 
 export type ServerConfig = MatchesSchema<typeof schema>;
+
+export const isServerConfig = matchesSchema(schema);

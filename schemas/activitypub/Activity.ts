@@ -1,7 +1,4 @@
-import {
-  MatchesSchema,
-  matchesSchema,
-} from "https://deno.land/x/spartanschema@v1.0.1/mod.ts";
+import { MatchesSchema, matchesSchema } from "$/deps.ts";
 import { commonDefs, ObjectCommon } from "$/schemas/activitypub/Object.ts";
 
 export const schema = {

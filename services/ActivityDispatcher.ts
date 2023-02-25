@@ -20,7 +20,7 @@ import defaultContext from "$/schemas/activitypub/defaultContext.json" assert {
   type: "json",
 };
 import * as urls from "$/lib/urls.ts";
-import * as log from "https://deno.land/std@0.176.0/log/mod.ts";
+import { log } from "$/deps.ts";
 
 export enum Priority {
   Optional,

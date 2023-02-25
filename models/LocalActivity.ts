@@ -6,7 +6,7 @@ import { ActivityDispatcher, Priority } from "$/services/ActivityDispatcher.ts";
 import { LocalDatabaseSpec } from "$/schemas/tapir/LocalDatabase.ts";
 import { ServerConfigStore } from "$/models/ServerConfig.ts";
 import { UlidService } from "$/services/UlidService.ts";
-import * as log from "https://deno.land/std@0.176.0/log/mod.ts";
+import { log } from "$/deps.ts";
 
 export interface LocalActivity {
   readonly id: string;

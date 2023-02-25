@@ -1,4 +1,4 @@
-import { crypto_argon2i } from "https://deno.land/x/monocypher@v3.1.3-0/mod.ts";
+import { crypto_argon2i } from "$/deps.ts";
 
 export async function asyncToArray<T>(iter: AsyncIterable<T>): Promise<T[]> {
   const xs: T[] = [];

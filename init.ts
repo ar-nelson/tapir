@@ -1,8 +1,7 @@
 import { generateKeyPair } from "$/lib/signatures.ts";
 import { checkPersonaName, hashPassword } from "$/lib/utils.ts";
 import { schema, ServerConfig } from "$/schemas/tapir/ServerConfig.ts";
-import { matchesSchema } from "https://deno.land/x/spartanschema@v1.0.1/mod.ts";
-import * as base64 from "https://deno.land/std@0.176.0/encoding/base64.ts";
+import { base64, matchesSchema } from "$/deps.ts";
 
 console.log("--- Tapir Setup ---");
 console.log("This will generate a tapir.json file.");

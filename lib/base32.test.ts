@@ -2,10 +2,7 @@
 
 import { CrockfordBase32 } from "./base32.ts";
 import { toHex } from "./utils.ts";
-import {
-  assertEquals,
-  assertThrows,
-} from "https://deno.land/std@0.176.0/testing/asserts.ts";
+import { assertEquals, assertThrows } from "$/deps.ts";
 
 Deno.test("can encode a multiple of 5 bits", () => {
   // noinspection SpellCheckingInspection

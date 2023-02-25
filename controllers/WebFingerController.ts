@@ -3,7 +3,7 @@ import { WebFingerResponse } from "$/schemas/webfinger/WebFingerResponse.ts";
 import { ServerConfigStore } from "$/models/ServerConfig.ts";
 import { PersonaStore } from "$/models/Persona.ts";
 import * as urls from "$/lib/urls.ts";
-import * as log from "https://deno.land/std@0.176.0/log/mod.ts";
+import { log } from "$/deps.ts";
 
 @Singleton()
 export class WebFingerController {

@@ -1,4 +1,4 @@
-import { MatchesSchema } from "https://deno.land/x/spartanschema@v1.0.1/mod.ts";
+import { MatchesSchema } from "$/deps.ts";
 import * as FilterKeyword from "./FilterKeyword.ts";
 import * as FilterStatus from "./FilterStatus.ts";
 

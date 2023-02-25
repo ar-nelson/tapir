@@ -1,9 +1,8 @@
-import { matchesSchema } from "https://deno.land/x/spartanschema@v1.0.1/mod.ts";
 import { checkPersonaName } from "$/lib/utils.ts";
 import { InjectableAbstract, Singleton } from "$/lib/inject.ts";
-import { schema } from "$/schemas/tapir/ServerConfig.ts";
+import { isServerConfig } from "$/schemas/tapir/ServerConfig.ts";
 import { generateKeyPair } from "$/lib/signatures.ts";
-import * as base64 from "https://deno.land/std@0.176.0/encoding/base64.ts";
+import { base64 } from "$/deps.ts";
 
 export interface ServerConfig {
   readonly loginName: string;
@@ -20,8 +19,6 @@ export interface ServerConfig {
   readonly privateKey: CryptoKey;
 }
 
-const isValidConfig = matchesSchema(schema);
-
 @InjectableAbstract()
 export abstract class ServerConfigStore {
   abstract getServerConfig(): Promise<ServerConfig>;
@@ -32,7 +29,7 @@ export class FileServerConfigStore implements ServerConfigStore {
   private readonly config: Promise<ServerConfig> = (async () => {
     const config = await Deno.readTextFile("tapir.json"),
       json = JSON.parse(config);
-    if (!isValidConfig(json)) {
+    if (!isServerConfig(json)) {
       throw new TypeError("tapir.json is not a valid config file");
     }
     checkPersonaName(json.loginName);

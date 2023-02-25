@@ -28,9 +28,8 @@ import {
 } from "$/services/DatabaseService.ts";
 import { UlidService } from "$/services/UlidService.ts";
 import { Constructor, Singleton } from "$/lib/inject.ts";
-import { DB as Sqlite } from "https://deno.land/x/sqlite@v3.7.0/mod.ts";
 import { fileExists, mapObject } from "$/lib/utils.ts";
-import * as log from "https://deno.land/std@0.176.0/log/mod.ts";
+import { log, Sqlite } from "$/deps.ts";
 
 function rowConverter<C extends Columns>(
   spec: TableSpec<C>,

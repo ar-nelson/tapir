@@ -5,7 +5,7 @@ import {
   Injector,
   Singleton,
 } from "./inject.ts";
-import { assertEquals } from "https://deno.land/std@0.176.0/testing/asserts.ts";
+import { assertEquals } from "$/deps.ts";
 
 @InjectableAbstract()
 abstract class Increment {

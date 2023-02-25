@@ -1,5 +1,5 @@
 import * as urls from "./urls.ts";
-import { assertEquals } from "https://deno.land/std@0.176.0/testing/asserts.ts";
+import { assertEquals } from "$/deps.ts";
 
 const base = "http://example.com";
 

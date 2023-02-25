@@ -1,7 +1,3 @@
-import {
-  assertArrayIncludes,
-  assertEquals,
-} from "https://deno.land/std@0.176.0/testing/asserts.ts";
 import { columnCompare, ColumnType, Q, QueryOperator } from "$/lib/sql/mod.ts";
 import {
   DatabaseService,
@@ -10,6 +6,7 @@ import {
 import { UlidService } from "$/services/UlidService.ts";
 import { AbstractConstructor, Constructor, Injector } from "$/lib/inject.ts";
 import { asyncToArray as collect } from "$/lib/utils.ts";
+import { assertArrayIncludes, assertEquals } from "$/deps.ts";
 
 const COLUMNS = {
   id: { type: ColumnType.Ulid },

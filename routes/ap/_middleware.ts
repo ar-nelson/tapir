@@ -5,11 +5,8 @@ import {
   ActivityPubController,
   HandlerState,
 } from "$/controllers/ActivityPubController.ts";
-import { CONTENT_TYPE } from "$/schemas/activitypub/mod.ts";
-import defaultContext from "$/schemas/activitypub/defaultContext.json" assert {
-  type: "json",
-};
-import * as log from "https://deno.land/std@0.176.0/log/mod.ts";
+import { CONTENT_TYPE, defaultContext } from "$/schemas/activitypub/mod.ts";
+import { log } from "$/deps.ts";
 
 export async function handler(
   req: Request,

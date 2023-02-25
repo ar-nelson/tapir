@@ -13,8 +13,7 @@ import { LocalDatabaseSpec } from "$/schemas/tapir/LocalDatabase.ts";
 import { DatabaseService } from "$/services/DatabaseService.ts";
 import { InMemoryDatabaseServiceFactory } from "$/services/InMemoryDatabaseService.ts";
 import { SqliteDatabaseServiceFactory } from "$/services/SqliteDatabaseService.ts";
-import * as log from "https://deno.land/std@0.176.0/log/mod.ts";
-import * as path from "https://deno.land/std@0.176.0/path/mod.ts";
+import { log, path } from "$/deps.ts";
 
 interface State {
   injector: Injector;

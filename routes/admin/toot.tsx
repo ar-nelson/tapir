@@ -5,7 +5,7 @@ import { LocalPostStore, PostType } from "$/models/LocalPost.ts";
 import { Persona, PersonaStore } from "$/models/Persona.ts";
 import * as urls from "$/lib/urls.ts";
 import { asyncToArray } from "$/lib/utils.ts";
-import * as log from "https://deno.land/std@0.176.0/log/mod.ts";
+import { log } from "$/deps.ts";
 
 interface Params {
   personas: Persona[];

@@ -1,4 +1,4 @@
-import { assertEquals } from "https://deno.land/std@0.176.0/testing/asserts.ts";
+import { assertEquals } from "$/deps.ts";
 import { generateKeyPair, signRequest, verifyRequest } from "./signatures.ts";
 
 Deno.test("sign and verify a POST request", async () => {

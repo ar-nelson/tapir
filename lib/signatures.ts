@@ -1,6 +1,4 @@
-//import * as x509 from "https://cdn.jsdelivr.net/npm/@peculiar/x509@1.9.3/+esm";
-import * as base64 from "https://deno.land/std@0.176.0/encoding/base64.ts";
-import * as datetime from "https://deno.land/std@0.176.0/datetime/mod.ts";
+import { base64, datetime } from "$/deps.ts";
 
 export function generateKeyPair(): Promise<CryptoKeyPair> {
   return crypto.subtle.generateKey(

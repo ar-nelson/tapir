@@ -4,7 +4,7 @@
 
 // deno-lint-ignore-file ban-types
 
-import { Reflect } from "https://deno.land/x/reflect_metadata@v0.1.12/mod.ts";
+import { Reflect } from "$/deps.ts";
 
 const INJECTABLE = "dependencyInjection:injectable";
 const INJECTED = "dependencyInjection:injected";
