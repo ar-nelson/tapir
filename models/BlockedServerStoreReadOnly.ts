@@ -1,8 +1,7 @@
 // in a separate file to break a dependency cycle
 import { InjectableAbstract, Singleton } from "$/lib/inject.ts";
-import { DatabaseService } from "$/services/DatabaseService.ts";
+import { LocalDatabaseService } from "$/services/LocalDatabaseService.ts";
 import { Q, QueryOperator } from "$/lib/sql/mod.ts";
-import { LocalDatabaseSpec } from "$/schemas/tapir/LocalDatabase.ts";
 
 export interface BlockOptions {
   readonly blockActivity: boolean;
@@ -32,7 +31,7 @@ export abstract class BlockedServerStoreReadOnly {
 
 @Singleton(BlockedServerStoreReadOnly)
 export class BlockedServerStoreReadOnlyImpl extends BlockedServerStoreReadOnly {
-  constructor(private readonly db: DatabaseService<typeof LocalDatabaseSpec>) {
+  constructor(private readonly db: LocalDatabaseService) {
     super();
   }
 

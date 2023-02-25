@@ -1,6 +1,5 @@
 import { InjectableAbstract, Singleton } from "$/lib/inject.ts";
-import { DatabaseService } from "$/services/DatabaseService.ts";
-import { LocalDatabaseSpec } from "$/schemas/tapir/LocalDatabase.ts";
+import { LocalDatabaseService } from "$/services/LocalDatabaseService.ts";
 import { KnownServerStore } from "$/models/KnownServer.ts";
 import {
   BlockedServerStoreReadOnly,
@@ -53,7 +52,7 @@ export abstract class BlockedServerStore {
 @Singleton(BlockedServerStore)
 export class BlockedServerStoreImpl extends BlockedServerStore {
   constructor(
-    private readonly db: DatabaseService<typeof LocalDatabaseSpec>,
+    private readonly db: LocalDatabaseService,
     private readonly knownServerStore: KnownServerStore,
     base: BlockedServerStoreReadOnlyImpl,
   ) {

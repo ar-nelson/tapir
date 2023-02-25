@@ -1,8 +1,11 @@
-import { columnCompare, ColumnType, Q, QueryOperator } from "$/lib/sql/mod.ts";
 import {
-  DatabaseService,
-  DatabaseServiceFactory,
-} from "$/services/DatabaseService.ts";
+  columnCompare,
+  ColumnType,
+  DB,
+  Q,
+  QueryOperator,
+} from "$/lib/sql/mod.ts";
+import { DBFactory } from "$/lib/db/DBFactory.ts";
 import { UlidService } from "$/services/UlidService.ts";
 import { AbstractConstructor, Constructor, Injector } from "$/lib/inject.ts";
 import { asyncToArray as collect } from "$/lib/utils.ts";
@@ -24,16 +27,14 @@ const TEST_SPEC = {
   },
 } as const;
 
-export async function testDatabaseService(
-  factory: DatabaseServiceFactory,
-  overrides: Map<Constructor | AbstractConstructor, Constructor> = new Map(),
+export function testDatabaseService(
+  factory: DBFactory,
+  ...overrides: [Constructor | AbstractConstructor, Constructor][]
 ) {
-  overrides.set(DatabaseService, await factory.init(TEST_SPEC));
-
-  function newDb(): Promise<[DatabaseService<typeof TEST_SPEC>, UlidService]> {
-    const injector = new Injector(overrides);
+  function newDb(): Promise<[DB<typeof TEST_SPEC>, UlidService]> {
+    const injector = new Injector(...overrides);
     return Promise.all([
-      injector.resolve(DatabaseService),
+      injector.inject(factory.constructService(TEST_SPEC)),
       injector.resolve(UlidService),
     ]);
   }

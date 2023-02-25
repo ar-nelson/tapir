@@ -1,7 +1,6 @@
 import { InjectableAbstract, Singleton } from "$/lib/inject.ts";
 import { checkPersonaName } from "$/lib/utils.ts";
-import { DatabaseService } from "$/services/DatabaseService.ts";
-import { LocalDatabaseSpec } from "$/schemas/tapir/LocalDatabase.ts";
+import { LocalDatabaseService } from "$/services/LocalDatabaseService.ts";
 import { LocalPostStore } from "$/models/LocalPost.ts";
 import { ServerConfigStore } from "$/models/ServerConfig.ts";
 import {
@@ -51,7 +50,7 @@ export class PersonaStoreImpl extends PersonaStore {
 
   constructor(
     base: PersonaStoreReadOnlyImpl,
-    private readonly db: DatabaseService<typeof LocalDatabaseSpec>,
+    private readonly db: LocalDatabaseService,
     serverConfigStore: ServerConfigStore,
     private readonly localPostStore: LocalPostStore,
   ) {

@@ -3,6 +3,7 @@ import {
   ColumnsOf,
   DatabaseSpec,
   DB,
+  DBLike,
   InRow,
   inToOut,
   JoinChain,
@@ -16,10 +17,7 @@ import {
   rowQuery,
   TableOf,
 } from "$/lib/sql/mod.ts";
-import {
-  DatabaseService,
-  DatabaseServiceFactory,
-} from "$/services/DatabaseService.ts";
+import { DBFactory } from "$/lib/db/DBFactory.ts";
 import { UlidService } from "$/services/UlidService.ts";
 import { Constructor, Singleton } from "$/lib/inject.ts";
 import { mapObject } from "$/lib/utils.ts";
@@ -31,15 +29,14 @@ type TableMapMap<Spec extends DatabaseSpec> = {
   >;
 };
 
-export abstract class InMemoryDatabaseService<Spec extends DatabaseSpec>
-  extends DatabaseService<Spec> {
+export abstract class InMemoryDB<Spec extends DatabaseSpec>
+  implements DB<Spec> {
   private readonly tables: TableMapMap<Spec>;
 
   constructor(
     private readonly spec: Spec,
     private readonly ulid: UlidService,
   ) {
-    super();
     this.tables = mapObject(spec.tables, () => new Map()) as TableMapMap<Spec>;
   }
 
@@ -199,7 +196,7 @@ export abstract class InMemoryDatabaseService<Spec extends DatabaseSpec>
     return Promise.resolve(n);
   }
 
-  transaction<R>(callback: (t: DB<Spec>) => Promise<R>): Promise<R> {
+  transaction<R>(callback: (t: DBLike<Spec>) => Promise<R>): Promise<R> {
     // FIXME: this is not safe
     return callback(this);
   }
@@ -209,20 +206,17 @@ export abstract class InMemoryDatabaseService<Spec extends DatabaseSpec>
   }
 }
 
-export class InMemoryDatabaseServiceFactory extends DatabaseServiceFactory {
-  constructor() {
-    super();
-  }
-
-  init<Spec extends DatabaseSpec>(
+export class InMemoryDBFactory extends DBFactory {
+  protected construct<Spec extends DatabaseSpec>(
     spec: Spec,
-  ): Promise<Constructor<DatabaseService<Spec>>> {
+  ): Constructor<InMemoryDB<Spec>> {
     @Singleton()
-    class InMemoryDatabaseServiceImpl extends InMemoryDatabaseService<Spec> {
+    class InMemoryDBImpl extends InMemoryDB<Spec> {
       constructor(ulid: UlidService) {
         super(spec, ulid);
       }
     }
-    return Promise.resolve(InMemoryDatabaseServiceImpl);
+
+    return InMemoryDBImpl;
   }
 }

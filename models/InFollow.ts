@@ -1,8 +1,7 @@
 import { InjectableAbstract, Singleton } from "$/lib/inject.ts";
 import * as urls from "$/lib/urls.ts";
-import { DatabaseService } from "$/services/DatabaseService.ts";
+import { LocalDatabaseService } from "$/services/LocalDatabaseService.ts";
 import { ActivityDispatcher, Priority } from "$/services/ActivityDispatcher.ts";
-import { LocalDatabaseSpec } from "$/schemas/tapir/LocalDatabase.ts";
 import { Actor, isActor } from "$/schemas/activitypub/mod.ts";
 import { LocalActivityStore } from "$/models/LocalActivity.ts";
 import { LocalPostStore } from "$/models/LocalPost.ts";
@@ -80,7 +79,7 @@ export class InFollowStoreImpl extends InFollowStore {
   readonly #serverConfig;
 
   constructor(
-    private readonly db: DatabaseService<typeof LocalDatabaseSpec>,
+    private readonly db: LocalDatabaseService,
     private readonly knownServerStore: KnownServerStore,
     private readonly localActivityStore: LocalActivityStore,
     private readonly localPostStore: LocalPostStore,

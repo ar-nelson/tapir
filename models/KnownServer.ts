@@ -1,7 +1,6 @@
 import { InjectableAbstract, Singleton } from "$/lib/inject.ts";
-import { DatabaseService } from "$/services/DatabaseService.ts";
+import { LocalDatabaseService } from "$/services/LocalDatabaseService.ts";
 import { Q } from "$/lib/sql/mod.ts";
-import { LocalDatabaseSpec } from "$/schemas/tapir/LocalDatabase.ts";
 import { BlockedServerStoreReadOnly } from "$/models/BlockedServerStoreReadOnly.ts";
 import { log } from "$/deps.ts";
 
@@ -56,9 +55,7 @@ export abstract class KnownServerStore extends KnownServerStoreReadOnly {
 export class KnownServerStoreReadOnlyImpl extends KnownServerStoreReadOnly {
   #sharedInboxSet: Promise<ReadonlySet<string>> | null = null;
 
-  constructor(
-    private readonly db: DatabaseService<typeof LocalDatabaseSpec>,
-  ) {
+  constructor(private readonly db: LocalDatabaseService) {
     super();
   }
 
@@ -107,7 +104,7 @@ export class KnownServerStoreReadOnlyImpl extends KnownServerStoreReadOnly {
 @Singleton(KnownServerStore)
 export class KnownServerStoreImpl extends KnownServerStore {
   constructor(
-    private readonly db: DatabaseService<typeof LocalDatabaseSpec>,
+    private readonly db: LocalDatabaseService,
     private readonly blockedServerStore: BlockedServerStoreReadOnly,
     private readonly _base: KnownServerStoreReadOnlyImpl,
   ) {

@@ -1,7 +1,7 @@
 import { InjectableAbstract, Singleton } from "$/lib/inject.ts";
-import { DatabaseService } from "$/services/DatabaseService.ts";
+import { LocalDatabaseService } from "$/services/LocalDatabaseService.ts";
 import { OrderDirection, Q } from "$/lib/sql/mod.ts";
-import { LocalDatabaseSpec, PostType } from "$/schemas/tapir/LocalDatabase.ts";
+import { PostType } from "$/schemas/tapir/LocalDatabase.ts";
 export { PostType } from "$/schemas/tapir/LocalDatabase.ts";
 import { LocalActivityStore } from "$/models/LocalActivity.ts";
 import { ServerConfigStore } from "$/models/ServerConfig.ts";
@@ -51,7 +51,7 @@ export class LocalPostStoreImpl extends LocalPostStore {
   private readonly serverConfig;
 
   constructor(
-    private readonly db: DatabaseService<typeof LocalDatabaseSpec>,
+    private readonly db: LocalDatabaseService,
     private readonly localActivityStore: LocalActivityStore,
     serverConfigStore: ServerConfigStore,
   ) {

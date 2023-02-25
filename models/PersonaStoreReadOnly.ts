@@ -1,7 +1,6 @@
 // in a separate file to break a dependency cycle
 import { InjectableAbstract, Singleton } from "$/lib/inject.ts";
-import { DatabaseService } from "$/services/DatabaseService.ts";
-import { LocalDatabaseSpec } from "$/schemas/tapir/LocalDatabase.ts";
+import { LocalDatabaseService } from "$/services/LocalDatabaseService.ts";
 
 export interface Persona {
   readonly name: string;
@@ -25,9 +24,7 @@ export abstract class PersonaStoreReadOnly {
 
 @Singleton(PersonaStoreReadOnly)
 export class PersonaStoreReadOnlyImpl extends PersonaStoreReadOnly {
-  constructor(
-    private readonly db: DatabaseService<typeof LocalDatabaseSpec>,
-  ) {
+  constructor(private readonly db: LocalDatabaseService) {
     super();
   }
 

@@ -120,14 +120,28 @@ export class Injector {
   private readonly resolved = new Map<
     Constructor | AbstractConstructor,
     () => Promise<object>
-  >();
+  >([[Injector, () => Promise.resolve(this)]]);
 
   constructor(
-    private readonly overrides = new Map<
-      Constructor | AbstractConstructor,
-      Constructor
-    >(),
-  ) {}
+    ...overrides: [Constructor | AbstractConstructor, Constructor][]
+  ) {
+    for (const [Dep, Ctor] of overrides) {
+      const injected: InjectedMetadata<object> | undefined = Reflect
+        .getOwnMetadata(
+          INJECTED,
+          Ctor,
+        );
+      if (injected?.isSingleton) {
+        let instance: Promise<object> | null = null;
+        this.resolved.set(
+          Dep,
+          () => instance ?? (instance = this.inject(Ctor)),
+        );
+      } else {
+        this.resolved.set(Dep, () => this.inject(Ctor));
+      }
+    }
+  }
 
   /**
    * Creates an instance of `Type` by calling its constructor with injected
@@ -204,17 +218,6 @@ Missing dependencies: ${
   private getInjectionOptions<T extends object>(
     Type: Constructor<T> | AbstractConstructor<T>,
   ): { readonly isSingleton: boolean; readonly injected: Constructor<T> }[] {
-    if (this.overrides.has(Type)) {
-      const Override = this.overrides.get(Type)! as Constructor<T>;
-      const injected: InjectedMetadata<T> | undefined = Reflect.getOwnMetadata(
-        INJECTED,
-        Override,
-      );
-      return [{
-        isSingleton: injected?.isSingleton ?? false,
-        injected: Override,
-      }];
-    }
     const injectable: InjectableMetadata<T> | undefined = Reflect
       .getOwnMetadata(INJECTABLE, Type);
     if (!injectable) {

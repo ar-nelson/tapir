@@ -164,7 +164,7 @@ export interface JoinChain<
   get(options?: { limit?: number }): AsyncIterable<Result>;
 }
 
-export interface DB<Spec extends DatabaseSpec> {
+export interface DBLike<Spec extends DatabaseSpec> {
   get<T extends TableOf<Spec>>(table: T, options?: {
     where?: Query<ColumnsOf<Spec, T>>;
     orderBy?: [ColumnOf<Spec, T>, OrderDirection][];
@@ -208,6 +208,10 @@ export interface DB<Spec extends DatabaseSpec> {
     table: T,
     where: Query<ColumnsOf<Spec, T>>,
   ): Promise<number>;
+}
 
-  transaction<R>(callback: (t: DB<Spec>) => Promise<R>): Promise<R>;
+export interface DB<Spec extends DatabaseSpec> extends DBLike<Spec> {
+  transaction<R>(callback: (t: DBLike<Spec>) => Promise<R>): Promise<R>;
+
+  close(): Promise<void>;
 }

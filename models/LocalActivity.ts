@@ -1,9 +1,8 @@
 import { InjectableAbstract, Singleton } from "$/lib/inject.ts";
 import * as urls from "$/lib/urls.ts";
 import { Activity, Object } from "$/schemas/activitypub/mod.ts";
-import { DatabaseService } from "$/services/DatabaseService.ts";
+import { LocalDatabaseService } from "$/services/LocalDatabaseService.ts";
 import { ActivityDispatcher, Priority } from "$/services/ActivityDispatcher.ts";
-import { LocalDatabaseSpec } from "$/schemas/tapir/LocalDatabase.ts";
 import { ServerConfigStore } from "$/models/ServerConfig.ts";
 import { UlidService } from "$/services/UlidService.ts";
 import { log } from "$/deps.ts";
@@ -40,7 +39,7 @@ export class LocalActivityStoreImpl extends LocalActivityStore {
   private readonly baseUrl;
 
   constructor(
-    private readonly db: DatabaseService<typeof LocalDatabaseSpec>,
+    private readonly db: LocalDatabaseService,
     private readonly dispatcher: ActivityDispatcher,
     serverConfigStore: ServerConfigStore,
     private readonly ulid: UlidService,

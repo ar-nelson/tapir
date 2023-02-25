@@ -1,8 +1,7 @@
 // in a separate file to break a dependency cycle
 import { InjectableAbstract, Singleton } from "$/lib/inject.ts";
 import { Q } from "$/lib/sql/mod.ts";
-import { DatabaseService } from "$/services/DatabaseService.ts";
-import { LocalDatabaseSpec } from "$/schemas/tapir/LocalDatabase.ts";
+import { LocalDatabaseService } from "$/services/LocalDatabaseService.ts";
 import { KnownServerStoreReadOnly } from "$/models/KnownServer.ts";
 
 export interface InFollow {
@@ -38,7 +37,7 @@ export class InFollowStoreReadOnlyImpl extends InFollowStoreReadOnly {
   #followerInboxSet: Promise<ReadonlySet<string>> | null = null;
 
   constructor(
-    private readonly db: DatabaseService<typeof LocalDatabaseSpec>,
+    private readonly db: LocalDatabaseService,
     private readonly knownServerStore: KnownServerStoreReadOnly,
   ) {
     super();

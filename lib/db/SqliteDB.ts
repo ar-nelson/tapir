@@ -7,6 +7,7 @@ import {
   createTable,
   DatabaseSpec,
   DB,
+  DBLike,
   del,
   InRow,
   insert,
@@ -22,10 +23,7 @@ import {
   TableSpec,
   update,
 } from "$/lib/sql/mod.ts";
-import {
-  DatabaseService,
-  DatabaseServiceFactory,
-} from "$/services/DatabaseService.ts";
+import { DBFactory } from "$/lib/db/DBFactory.ts";
 import { UlidService } from "$/services/UlidService.ts";
 import { Constructor, Singleton } from "$/lib/inject.ts";
 import { fileExists, mapObject } from "$/lib/utils.ts";
@@ -51,18 +49,17 @@ function rowConverter<C extends Columns>(
   ) as (r: { [K in keyof C]?: unknown }) => Partial<OutRow<C>>;
 }
 
-class SqliteDB<Spec extends DatabaseSpec> extends DatabaseService<Spec> {
+class SqliteDBApi<Spec extends DatabaseSpec> implements DBLike<Spec> {
   constructor(
-    private readonly spec: Spec,
-    private readonly ulid: UlidService,
-    private readonly convertRow: {
+    protected readonly spec: Spec,
+    protected readonly ulid: UlidService,
+    protected readonly convertRow: {
       [T in TableOf<Spec>]: (
         r: { [K in ColumnOf<Spec, T>]?: unknown },
       ) => Partial<OutRow<ColumnsOf<Spec, T>>>;
     },
-    private dbPromise: Promise<Sqlite>,
+    protected dbPromise: Promise<Sqlite>,
   ) {
-    super();
   }
 
   get<T extends TableOf<Spec>>(table: T, options?: {
@@ -181,24 +178,11 @@ class SqliteDB<Spec extends DatabaseSpec> extends DatabaseService<Spec> {
       rows = db.query(text, values);
     return rows.length;
   }
-
-  async close() {
-    const db = await this.dbPromise;
-    db.close();
-  }
-
-  async transaction<R>(callback: (t: DB<Spec>) => Promise<R>): Promise<R> {
-    const db = await this.dbPromise;
-    const promise = callback(
-      new SqliteDB(this.spec, this.ulid, this.convertRow, Promise.resolve(db)),
-    );
-    this.dbPromise = promise.then(() => db, () => db);
-    return promise;
-  }
 }
 
-export abstract class SqliteDatabaseService<Spec extends DatabaseSpec>
-  extends SqliteDB<Spec> {
+export abstract class SqliteDB<Spec extends DatabaseSpec>
+  extends SqliteDBApi<Spec>
+  implements DB<Spec> {
   constructor(
     filename: string,
     overwrite: boolean,
@@ -255,9 +239,28 @@ export abstract class SqliteDatabaseService<Spec extends DatabaseSpec>
       })(),
     );
   }
+
+  async close() {
+    const db = await this.dbPromise;
+    db.close();
+  }
+
+  async transaction<R>(callback: (t: DBLike<Spec>) => Promise<R>): Promise<R> {
+    const db = await this.dbPromise;
+    const promise = callback(
+      new SqliteDBApi(
+        this.spec,
+        this.ulid,
+        this.convertRow,
+        Promise.resolve(db),
+      ),
+    );
+    this.dbPromise = promise.then(() => db, () => db);
+    return promise;
+  }
 }
 
-export class SqliteDatabaseServiceFactory extends DatabaseServiceFactory {
+export class SqliteDBFactory extends DBFactory {
   constructor(
     private readonly filename: string,
     private readonly overwrite = false,
@@ -265,17 +268,16 @@ export class SqliteDatabaseServiceFactory extends DatabaseServiceFactory {
     super();
   }
 
-  init<Spec extends DatabaseSpec>(
+  protected construct<Spec extends DatabaseSpec>(
     spec: Spec,
-  ): Promise<Constructor<DatabaseService<Spec>>> {
-    const filename = this.filename, overwrite = this.overwrite;
-
+  ): Constructor<SqliteDB<Spec>> {
+    const { filename, overwrite } = this;
     @Singleton()
-    class SqliteDatabaseServiceImpl extends SqliteDatabaseService<Spec> {
+    class SqliteDBImpl extends SqliteDB<Spec> {
       constructor(ulid: UlidService) {
         super(filename, overwrite, spec, ulid);
       }
     }
-    return Promise.resolve(SqliteDatabaseServiceImpl);
+    return SqliteDBImpl;
   }
 }

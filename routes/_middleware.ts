@@ -1,51 +1,17 @@
 import { MiddlewareHandlerContext } from "$fresh/server.ts";
-import {
-  AbstractConstructor,
-  ConditionalResolver,
-  Constructor,
-  Injectable,
-  Injector,
-} from "$/lib/inject.ts";
+import { Injector } from "$/lib/inject.ts";
 import { contentTypeIsJson } from "$/lib/urls.ts";
-import { dirExists } from "$/lib/utils.ts";
-import { ServerConfigStore } from "$/models/ServerConfig.ts";
+import { LocalDatabaseService } from "$/services/LocalDatabaseService.ts";
 import { LocalDatabaseSpec } from "$/schemas/tapir/LocalDatabase.ts";
-import { DatabaseService } from "$/services/DatabaseService.ts";
-import { InMemoryDatabaseServiceFactory } from "$/services/InMemoryDatabaseService.ts";
-import { SqliteDatabaseServiceFactory } from "$/services/SqliteDatabaseService.ts";
-import { log, path } from "$/deps.ts";
+import { DBSelector } from "$/lib/db/DBSelector.ts";
+import { log } from "$/deps.ts";
 
 interface State {
   injector: Injector;
 }
 
-@Injectable()
-class LocalDatabaseSelector
-  extends ConditionalResolver<DatabaseService<typeof LocalDatabaseSpec>> {
-  constructor(private readonly serverConfigStore: ServerConfigStore) {
-    super();
-  }
-
-  async resolve() {
-    const config = await this.serverConfigStore.getServerConfig();
-    if (!await dirExists(config.dataDir)) {
-      await Deno.mkdir(config.dataDir, { recursive: true });
-    }
-    switch (config.localDatabase.type) {
-      case "inmemory":
-        return new InMemoryDatabaseServiceFactory().init(LocalDatabaseSpec);
-      case "sqlite":
-        return new SqliteDatabaseServiceFactory(
-          path.join(config.dataDir, config.localDatabase.path ?? "local.db"),
-        ).init(LocalDatabaseSpec);
-    }
-  }
-}
-
 const globalInjector = new Injector(
-  new Map<AbstractConstructor, Constructor>([
-    [DatabaseService, LocalDatabaseSelector],
-  ]),
+  [LocalDatabaseService, DBSelector(LocalDatabaseSpec, "local.db")],
 );
 
 export async function handler(

@@ -115,7 +115,7 @@ Deno.test("Inject abstract", async () => {
 });
 
 Deno.test("Inject abstract override", async () => {
-  const inc = await new Injector(new Map([[Increment, IncrementBy2]])).resolve(
+  const inc = await new Injector([Increment, IncrementBy2]).resolve(
     Increment,
   );
   assertEquals(inc.inc(2), 4);
@@ -132,9 +132,7 @@ Deno.test("Inject transitive", async () => {
 });
 
 Deno.test("Inject conditional", async () => {
-  const injector = new Injector(
-    new Map([[Increment, ConditionalIncrement]]),
-  );
+  const injector = new Injector([Increment, ConditionalIncrement]);
   const inc = await injector.resolve(Increment);
   assertEquals(inc.inc(1), 3);
 });
