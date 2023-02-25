@@ -6,7 +6,7 @@ import * as urls from "$/lib/urls.ts";
 import * as log from "https://deno.land/std@0.176.0/log/mod.ts";
 
 @Singleton()
-export class WebFingerService {
+export class WebFingerController {
   constructor(
     private readonly serverConfigStore: ServerConfigStore,
     private readonly personaStore: PersonaStore,
@@ -18,7 +18,7 @@ export class WebFingerService {
     const serverConfig = await this.serverConfigStore.getServerConfig(),
       match = /^acct:[@]?([^@:]+)(?:[@]([^@:]+))?$/i.exec(resource);
     if (!match || (match[2] && match[2] !== serverConfig.domain)) {
-      log.info(
+      log.warning(
         `not a valid acct resource for this server: ${
           JSON.stringify(resource)
         }`,
@@ -28,7 +28,7 @@ export class WebFingerService {
     const name = match[1],
       persona = await this.personaStore.get(name);
     if (!persona) {
-      log.info(
+      log.warning(
         `cannot resolve resource ${
           JSON.stringify(resource)
         }: no persona named ${JSON.stringify(name)}`,

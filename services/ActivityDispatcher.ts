@@ -3,10 +3,10 @@ import { signRequest } from "$/lib/signatures.ts";
 import {
   Activity,
   Actor,
-  ActorSchema,
+  isActor,
+  isObject,
   key,
   Object,
-  ObjectSchema,
 } from "$/schemas/activitypub/mod.ts";
 import { PersonaStoreReadOnly } from "$/models/PersonaStoreReadOnly.ts";
 import { InFollowStoreReadOnly } from "$/models/InFollowStoreReadOnly.ts";
@@ -20,7 +20,6 @@ import defaultContext from "$/schemas/activitypub/defaultContext.json" assert {
   type: "json",
 };
 import * as urls from "$/lib/urls.ts";
-import { matchesSchema } from "https://deno.land/x/spartanschema@v1.0.1/mod.ts";
 import * as log from "https://deno.land/std@0.176.0/log/mod.ts";
 
 export enum Priority {
@@ -29,9 +28,6 @@ export enum Priority {
   Soon,
   Immediate,
 }
-
-const isObject = matchesSchema(ObjectSchema),
-  isActor = matchesSchema(ActorSchema);
 
 @InjectableAbstract()
 export abstract class ActivityDispatcher {

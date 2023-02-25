@@ -1,7 +1,10 @@
 import { MiddlewareHandlerContext } from "$fresh/server.ts";
-import { Injector } from "$/lib/inject.ts";
 import { contentTypeIsJson } from "$/lib/urls.ts";
 import { BlockedServerStore } from "$/models/BlockedServer.ts";
+import {
+  ActivityPubController,
+  HandlerState,
+} from "$/controllers/ActivityPubController.ts";
 import { CONTENT_TYPE } from "$/schemas/activitypub/mod.ts";
 import defaultContext from "$/schemas/activitypub/defaultContext.json" assert {
   type: "json",
@@ -10,8 +13,11 @@ import * as log from "https://deno.land/std@0.176.0/log/mod.ts";
 
 export async function handler(
   req: Request,
-  ctx: MiddlewareHandlerContext<{ injector: Injector }>,
+  ctx: MiddlewareHandlerContext<HandlerState>,
 ) {
+  ctx.state.controller = await ctx.state.injector.resolve(
+    ActivityPubController,
+  );
   // if (!contentTypeIsJson(req.headers.get("accept") || "")) {
   //   return Response.json({
   //     error:

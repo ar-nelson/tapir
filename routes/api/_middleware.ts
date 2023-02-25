@@ -1,10 +1,17 @@
 import { MiddlewareHandlerContext } from "$fresh/server.ts";
 import { contentTypeIsJson } from "$/lib/urls.ts";
+import {
+  HandlerState,
+  MastodonApiController,
+} from "$/controllers/MastodonApiController.ts";
 
 export async function handler(
   _req: Request,
-  ctx: MiddlewareHandlerContext,
+  ctx: MiddlewareHandlerContext<HandlerState>,
 ) {
+  ctx.state.controller = await ctx.state.injector.resolve(
+    MastodonApiController,
+  );
   const rsp = await ctx.next();
   if (
     rsp.status === 404 &&

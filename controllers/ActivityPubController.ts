@@ -1,4 +1,4 @@
-import { Singleton } from "$/lib/inject.ts";
+import { Injector, Singleton } from "$/lib/inject.ts";
 import { ServerConfigStore } from "$/models/ServerConfig.ts";
 import { PersonaStore } from "$/models/Persona.ts";
 import { LocalPostStore } from "$/models/LocalPost.ts";
@@ -8,21 +8,46 @@ import {
   InFollowErrorType,
   InFollowStore,
 } from "$/models/InFollow.ts";
-import { Activity, Actor, Collection } from "$/schemas/activitypub/mod.ts";
+import {
+  Activity,
+  Actor,
+  Collection,
+  defaultContext,
+  isActivity,
+  Object,
+} from "$/schemas/activitypub/mod.ts";
+import { JsonLdService } from "$/services/JsonLdService.ts";
+import { JsonLdDocument } from "$/lib/jsonld.ts";
 import { publicKeyToPem } from "$/lib/signatures.ts";
 import { asyncToArray } from "$/lib/utils.ts";
 import * as urls from "$/lib/urls.ts";
 import * as log from "https://deno.land/std@0.176.0/log/mod.ts";
 
+export interface HandlerState {
+  injector: Injector;
+  controller: ActivityPubController;
+}
+
 @Singleton()
-export class ActivityPubService {
+export class ActivityPubController {
   constructor(
     private readonly serverConfigStore: ServerConfigStore,
     private readonly personaStore: PersonaStore,
     private readonly localPostStore: LocalPostStore,
     private readonly localActivityStore: LocalActivityStore,
     private readonly inFollowStore: InFollowStore,
+    private readonly jsonLd: JsonLdService,
   ) {}
+
+  async canonicalizeIncomingActivity(
+    json: JsonLdDocument,
+  ): Promise<Activity | null> {
+    const compacted = await this.jsonLd.processDocument({
+      ...await this.jsonLd.processDocument(json),
+      "@context": defaultContext,
+    }, { expandTerms: false });
+    return isActivity(compacted) ? compacted : null;
+  }
 
   async getPersona(name: string): Promise<Actor | undefined> {
     const serverConfig = await this.serverConfigStore.getServerConfig(),
@@ -125,9 +150,12 @@ export class ActivityPubService {
     };
   }
 
-  #errorResponse(message: string, status = 400) {
-    log.error(message);
-    return Response.json({ error: message }, { status });
+  async getActivity(id: string): Promise<Activity | null> {
+    return (await this.localActivityStore.get(id))?.json as Activity | null;
+  }
+
+  getObject(id: string): Promise<Object | null> {
+    return this.localActivityStore.getObject(id);
   }
 
   async onInboxPost(
@@ -178,5 +206,10 @@ export class ActivityPubService {
       default:
         return this.#errorResponse("Not supported");
     }
+  }
+
+  #errorResponse(message: string, status = 400) {
+    log.error(message);
+    return Response.json({ error: message }, { status });
   }
 }

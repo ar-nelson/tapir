@@ -1,14 +1,9 @@
 import { Handlers } from "$fresh/server.ts";
-import { Injector } from "$/lib/inject.ts";
-import { MastodonApiService } from "$/services/MastodonApiService.ts";
+import { HandlerState } from "$/controllers/MastodonApiController.ts";
+import { jsonOr404 } from "$/lib/utils.ts";
 
-export const handler: Handlers<void, { injector: Injector }> = {
+export const handler: Handlers<void, HandlerState> = {
   async GET(_req, ctx) {
-    const service = await ctx.state.injector.resolve(MastodonApiService),
-      account = await service.account(ctx.params.acct);
-    if (!account) {
-      return Response.json({ error: "Record not found" }, { status: 404 });
-    }
-    return Response.json(account);
+    return jsonOr404(await ctx.state.controller.account(ctx.params.acct));
   },
 };

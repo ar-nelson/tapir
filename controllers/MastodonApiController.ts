@@ -1,4 +1,4 @@
-import { Singleton } from "$/lib/inject.ts";
+import { Injector, Singleton } from "$/lib/inject.ts";
 import { ServerConfig, ServerConfigStore } from "$/models/ServerConfig.ts";
 import { Persona, PersonaStore } from "$/models/Persona.ts";
 import { LocalPost, LocalPostStore } from "$/models/LocalPost.ts";
@@ -7,6 +7,11 @@ import { Account, Instance, Status } from "$/schemas/mastodon/mod.ts";
 import { asyncToArray } from "$/lib/utils.ts";
 import * as urls from "$/lib/urls.ts";
 import * as log from "https://deno.land/std@0.176.0/log/mod.ts";
+
+export interface HandlerState {
+  injector: Injector;
+  controller: MastodonApiController;
+}
 
 export enum TimelineFilter {
   LocalAndRemote,
@@ -34,7 +39,7 @@ export interface AccountStatusesOptions extends StatusesOptions {
 }
 
 @Singleton()
-export class MastodonApiService {
+export class MastodonApiController {
   constructor(
     private readonly serverConfigStore: ServerConfigStore,
     private readonly personaStore: PersonaStore,
@@ -120,25 +125,8 @@ export class MastodonApiService {
     }));
   }
 
-  private async lookupPersona(name: string): Promise<Persona | undefined> {
-    const serverConfig = await this.serverConfigStore.getServerConfig(),
-      nameMatch = /^[@]?([^@:]+)(?:[@]([^@:]+))?$/.exec(name);
-    if (!nameMatch || (nameMatch[2] && nameMatch[2] !== serverConfig.domain)) {
-      log.info(
-        `not a valid account for this server: ${JSON.stringify(name)}`,
-      );
-      return undefined;
-    }
-    const persona = await this.personaStore.get(nameMatch[1]);
-    if (!persona) {
-      log.info(`account does not exist: ${JSON.stringify(nameMatch[1])}`);
-      return undefined;
-    }
-    return persona;
-  }
-
   async account(acct: string): Promise<Account | undefined> {
-    const persona = await this.lookupPersona(acct);
+    const persona = await this.#lookupPersona(acct);
     if (!persona) {
       return undefined;
     }
@@ -152,7 +140,7 @@ export class MastodonApiService {
     acct: string,
     options: AccountStatusesOptions,
   ): Promise<Status[] | undefined> {
-    const persona = await this.lookupPersona(acct);
+    const persona = await this.#lookupPersona(acct);
     if (!persona) {
       return undefined;
     }
@@ -175,6 +163,23 @@ export class MastodonApiService {
       return undefined;
     }
     return (await this.#localPostToStatus(persona, serverConfig))(post);
+  }
+
+  async #lookupPersona(name: string): Promise<Persona | undefined> {
+    const serverConfig = await this.serverConfigStore.getServerConfig(),
+      nameMatch = /^[@]?([^@:]+)(?:[@]([^@:]+))?$/.exec(name);
+    if (!nameMatch || (nameMatch[2] && nameMatch[2] !== serverConfig.domain)) {
+      log.warning(
+        `not a valid account for this server: ${JSON.stringify(name)}`,
+      );
+      return undefined;
+    }
+    const persona = await this.personaStore.get(nameMatch[1]);
+    if (!persona) {
+      log.warning(`account does not exist: ${JSON.stringify(nameMatch[1])}`);
+      return undefined;
+    }
+    return persona;
   }
 
   async #personaToAccount(
@@ -213,8 +218,8 @@ export class MastodonApiService {
       created_at: post.createdAt,
       in_reply_to_id: null,
       in_reply_to_account_id: null,
-      sensitive: false,
-      spoiler_text: "",
+      sensitive: !!post.collapseSummary,
+      spoiler_text: post.collapseSummary ?? "",
       visibility: "public",
       language: "en",
       uri: urls.localPost(post.id, serverConfig.url),

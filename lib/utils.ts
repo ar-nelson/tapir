@@ -87,3 +87,12 @@ export function toHex(bin: Uint8Array): string {
     "",
   );
 }
+
+export function jsonOr404(
+  json: unknown,
+  message = "Record not found",
+): Response {
+  return json == null
+    ? Response.json({ error: message }, { status: 404 })
+    : Response.json(json);
+}

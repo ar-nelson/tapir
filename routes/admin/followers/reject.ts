@@ -9,7 +9,7 @@ export const handler: Handlers<void, { injector: Injector }> = {
     const { url } = await (await ctx.state.injector.resolve(ServerConfigStore))
         .getServerConfig(),
       inFollowStore = await ctx.state.injector.resolve(InFollowStore);
-    await inFollowStore.rejectOrDelete({
+    await inFollowStore.reject({
       id: (await req.formData()).get("id")!.toString(),
     });
     return Response.redirect(urls.urlJoin(url, "/admin/followers"));

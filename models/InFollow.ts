@@ -3,13 +3,12 @@ import * as urls from "$/lib/urls.ts";
 import { DatabaseService } from "$/services/DatabaseService.ts";
 import { ActivityDispatcher, Priority } from "$/services/ActivityDispatcher.ts";
 import { LocalDatabaseSpec } from "$/schemas/tapir/LocalDatabase.ts";
-import { Actor, ActorSchema } from "$/schemas/activitypub/mod.ts";
+import { Actor, isActor } from "$/schemas/activitypub/mod.ts";
 import { LocalActivityStore } from "$/models/LocalActivity.ts";
 import { LocalPostStore } from "$/models/LocalPost.ts";
 import { ServerConfigStore } from "$/models/ServerConfig.ts";
 import { KnownServerStore } from "$/models/KnownServer.ts";
 import { PersonaStoreReadOnly } from "$/models/Persona.ts";
-import { matchesSchema } from "https://deno.land/x/spartanschema@v1.0.1/mod.ts";
 import * as log from "https://deno.land/std@0.176.0/log/mod.ts";
 import {
   InFollowStoreReadOnly,
@@ -75,8 +74,6 @@ export abstract class InFollowStore extends InFollowStoreReadOnly {
     params: { id: string } | { actor: string; persona: string },
   ): Promise<void>;
 }
-
-const isActor = matchesSchema(ActorSchema);
 
 @Singleton(InFollowStore)
 export class InFollowStoreImpl extends InFollowStore {

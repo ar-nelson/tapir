@@ -1,4 +1,7 @@
-import { MatchesSchema } from "https://deno.land/x/spartanschema@v1.0.1/mod.ts";
+import {
+  MatchesSchema,
+  matchesSchema,
+} from "https://deno.land/x/spartanschema@v1.0.1/mod.ts";
 
 export const ObjectCommon = {
   id: ["optional", "string"],
@@ -102,3 +105,8 @@ export type Object = MatchesSchema<typeof ObjectSchema>;
 export type Link = MatchesSchema<typeof LinkSchema>;
 export type Collection = MatchesSchema<typeof CollectionSchema>;
 export type CollectionPage = MatchesSchema<typeof CollectionPageSchema>;
+
+export const isObject = matchesSchema(ObjectSchema);
+export const isLink = matchesSchema(LinkSchema);
+export const isCollection = matchesSchema(CollectionSchema);
+export const isCollectionPage = matchesSchema(CollectionPageSchema);
