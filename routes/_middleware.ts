@@ -2,7 +2,10 @@ import { MiddlewareHandlerContext } from "$fresh/server.ts";
 import { Injector } from "$/lib/inject.ts";
 import { contentTypeIsJson } from "$/lib/urls.ts";
 import { LocalDatabaseService } from "$/services/LocalDatabaseService.ts";
-import { LocalDatabaseSpec } from "$/schemas/tapir/LocalDatabase.ts";
+import {
+  localDatabaseSpec,
+  localDatabaseSpecVersions,
+} from "$/schemas/tapir/db/local/mod.ts";
 import { DBSelector } from "$/lib/db/DBSelector.ts";
 import { log } from "$/deps.ts";
 
@@ -11,7 +14,15 @@ interface State {
 }
 
 const globalInjector = new Injector(
-  [LocalDatabaseService, DBSelector(LocalDatabaseSpec, "local.db")],
+  [
+    LocalDatabaseService,
+    DBSelector(
+      (sc) => sc.localDatabase,
+      localDatabaseSpec,
+      localDatabaseSpecVersions,
+      "local.db",
+    ),
+  ],
 );
 
 export async function handler(

@@ -36,6 +36,7 @@ export interface ColumnSpec<T extends ColumnType> {
   type: T;
   default?: ColumnTypeInValue<T>;
   nullable?: boolean;
+  renamedFrom?: string;
 }
 
 export type ColumnInValue<S extends ColumnSpec<ColumnType>> =
@@ -56,6 +57,7 @@ export type Columns = {
 export type TableSpec<C extends Columns> = {
   primaryKey: keyof C & string;
   columns: C;
+  renamedFrom?: string;
 };
 
 export type InRow<C extends Columns> =

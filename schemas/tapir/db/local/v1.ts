@@ -2,15 +2,7 @@ import { ColumnType } from "$/lib/sql/mod.ts";
 
 const { Integer, String, Boolean, Date, Ulid, Json } = ColumnType;
 
-export enum PostType {
-  Note = 0,
-  Reply = 1,
-  Boost = 2,
-  Quote = 3,
-  Poll = 4,
-}
-
-export const LocalDatabaseSpec = {
+const Spec = {
   version: 1,
   tables: {
     persona: {
@@ -129,3 +121,5 @@ export const LocalDatabaseSpec = {
     },
   },
 } as const;
+
+export default Spec;

@@ -34,7 +34,7 @@ export function testDatabaseService(
   function newDb(): Promise<[DB<typeof TEST_SPEC>, UlidService]> {
     const injector = new Injector(...overrides);
     return Promise.all([
-      injector.inject(factory.constructService(TEST_SPEC)),
+      injector.inject(factory.constructService(TEST_SPEC, [TEST_SPEC])),
       injector.resolve(UlidService),
     ]);
   }

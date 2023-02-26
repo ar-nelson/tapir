@@ -8,7 +8,9 @@ export const schema = {
     url: "string",
     domain: "string",
     dataDir: "string",
+    mediaSalt: "string",
     localDatabase: ["ref", "DatabaseConfig"],
+    localMedia: ["ref", "RepoConfig"],
     publicKey: {
       kty: ["enum", "RSA"],
       alg: ["enum", "RS256"],
@@ -35,6 +37,10 @@ export const schema = {
   let: {
     DatabaseConfig: ["oneof", { "type": ["enum", "inmemory"] }, {
       "type": ["enum", "sqlite"],
+      "path": ["optional", "string"],
+    }],
+    RepoConfig: ["oneof", { "type": ["enum", "inmemory"] }, {
+      "type": ["enum", "file"],
       "path": ["optional", "string"],
     }],
   },

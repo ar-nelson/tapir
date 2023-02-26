@@ -13,23 +13,23 @@ import {
  * By using this exposed class, you can add columns and return it as a sql string using `toSql()`.
  */
 export class Table {
-  private dialect: DBDialects;
-  private tableName: string;
-  private columns: Column[];
-  private customColumns?: string[];
-  private constraints: TableConstraints = {
+  #columns: Column[] = [];
+  #renames: [string, string][] = [];
+  #drops: string[] = [];
+  #customColumns?: string[];
+  #constraints: TableConstraints = {
     unique: [],
     index: [],
     enums: [],
     updatedAt: false,
   };
-  private sql: string[] = [];
+  #sql: string[] = [];
 
-  constructor(name: string, dbDialect: DBDialects = "pg") {
-    this.tableName = name;
-    this.columns = [];
-    this.dialect = dbDialect;
-  }
+  constructor(
+    private readonly tableName: string,
+    private readonly dialect: DBDialects = "pg",
+    private readonly isAlter = false,
+  ) {}
 
   /** Outputs the SQL query. */
   toString(pretty?: boolean): string {
@@ -42,40 +42,42 @@ export class Table {
 
   /** Outputs the SQL query. */
   toArray(): string[] {
-    this.sql = [];
+    this.#sql = [];
 
-    this._pushToSqlArray(this._addUpdatedAtFunction());
+    this.#pushToSqlArray(this.#addUpdatedAtFunction());
 
-    this._pushToSqlArray(
-      ...this.constraints.enums.map((enumCol) => this._enumHandler(enumCol)),
+    this.#pushToSqlArray(
+      ...this.#constraints.enums.map((enumCol) => this.#enumHandler(enumCol)),
     );
 
-    const table = this._tableHandler() + this._columnHandler();
+    if (this.isAlter) {
+      this.#pushToSqlArray(...this.#alterColumnsHandler());
+    } else {
+      this.#pushToSqlArray(this.#tableHandler() + this.#columnHandler());
+    }
 
-    this._pushToSqlArray(table);
-
-    this._pushToSqlArray(
-      ...this.constraints.unique.map((el) => this._uniqueHandler(el)),
+    this.#pushToSqlArray(
+      ...this.#constraints.unique.map((el) => this.#uniqueHandler(el)),
     );
 
-    this._pushToSqlArray(this._uniqueHandler());
+    this.#pushToSqlArray(this.#uniqueHandler());
 
-    this._pushToSqlArray(
-      ...this.constraints.index.map((el) => this._indexHandler(el)),
+    this.#pushToSqlArray(
+      ...this.#constraints.index.map((el) => this.#indexHandler(el)),
     );
 
-    this._pushToSqlArray(...this._updatedAtHandler());
+    this.#pushToSqlArray(...this.#updatedAtHandler());
 
-    return this.sql;
+    return this.#sql;
   }
 
-  private _pushToSqlArray(...queries: string[]) {
+  #pushToSqlArray(...queries: string[]) {
     queries = queries.filter((el) => el !== "");
-    this.sql.push(...queries);
+    this.#sql.push(...queries);
   }
 
   /** Helper method for pushing to column. */
-  private _pushColumn(
+  #pushColumn(
     name: string,
     type: ColumnTypes | string | TypeMapEl,
     input1?: number | string[],
@@ -92,28 +94,46 @@ export class Table {
       columnfn(column);
     }
 
-    this.columns.push(column);
+    this.#columns.push(column);
     return column;
   }
 
   /** Generates create table query dependent on dialect. */
-  private _tableHandler() {
-    return `CREATE${this.constraints.isTemporary ? " TEMPORARY" : ""} TABLE${
-      this.constraints.ifNotExists ? " IF NOT EXISTS" : ""
+  #tableHandler() {
+    return `CREATE${this.#constraints.isTemporary ? " TEMPORARY" : ""} TABLE${
+      this.#constraints.ifNotExists ? " IF NOT EXISTS" : ""
     } ${this.tableName}`;
   }
 
   /** Generates column query dependent on dialect. */
-  private _columnHandler() {
-    const allColumns = this.columns.map((el) => el.toSql());
+  #columnHandler() {
+    const allColumns = this.#columns.map((el) => el.toSql());
 
-    if (this.customColumns) allColumns.push(...this.customColumns);
+    if (this.#customColumns) allColumns.push(...this.#customColumns);
 
     return ` (${allColumns.join(", ")});`;
   }
 
+  #alterColumnsHandler() {
+    const allColumns = [
+      ...this.#drops.map((c) => `DROP COLUMN ${c}`),
+      ...this.#renames.map(([from, to]) =>
+        `RENAME${this.dialect !== "pg" ? " COLUMN" : ""} ${from} TO ${to}`
+      ),
+      ...this.#columns.map((el) => `ADD COLUMN ${el.toSql()}`),
+      ...(this.#customColumns ?? []),
+    ];
+
+    switch (this.dialect) {
+      case "sqlite3":
+        return allColumns.map((c) => `ALTER TABLE ${this.tableName} ${c};`);
+      default:
+        return [`ALTER TABLE ${this.tableName} (${allColumns.join(", ")});`];
+    }
+  }
+
   /** Generates enum query dependent on dialect. In postgres, this will be stored as the column name */
-  private _enumHandler(enumCol: EnumColumn): string {
+  #enumHandler(enumCol: EnumColumn): string {
     switch (this.dialect) {
       case "pg":
         return `CREATE TYPE ${enumCol.name} AS ENUM (${
@@ -125,11 +145,11 @@ export class Table {
   }
 
   /** Generates unique query dependent on dialect. */
-  private _uniqueHandler(uniqueArray?: string[]) {
+  #uniqueHandler(uniqueArray?: string[]) {
     const uniqueType = uniqueArray ? "UNIQUE" : "PRIMARY KEY";
     const uniqueString = uniqueArray
       ? uniqueArray.join(", ")
-      : this.constraints.primary?.join(", ");
+      : this.#constraints.primary?.join(", ");
 
     if (!uniqueString) return "";
 
@@ -146,7 +166,7 @@ export class Table {
   }
 
   /** Generates index query dependent on dialect. */
-  private _indexHandler(index: string) {
+  #indexHandler(index: string) {
     switch (this.dialect) {
       case "sqlite3":
         return `CREATE INDEX ${this.tableName}_${index} ON ${this.tableName} (${index});`;
@@ -159,8 +179,8 @@ export class Table {
   }
 
   /** Generates updated at query dependent on dialect. */
-  private _addUpdatedAtFunction() {
-    if (!this.constraints.updatedAt) return "";
+  #addUpdatedAtFunction() {
+    if (!this.#constraints.updatedAt) return "";
 
     switch (this.dialect) {
       case "pg":
@@ -171,8 +191,8 @@ export class Table {
   }
 
   /** Generates updated at query dependent on dialect. */
-  private _updatedAtHandler() {
-    if (!this.constraints.updatedAt) return "";
+  #updatedAtHandler() {
+    if (!this.#constraints.updatedAt) return "";
 
     switch (this.dialect) {
       case "sqlite3":
@@ -192,7 +212,7 @@ export class Table {
   }
 
   /** Generates updated at string for column dependent on dialect. */
-  private _getUpdatedAtString() {
+  #getUpdatedAtString() {
     switch (this.dialect) {
       case "mysql":
         return "on update current_timestamp";
@@ -203,43 +223,43 @@ export class Table {
 
   /** Adds `IF NOT EXISTS` to the table creation query */
   ifNotExists() {
-    this.constraints.ifNotExists = true;
+    this.#constraints.ifNotExists = true;
   }
 
   /** Adds `TEMPORARY` to the table creation query */
   isTemporary() {
-    this.constraints.isTemporary = true;
+    this.#constraints.isTemporary = true;
   }
 
   /** Adds a custom column to the table. */
   custom(string: string) {
-    this.customColumns
-      ? this.customColumns.push(string)
-      : this.customColumns = [string];
+    this.#customColumns
+      ? this.#customColumns.push(string)
+      : this.#customColumns = [string];
   }
 
   /** Adds unique column(s) to the table. */
   unique(col: string | string[]) {
     if (typeof col === "string") col = [col];
-    this.constraints.unique
-      ? this.constraints.unique.push(col)
-      : this.constraints.unique = [col];
+    this.#constraints.unique
+      ? this.#constraints.unique.push(col)
+      : this.#constraints.unique = [col];
 
     return this;
   }
 
   /** Adds primary column(s) to the table. */
   primary(...col: string[]) {
-    this.constraints.primary = col;
+    this.#constraints.primary = col;
 
     return this;
   }
 
   /** Adds index column(s) to the table. */
   index(...col: string[]) {
-    this.constraints.index
-      ? this.constraints.index.push(...col)
-      : this.constraints.index = col;
+    this.#constraints.index
+      ? this.#constraints.index.push(...col)
+      : this.#constraints.index = col;
 
     return this;
   }
@@ -253,7 +273,7 @@ export class Table {
 
   /** Adds bigint column with auto increment to the table. */
   bigIncrements(name: string): Column {
-    return this._pushColumn(
+    return this.#pushColumn(
       name,
       typeMap.bigIncrements,
       undefined,
@@ -264,22 +284,22 @@ export class Table {
 
   /** Adds a bigint column to the table. */
   bigInteger(name: string): Column {
-    return this._pushColumn(name, typeMap.bigInteger);
+    return this.#pushColumn(name, typeMap.bigInteger);
   }
 
   /** Adds a binary column to the table. */
   binary(name: string): Column {
-    return this._pushColumn(name, typeMap.binary);
+    return this.#pushColumn(name, typeMap.binary);
   }
 
   /** Adds a bit column to the table. */
   bit(name: string): Column {
-    return this._pushColumn(name, typeMap.bit);
+    return this.#pushColumn(name, typeMap.bit);
   }
 
   /** Adds a increments column to the table. */
   increments(name: string): Column {
-    return this._pushColumn(
+    return this.#pushColumn(
       name,
       typeMap.increments,
       undefined,
@@ -290,12 +310,12 @@ export class Table {
 
   /** Adds an integer column to the table. */
   integer(name: string): Column {
-    return this._pushColumn(name, typeMap.integer);
+    return this.#pushColumn(name, typeMap.integer);
   }
 
   /** Adds a small int column with auto increment to the table. */
   smallIncrements(name: string): Column {
-    return this._pushColumn(
+    return this.#pushColumn(
       name,
       typeMap.smallIncrements,
       undefined,
@@ -306,7 +326,7 @@ export class Table {
 
   /** Adds a small int column to the table. */
   smallInteger(name: string): Column {
-    return this._pushColumn(name, typeMap.smallInteger);
+    return this.#pushColumn(name, typeMap.smallInteger);
   }
 
   // ******* Doubles *******
@@ -317,7 +337,7 @@ export class Table {
     before = 8,
     after = 2,
   ): Column {
-    return this._pushColumn(
+    return this.#pushColumn(
       name,
       typeMap.numeric,
       before,
@@ -332,9 +352,9 @@ export class Table {
     after = 2,
   ): Column {
     if (this.dialect === "pg") {
-      return this._pushColumn(name, typeMap.double);
+      return this.#pushColumn(name, typeMap.double);
     } else {
-      return this._pushColumn(
+      return this.#pushColumn(
         name,
         typeMap.double,
         before,
@@ -350,9 +370,9 @@ export class Table {
     after = 2,
   ): Column {
     if (this.dialect === "pg") {
-      return this._pushColumn(name, typeMap.real);
+      return this.#pushColumn(name, typeMap.real);
     } else {
-      return this._pushColumn(
+      return this.#pushColumn(
         name,
         typeMap.real,
         before,
@@ -363,24 +383,24 @@ export class Table {
 
   /** Adds a money or decimal column to the table. */
   money(name: string): Column {
-    return this._pushColumn(name, typeMap.money);
+    return this.#pushColumn(name, typeMap.money);
   }
 
   // ******* Strings *******
 
   /** Adds a char column with length to the table. */
   char(name: string, length: number): Column {
-    return this._pushColumn(name, typeMap.char, length);
+    return this.#pushColumn(name, typeMap.char, length);
   }
 
   /** Adds a varchar column with length to the table. */
   string(name: string, length = 225): Column {
-    return this._pushColumn(name, typeMap.string, length);
+    return this.#pushColumn(name, typeMap.string, length);
   }
 
   /** Adds a text column to the table. */
   text(name: string): Column {
-    return this._pushColumn(name, typeMap.text);
+    return this.#pushColumn(name, typeMap.text);
   }
 
   // ******* Dates *******
@@ -397,7 +417,7 @@ export class Table {
 
   /** Adds a date column to the table. */
   date(name: string): Column {
-    return this._pushColumn(name, typeMap.date);
+    return this.#pushColumn(name, typeMap.date);
   }
 
   /** Adds a datetime column to the table.
@@ -418,22 +438,22 @@ export class Table {
 
   /** Adds a time column to the table. */
   time(name: string, length = 0): Column {
-    return this._pushColumn(name, typeMap.time, length);
+    return this.#pushColumn(name, typeMap.time, length);
   }
 
   /** Adds a time column with timezone to the table. */
   timeTz(name: string, length = 0): Column {
-    return this._pushColumn(name, typeMap.timeTz, length);
+    return this.#pushColumn(name, typeMap.timeTz, length);
   }
 
   /** Adds a timestamp column to the table. */
   timestamp(name: string, length = 0): Column {
-    return this._pushColumn(name, typeMap.timestamp, length);
+    return this.#pushColumn(name, typeMap.timestamp, length);
   }
 
   /** Adds a timestamp column with timezone to the table. */
   timestampTz(name: string, length = 0): Column {
-    return this._pushColumn(name, typeMap.timestampTz, length);
+    return this.#pushColumn(name, typeMap.timestampTz, length);
   }
 
   /** Adds timestamps columns to the table.
@@ -459,36 +479,36 @@ export class Table {
   /** Adds an updated_at column with auto update of current timestamp to the table. */
   updatedAt() {
     this.timestamp("updated_at").default("current_timestamp", true).custom(
-      this._getUpdatedAtString(),
+      this.#getUpdatedAtString(),
     );
-    this.constraints.updatedAt = true;
+    this.#constraints.updatedAt = true;
   }
 
   /** Adds an updated_at column with auto update and timezone of current timestamp to the table. */
   updatedAtTz() {
     this.timestampTz("updated_at").default("current_timestamp", true).custom(
-      this._getUpdatedAtString(),
+      this.#getUpdatedAtString(),
     );
-    this.constraints.updatedAt = true;
+    this.#constraints.updatedAt = true;
   }
 
   // ******* Mathematical *******
 
   /** Adds a point column to the table. */
   point(name: string): Column {
-    return this._pushColumn(name, "point");
+    return this.#pushColumn(name, "point");
   }
 
   /** Adds a polygon column to the table. */
   polygon(name: string): Column {
-    return this._pushColumn(name, "polygon");
+    return this.#pushColumn(name, "polygon");
   }
 
   // ******* Other *******
 
   /** Adds a boolean column to the table. */
   boolean(name: string): Column {
-    return this._pushColumn(
+    return this.#pushColumn(
       name,
       typeMap.boolean,
       this.dialect === "mysql" ? 1 : undefined,
@@ -505,13 +525,13 @@ export class Table {
 
     const newEnum: EnumColumn = { name: typeName, columns: array };
 
-    if (!this.constraints.enums) {
-      this.constraints.enums = [newEnum];
+    if (!this.#constraints.enums) {
+      this.#constraints.enums = [newEnum];
     }
 
-    this.constraints.enums.push(newEnum);
+    this.#constraints.enums.push(newEnum);
 
-    return this._pushColumn(
+    return this.#pushColumn(
       name,
       this.dialect === "pg"
         ? typeName
@@ -532,7 +552,7 @@ export class Table {
   /** Adds an ip address column to the table. */
   ipAddress(name: string): Column {
     if (this.dialect === "pg") {
-      return this._pushColumn(name, "inet");
+      return this.#pushColumn(name, "inet");
     } else {
       return this.string(name, 50);
     }
@@ -540,18 +560,18 @@ export class Table {
 
   /** Adds a json column to the table. */
   json(name: string): Column {
-    return this._pushColumn(name, "json");
+    return this.#pushColumn(name, "json");
   }
 
   /** Adds a jsonb column to the table. */
   jsonb(name: string): Column {
-    return this._pushColumn(name, typeMap.jsonb);
+    return this.#pushColumn(name, typeMap.jsonb);
   }
 
   /** Adds a mac address(8) column to the table. */
   macAddress(name: string, isMacAddress8 = false): Column {
     if (this.dialect === "pg") {
-      return this._pushColumn(name, `macaddr${isMacAddress8 ? "8" : ""}`);
+      return this.#pushColumn(name, `macaddr${isMacAddress8 ? "8" : ""}`);
     } else {
       return this.string(name, isMacAddress8 ? 23 : 17);
     }
@@ -565,9 +585,23 @@ export class Table {
   /** Adds an uuid column to the table. */
   uuid(name: string): Column {
     if (this.dialect === "pg") {
-      return this._pushColumn(name, "uuid");
+      return this.#pushColumn(name, "uuid");
     } else {
       return this.string(name, 36);
     }
+  }
+
+  renameColumn(from: string, to: string): void {
+    if (!this.isAlter) {
+      throw new Error("can only rename columns in an ALTER TABLE statement");
+    }
+    this.#renames.push([from, to]);
+  }
+
+  dropColumn(name: string): void {
+    if (!this.isAlter) {
+      throw new Error("can only drop columns in an ALTER TABLE statement");
+    }
+    this.#drops.push(name);
   }
 }

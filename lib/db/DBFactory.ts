@@ -75,12 +75,16 @@ export abstract class AbstractDatabaseService<Spec extends DatabaseSpec>
 export abstract class DBFactory {
   protected abstract construct<Spec extends DatabaseSpec>(
     spec: Spec,
+    specVersions: readonly DatabaseSpec[],
   ): Constructor<DB<Spec>>;
 
   constructService<
     Spec extends DatabaseSpec,
     Service extends AbstractDatabaseService<Spec>,
-  >(spec: Spec): Constructor<Service> {
-    return this.construct(spec) as Constructor<Service>;
+  >(spec: Spec, specVersions: readonly DatabaseSpec[]): Constructor<Service> {
+    if (specVersions[specVersions.length - 1].version !== spec.version) {
+      throw new Error("specVersions must end with the current database spec");
+    }
+    return this.construct(spec, specVersions) as Constructor<Service>;
   }
 }

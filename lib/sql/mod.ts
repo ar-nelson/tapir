@@ -7,3 +7,4 @@ export * from "./Q.ts";
 export * from "./DB.ts";
 export * from "./Queries.ts";
 export * from "./InMemoryOps.ts";
+export * from "./Migration.ts";

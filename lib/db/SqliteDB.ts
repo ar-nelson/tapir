@@ -18,6 +18,7 @@ import {
   Query,
   QueryBuilder,
   Schema,
+  schemaMigration,
   select,
   TableOf,
   TableSpec,
@@ -187,6 +188,7 @@ export abstract class SqliteDB<Spec extends DatabaseSpec>
     filename: string,
     overwrite: boolean,
     spec: Spec,
+    specVersions: readonly DatabaseSpec[],
     ulid: UlidService,
   ) {
     super(
@@ -212,10 +214,12 @@ export abstract class SqliteDB<Spec extends DatabaseSpec>
             .select("version").first().toSQL();
           const foundVersion =
             db.queryEntries<{ version: number }>(text, values)[0].version;
-          if (foundVersion !== spec.version) {
+          if (foundVersion > spec.version) {
             throw new Error(
-              `Database version does not match: got ${foundVersion}, expected ${spec.version}, and migrations are not yet supported`,
+              `Database version is in the future: got ${foundVersion}, expected ${spec.version}`,
             );
+          } else if (foundVersion < spec.version) {
+            migrateSqliteDatabase(db, foundVersion, specVersions);
           }
         } else {
           log.info(
@@ -270,14 +274,48 @@ export class SqliteDBFactory extends DBFactory {
 
   protected construct<Spec extends DatabaseSpec>(
     spec: Spec,
+    specVersions: readonly DatabaseSpec[],
   ): Constructor<SqliteDB<Spec>> {
     const { filename, overwrite } = this;
     @Singleton()
     class SqliteDBImpl extends SqliteDB<Spec> {
       constructor(ulid: UlidService) {
-        super(filename, overwrite, spec, ulid);
+        super(filename, overwrite, spec, specVersions, ulid);
       }
     }
     return SqliteDBImpl;
+  }
+}
+
+function migrateSqliteDatabase(
+  db: Sqlite,
+  currentVersion: number,
+  specVersions: readonly DatabaseSpec[],
+) {
+  const startAt = specVersions.findIndex((s) => s.version === currentVersion);
+  if (startAt === -1) {
+    throw new Error(
+      `Cannot migrate database: no past spec exists for version ${currentVersion}`,
+    );
+  }
+  for (let i = startAt; i < specVersions.length - 1; i++) {
+    const from = specVersions[i],
+      to = specVersions[i + 1],
+      sql = schemaMigration("sqlite3", from, to);
+    log.info(
+      `RUNNING DATABASE MIGRATION FROM VERSION ${from.version} TO ${to.version}:`,
+    );
+    for (const line of sql) {
+      log.info(line);
+      db.execute(line);
+    }
+    const { text, values } = new QueryBuilder("_version", "sqlite3").where(
+      "version",
+      from.version,
+    ).update({
+      version: to.version,
+    }).toSQL();
+    db.query(text, values);
+    log.info("MIGRATION COMPLETE");
   }
 }

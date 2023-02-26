@@ -27,6 +27,17 @@ export class Schema {
     return this.query;
   }
 
+  /** Generates an array to alter a table's columns */
+  alter(name: string, alterfn: (table: Table) => void): string[] {
+    const table = new Table(name, this.dialect, true);
+
+    alterfn(table);
+
+    this.query.push(...table.toArray());
+
+    return this.query;
+  }
+
   /** Adds a custom query string to the migration */
   queryString(queryString: string): string[] {
     const lastChar = queryString[queryString.length - 1];
@@ -95,27 +106,5 @@ export class Schema {
       default:
         return `SELECT EXISTS (SELECT column_name FROM information_schema.columns WHERE table_name='${tableName}' and column_name='${columnName}');`;
     }
-  }
-
-  /** Renames column */
-  renameColumn(table: string, from: string, to: string): string[] {
-    this.query.push(
-      `ALTER TABLE ${table} RENAME${
-        this.dialect !== "pg" ? " COLUMN" : ""
-      } ${from} TO ${to};`,
-    );
-
-    return this.query;
-  }
-
-  /** Drops column */
-  dropColumn(table: string, column: string): string[] {
-    if (this.dialect === "sqlite3") {
-      this.query.push(`pragma table_info(${table});`);
-    } else {
-      this.query.push(`ALTER TABLE ${table} DROP ${column};`);
-    }
-
-    return this.query;
   }
 }

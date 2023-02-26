@@ -1,6 +1,10 @@
-import { ServerConfigStore } from "$/models/ServerConfig.ts";
+import {
+  DatabaseConfig,
+  ServerConfig,
+  ServerConfigStore,
+} from "$/models/ServerConfig.ts";
 import { DatabaseSpec } from "$/lib/sql/mod.ts";
-import { ConditionalResolver, Constructor, Injectable } from "$/lib/inject.ts";
+import { ConditionalResolver, Constructor, Singleton } from "$/lib/inject.ts";
 import { AbstractDatabaseService, DBFactory } from "$/lib/db/DBFactory.ts";
 import { InMemoryDBFactory } from "$/lib/db/InMemoryDB.ts";
 import { SqliteDBFactory } from "$/lib/db/SqliteDB.ts";
@@ -11,10 +15,12 @@ export function DBSelector<
   Spec extends DatabaseSpec,
   Service extends AbstractDatabaseService<Spec>,
 >(
+  getConfig: (serverConfig: ServerConfig) => DatabaseConfig,
   spec: Spec,
+  specVersions: readonly DatabaseSpec[],
   sqliteFilename: string,
 ): Constructor<ConditionalResolver<Service>> {
-  @Injectable()
+  @Singleton()
   class DBSelectorImpl extends ConditionalResolver<Service> {
     constructor(
       private readonly serverConfigStore: ServerConfigStore,
@@ -23,26 +29,29 @@ export function DBSelector<
     }
 
     async resolve(): Promise<Constructor<Service>> {
-      const config = await this.serverConfigStore.getServerConfig();
-      if (!await dirExists(config.dataDir)) {
-        await Deno.mkdir(config.dataDir, { recursive: true });
-      }
+      const serverConfig = await this.serverConfigStore.getServerConfig(),
+        dbConfig = getConfig(serverConfig);
       let factory: DBFactory;
-      switch (config.localDatabase.type) {
+      switch (dbConfig.type) {
         case "inmemory":
           factory = new InMemoryDBFactory();
           break;
         case "sqlite":
+          if (!await dirExists(serverConfig.dataDir)) {
+            await Deno.mkdir(serverConfig.dataDir, { recursive: true });
+          }
           factory = new SqliteDBFactory(
             path.join(
-              config.dataDir,
-              config.localDatabase.path ?? sqliteFilename,
+              serverConfig.dataDir,
+              dbConfig.path ?? sqliteFilename,
             ),
           );
           break;
       }
-      return factory.constructService(spec);
+      return factory.constructService(spec, specVersions);
     }
+
+    readonly isSingleton = true;
   }
 
   return DBSelectorImpl;

@@ -27,7 +27,7 @@ export function createColumn(
   let c: Column;
   switch (col.type) {
     case ColumnType.Ulid:
-      c = t.binary(name);
+      c = t.string(name, 26);
       break;
     case ColumnType.String:
       c = t.text(name);

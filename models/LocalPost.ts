@@ -1,12 +1,18 @@
 import { InjectableAbstract, Singleton } from "$/lib/inject.ts";
 import { LocalDatabaseService } from "$/services/LocalDatabaseService.ts";
 import { OrderDirection, Q } from "$/lib/sql/mod.ts";
-import { PostType } from "$/schemas/tapir/LocalDatabase.ts";
-export { PostType } from "$/schemas/tapir/LocalDatabase.ts";
 import { LocalActivityStore } from "$/models/LocalActivity.ts";
 import { ServerConfigStore } from "$/models/ServerConfig.ts";
 import { Activity, key, Object } from "$/schemas/activitypub/mod.ts";
 import * as urls from "$/lib/urls.ts";
+
+export enum PostType {
+  Note = 0,
+  Reply = 1,
+  Boost = 2,
+  Quote = 3,
+  Poll = 4,
+}
 
 export interface LocalPost {
   readonly id: string;
