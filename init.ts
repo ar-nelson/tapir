@@ -20,6 +20,7 @@ if (!password || password.length < 8) {
 }
 
 const salt = crypto.getRandomValues(new Uint8Array(16)),
+  mediaSalt = crypto.getRandomValues(new Uint8Array(16)),
   hash = hashPassword(password, salt),
   keyPair = await generateKeyPair(),
   json: ServerConfig = {
@@ -28,8 +29,10 @@ const salt = crypto.getRandomValues(new Uint8Array(16)),
     loginName,
     passwordHash: base64.encode(hash),
     passwordSalt: base64.encode(salt),
+    mediaSalt: base64.encode(mediaSalt),
     dataDir: "data",
     localDatabase: { type: "sqlite" },
+    localMedia: { type: "file" },
     publicKey: (await crypto.subtle.exportKey(
       "jwk",
       keyPair.publicKey,

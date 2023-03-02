@@ -50,6 +50,17 @@ export async function dirExists(path: string): Promise<boolean> {
   }
 }
 
+export function dirExistsSync(path: string): boolean {
+  try {
+    return Deno.statSync(path).isDirectory;
+  } catch (e) {
+    if (e instanceof Deno.errors.NotFound) {
+      return false;
+    }
+    throw e;
+  }
+}
+
 export function isPersonaName(name: string): boolean {
   return /^[\w-.]{1,64}$/.test(name);
 }

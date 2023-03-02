@@ -4,17 +4,26 @@ import { isServerConfig } from "$/schemas/tapir/ServerConfig.ts";
 import { generateKeyPair } from "$/lib/signatures.ts";
 import { base64 } from "$/deps.ts";
 
+export type DatabaseConfig = { readonly type: "inmemory" } | {
+  readonly type: "sqlite";
+  readonly path?: string;
+};
+
+export type RepoConfig = { readonly type: "inmemory" } | {
+  readonly type: "file";
+  readonly path?: string;
+};
+
 export interface ServerConfig {
   readonly loginName: string;
   readonly passwordHash: Uint8Array;
   readonly passwordSalt: Uint8Array;
+  readonly mediaSalt: Uint8Array;
   readonly url: string;
   readonly domain: string;
   readonly dataDir: string;
-  readonly localDatabase: { readonly type: "inmemory" } | {
-    readonly type: "sqlite";
-    readonly path?: string;
-  };
+  readonly localDatabase: DatabaseConfig;
+  readonly localMedia: RepoConfig;
   readonly publicKey: CryptoKey;
   readonly privateKey: CryptoKey;
 }
@@ -57,6 +66,7 @@ export class FileServerConfigStore implements ServerConfigStore {
       ...json,
       passwordHash: base64.decode(json.passwordHash),
       passwordSalt: base64.decode(json.passwordSalt),
+      mediaSalt: base64.decode(json.mediaSalt),
       publicKey,
       privateKey,
     };
@@ -74,10 +84,12 @@ export class MockServerConfigStore implements ServerConfigStore {
     loginName: "tapir",
     passwordHash: base64.decode("N63CXrwv0u0U7ziMTLeHh6/Qg/qoXpAB4jyzqFtmttM="), // password: "iamatapir"
     passwordSalt: base64.decode("EtVFrF66Kt11z9g10fERFg=="),
+    mediaSalt: base64.decode("AAAAAAAA"),
     url: "https://tapir.social",
     domain: "tapir.social",
     dataDir: "data",
     localDatabase: { type: "inmemory" },
+    localMedia: { type: "inmemory" },
     publicKey,
     privateKey,
   }));

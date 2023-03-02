@@ -8,6 +8,7 @@ export function Toot(params: {
   content: string;
   likes: number;
   boosts: number;
+  images?: { src: string; alt?: string }[];
 }) {
   return (
     <article>
@@ -22,6 +23,11 @@ export function Toot(params: {
         </time>
       </header>
       <blockquote dangerouslySetInnerHTML={{ __html: params.content }} />
+      {(params.images ?? []).map((attrs) => (
+        <figure>
+          <img {...attrs} />
+        </figure>
+      ))}
       <footer>
         <small>Likes: {params.likes}</small> ·{" "}
         <small>Boosts: {params.boosts}</small> ·{" "}

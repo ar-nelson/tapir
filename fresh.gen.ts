@@ -32,13 +32,14 @@ import * as $25 from "./routes/api/v1/instance.ts";
 import * as $26 from "./routes/api/v1/statuses/[id]/index.ts";
 import * as $27 from "./routes/api/v1/timelines/public.ts";
 import * as $28 from "./routes/index.tsx";
-import * as $29 from "./routes/nodeinfo/2.0.ts";
-import * as $30 from "./routes/toot/[id].tsx";
-import * as $31 from "./routes/users/[name]/followers.ts";
-import * as $32 from "./routes/users/[name]/following.ts";
-import * as $33 from "./routes/users/[name]/inbox.ts";
-import * as $34 from "./routes/users/[name]/index.ts";
-import * as $35 from "./routes/users/[name]/outbox.ts";
+import * as $29 from "./routes/media/local/[file].ts";
+import * as $30 from "./routes/nodeinfo/2.0.ts";
+import * as $31 from "./routes/toot/[id].tsx";
+import * as $32 from "./routes/users/[name]/followers.ts";
+import * as $33 from "./routes/users/[name]/following.ts";
+import * as $34 from "./routes/users/[name]/inbox.ts";
+import * as $35 from "./routes/users/[name]/index.ts";
+import * as $36 from "./routes/users/[name]/outbox.ts";
 
 const manifest = {
   routes: {
@@ -71,13 +72,14 @@ const manifest = {
     "./routes/api/v1/statuses/[id]/index.ts": $26,
     "./routes/api/v1/timelines/public.ts": $27,
     "./routes/index.tsx": $28,
-    "./routes/nodeinfo/2.0.ts": $29,
-    "./routes/toot/[id].tsx": $30,
-    "./routes/users/[name]/followers.ts": $31,
-    "./routes/users/[name]/following.ts": $32,
-    "./routes/users/[name]/inbox.ts": $33,
-    "./routes/users/[name]/index.ts": $34,
-    "./routes/users/[name]/outbox.ts": $35,
+    "./routes/media/local/[file].ts": $29,
+    "./routes/nodeinfo/2.0.ts": $30,
+    "./routes/toot/[id].tsx": $31,
+    "./routes/users/[name]/followers.ts": $32,
+    "./routes/users/[name]/following.ts": $33,
+    "./routes/users/[name]/inbox.ts": $34,
+    "./routes/users/[name]/index.ts": $35,
+    "./routes/users/[name]/outbox.ts": $36,
   },
   islands: {},
   baseUrl: import.meta.url,

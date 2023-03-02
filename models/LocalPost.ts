@@ -1,7 +1,10 @@
 import { InjectableAbstract, Singleton } from "$/lib/inject.ts";
-import { LocalDatabaseService } from "$/services/LocalDatabaseService.ts";
 import { OrderDirection, Q } from "$/lib/sql/mod.ts";
+import { LocalDatabaseService } from "$/services/LocalDatabaseService.ts";
+import { UlidService } from "$/services/UlidService.ts";
 import { LocalActivityStore } from "$/models/LocalActivity.ts";
+import { LocalAttachment } from "$/models/LocalAttachment.ts";
+import { LocalMediaStore } from "$/models/LocalMedia.ts";
 import { ServerConfigStore } from "$/models/ServerConfig.ts";
 import { Activity, key, Object } from "$/schemas/activitypub/mod.ts";
 import * as urls from "$/lib/urls.ts";
@@ -45,6 +48,7 @@ export abstract class LocalPostStore {
 
   abstract create(
     post: Omit<LocalPost, "id" | "createdAt" | "updatedAt">,
+    createAttachments?: (id: string) => Promise<readonly LocalAttachment[]>,
   ): Promise<string>;
 
   abstract update(id: string, update: PostUpdate): Promise<void>;
@@ -59,13 +63,15 @@ export class LocalPostStoreImpl extends LocalPostStore {
   constructor(
     private readonly db: LocalDatabaseService,
     private readonly localActivityStore: LocalActivityStore,
+    private readonly localMediaStore: LocalMediaStore,
+    private readonly ulid: UlidService,
     serverConfigStore: ServerConfigStore,
   ) {
     super();
     this.serverConfig = serverConfigStore.getServerConfig();
   }
 
-  private async publicActivity(
+  async #publicActivity(
     persona: string,
     props: {
       type: Activity["type"];
@@ -91,10 +97,7 @@ export class LocalPostStoreImpl extends LocalPostStore {
     };
   }
 
-  private async publicNote(
-    persona: string,
-    props: Partial<Object>,
-  ): Promise<Object> {
+  async #publicNote(persona: string, props: Partial<Object>): Promise<Object> {
     return {
       type: props.type ?? "Note",
       attributedTo: urls.profile(
@@ -106,9 +109,31 @@ export class LocalPostStoreImpl extends LocalPostStore {
         persona,
         (await this.serverConfig).url,
       ),
-      attachment: [],
       ...props,
     };
+  }
+
+  async #attachment(attachment: LocalAttachment): Promise<Object> {
+    const media = await this.localMediaStore.getMeta(attachment.original);
+    if (media == null) {
+      throw new Error(
+        `No media exists for attachment with hash ${attachment.original}`,
+      );
+    }
+    const obj = {
+      type: "Document",
+      mediaType: media.mimetype,
+      url: urls.localMediaWithMimetype(
+        media.hash,
+        media.mimetype,
+        (await this.serverConfig).url,
+      ),
+      ...media.width ? { width: media.width } : {},
+      ...media.height ? { height: media.height } : {},
+      ...attachment.blurhash ? { blurhash: attachment.blurhash } : {},
+      ...attachment.alt ? { name: attachment.alt } : {},
+    };
+    return obj;
   }
 
   async *list({ persona, limit, beforeId, order = "DESC" }: {
@@ -158,21 +183,9 @@ export class LocalPostStoreImpl extends LocalPostStore {
 
   async create(
     post: Omit<LocalPost, "id" | "createdAt" | "updatedAt">,
+    createAttachments?: (id: string) => Promise<readonly LocalAttachment[]>,
   ): Promise<string> {
-    const createdAt = new Date(),
-      id = await this.localActivityStore.create(
-        await this.publicActivity(post.persona, {
-          type: "Create",
-          createdAt,
-          object: await this.publicNote(post.persona, {
-            content: post.content,
-            published: createdAt.toJSON(),
-            updated: createdAt.toJSON(),
-            summary: post.collapseSummary,
-          }),
-        }),
-        post.persona,
-      );
+    const id = this.ulid.next(), createdAt = new Date();
     await this.db.insert("post", [{
       ...post,
       id,
@@ -180,6 +193,24 @@ export class LocalPostStoreImpl extends LocalPostStore {
       createdAt,
       collapseSummary: post.collapseSummary,
     }]);
+    const attachments = createAttachments ? await createAttachments(id) : [];
+    await this.localActivityStore.create(
+      await this.#publicActivity(post.persona, {
+        type: "Create",
+        createdAt,
+        object: await this.#publicNote(post.persona, {
+          content: post.content,
+          published: createdAt.toJSON(),
+          updated: createdAt.toJSON(),
+          summary: post.collapseSummary,
+          attachment: await Promise.all(
+            attachments.map((a) => this.#attachment(a)),
+          ),
+        }),
+      }),
+      post.persona,
+      id,
+    );
     return id;
   }
 
@@ -201,8 +232,13 @@ export class LocalPostStoreImpl extends LocalPostStore {
         content: update.content ?? originalJson.content,
         summary: update.collapseSummary ?? originalJson.summary,
       };
+    await this.db.update("post", { id }, {
+      content: update.content,
+      collapseSummary: update.collapseSummary,
+      updatedAt,
+    });
     await this.localActivityStore.create(
-      await this.publicActivity(existing.persona, {
+      await this.#publicActivity(existing.persona, {
         type: "Update",
         createdAt: updatedAt,
         target: urls.activityPubObject(id, (await this.serverConfig).url),
@@ -211,11 +247,6 @@ export class LocalPostStoreImpl extends LocalPostStore {
       existing.persona,
     );
     await this.localActivityStore.updateObject(id, newJson);
-    await this.db.update("post", { id }, {
-      content: update.content,
-      collapseSummary: update.collapseSummary,
-      updatedAt,
-    });
   }
 
   async delete(id: string): Promise<void> {
@@ -223,13 +254,13 @@ export class LocalPostStoreImpl extends LocalPostStore {
     if (existing == null) {
       return;
     }
+    await this.db.delete("post", { id });
     await this.localActivityStore.create(
-      await this.publicActivity(existing.persona, {
+      await this.#publicActivity(existing.persona, {
         type: "Delete",
         target: urls.activityPubObject(id, (await this.serverConfig).url),
       }),
       existing.persona,
     );
-    await this.db.delete("post", { id });
   }
 }

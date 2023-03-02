@@ -2,11 +2,13 @@ import { MiddlewareHandlerContext } from "$fresh/server.ts";
 import { Injector } from "$/lib/inject.ts";
 import { contentTypeIsJson } from "$/lib/urls.ts";
 import { LocalDatabaseService } from "$/services/LocalDatabaseService.ts";
+import { LocalRepoService } from "$/services/LocalRepoService.ts";
 import {
   localDatabaseSpec,
   localDatabaseSpecVersions,
 } from "$/schemas/tapir/db/local/mod.ts";
 import { DBSelector } from "$/lib/db/DBSelector.ts";
+import { RepoSelector } from "$/lib/repo/RepoSelector.ts";
 import { log } from "$/deps.ts";
 
 interface State {
@@ -22,6 +24,10 @@ const globalInjector = new Injector(
       localDatabaseSpecVersions,
       "local.db",
     ),
+  ],
+  [
+    LocalRepoService,
+    RepoSelector((sc) => sc.localMedia, "localMedia"),
   ],
 );
 

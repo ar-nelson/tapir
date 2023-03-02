@@ -24,7 +24,11 @@ export abstract class LocalActivityStore {
 
   abstract markSent(id: string): Promise<void>;
 
-  abstract create(json: Omit<Activity, "id">, persona: string): Promise<string>;
+  abstract create(
+    json: Omit<Activity, "id">,
+    persona: string,
+    ulid?: string,
+  ): Promise<string>;
 
   abstract updateObject(
     id: string,
@@ -109,9 +113,13 @@ export class LocalActivityStoreImpl extends LocalActivityStore {
     await this.db.update("activity", { id }, { json: newActivity });
   }
 
-  async create(json: Omit<Activity, "id">, persona: string): Promise<string> {
-    const ulid = this.ulid.next(),
-      idUrl = urls.activityPubActivity(ulid, await this.baseUrl),
+  async create(
+    json: Omit<Activity, "id">,
+    persona: string,
+    ulid?: string,
+  ): Promise<string> {
+    if (!ulid) ulid = this.ulid.next();
+    const idUrl = urls.activityPubActivity(ulid, await this.baseUrl),
       activity = { ...json, id: idUrl };
     delete (activity as Record<string, unknown>)["@context"];
     if (activity.type === "Create") {
@@ -137,7 +145,7 @@ export class LocalActivityStoreImpl extends LocalActivityStore {
     this.dispatcher.dispatch(
       activity,
       Priority.Soon,
-      () => this.markSent(ulid),
+      () => this.markSent(ulid!),
     );
     return ulid;
   }
