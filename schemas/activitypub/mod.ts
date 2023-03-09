@@ -7,7 +7,7 @@ export type { Collection, CollectionPage, Link, Object } from "./Object.ts";
 export type { Actor } from "./Actor.ts";
 export type { Activity } from "./Activity.ts";
 
-import DEFAULT_CONTEXT from "$/schemas/activitypub/defaultContext.json" assert {
+import DEFAULT_CONTEXT from "$/resources/jsonld/defaultContext.json" assert {
   type: "json",
 };
 export const defaultContext = DEFAULT_CONTEXT;

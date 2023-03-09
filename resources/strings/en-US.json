@@ -1,0 +1,60 @@
+{
+  "brand": "Tapir",
+  "footer": "Powered by %s v%s · Built %s · %s",
+  "justNow": "just now",
+  "localTimeline": "Local Timeline",
+  "nav": {
+    "home": "Home",
+    "federated": "Federated",
+    "compose": "Compose",
+    "notifications": "Notifications",
+    "directMessages": "Direct messages",
+    "bookmarks": "Bookmarks",
+    "settings": "Settings"
+  },
+  "post": {
+    "title": "Post by %s (%s)",
+    "avatarAlt": "%s's avatar",
+    "updatedAt": "Edited %s",
+    "boostedBy": "%s boosted",
+    "replyTo": "Replied to %s",
+    "filtered": "Filtered: %s",
+    "showMore": "Show more",
+    "showAnyway": "Show anyway",
+    "reply": "Reply",
+    "boost": "Boost",
+    "react": "React",
+    "replies": "Replies",
+    "boosts": "Boosts",
+    "reactions": "Reactions",
+    "bookmark": "Bookmark",
+    "nextPage": "Next page",
+    "lastPage": "Last page",
+    "endOfFeed": "End of feed",
+    "noPosts": "No posts in this feed"
+  },
+  "profile": {
+    "title": "%s's profile (%s)",
+    "followers": "Followers",
+    "following": "Following",
+    "posts": "Posts",
+    "follow": "Follow",
+    "requestToFollow": "Request to follow",
+    "followRequested": "Follow requested",
+    "following": "Following",
+    "followsYou": "Follows you",
+    "mutuals": "Mutuals",
+    "blocked": "Blocked",
+    "muted": "Muted",
+    "createdAt": "Joined",
+    "bot": "Bot",
+    "noDescription": "No description available"
+  },
+  "settings": {
+    "settings": "Settings",
+    "personas": "Personas",
+    "newPersona": "New Persona",
+    "editPersona": "Edit Persona",
+    "followers": "Followers"
+  }
+}

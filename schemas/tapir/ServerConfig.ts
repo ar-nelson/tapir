@@ -2,11 +2,14 @@ import { MatchesSchema, matchesSchema } from "$/deps.ts";
 
 export const schema = {
   schema: {
+    displayName: "string",
+    summary: "string",
     loginName: "string",
     passwordHash: "string",
     passwordSalt: "string",
     url: "string",
     domain: "string",
+    locale: "string",
     dataDir: "string",
     mediaSalt: "string",
     localDatabase: ["ref", "DatabaseConfig"],

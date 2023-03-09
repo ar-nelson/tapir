@@ -1,0 +1,454 @@
+:root {
+  --system-ui: system-ui, "Segoe UI", Roboto, Oxygen-Sans, Ubuntu, Cantarell, Helvetica, Arial, sans-serif, "Apple Color Emoji", "Segoe UI Emoji", "Segoe UI Symbol";
+
+  --color-bg: #ddd;
+  --color-bg-dim: #ccc;
+  --color-text: #444;
+  --color-text-dim: #666;
+  --color-accent: #280;
+}
+
+@media (prefers-color-scheme: dark) {
+  :root {
+    --color-bg: #111;
+    --color-bg-dim: #222;
+    --color-text: #ddd;
+    --color-text-dim: #999;
+  }
+}
+
+* {
+  box-sizing: border-box;
+}
+
+html {
+  height: 100%;
+  margin: 0;
+}
+
+body {
+  line-height: 1.6;
+  font-family: var(--system-ui);
+  font-size: 1rem;
+  color: var(--color-text);
+  padding: 0;
+  margin: 0;
+  background-color: var(--color-bg);
+  display: flex;
+  flex-direction: column;
+  min-height: 100%;
+  min-width: 640px;
+}
+
+h1, h2, h3 {
+  line-height: 1.2;
+}
+
+.a11y-hidden {
+  position: absolute;
+  left: -10000px;
+  top: auto;
+  width: 1px;
+  height: 1px;
+  overflow: hidden;
+}
+
+svg.icon {
+  width: 1rem;
+  height: 1rem;
+  vertical-align: -8%;
+  stroke: currentColor;
+  stroke-width: 2;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+  fill: none;
+}
+
+a:link, a:visited {
+  color: var(--color-accent);
+  text-decoration: none;
+}
+
+a:hover, a:active, a:focus {
+  text-decoration: underline;
+}
+
+/*******************************
+      PUBLIC PAGE LAYOUT
+*******************************/
+
+.page {
+  display: flex;
+  flex-direction: column;
+  flex: 1 1 auto;
+  align-items: center;
+}
+
+.public-global-nav {
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
+  height: 100%;
+}
+
+.public-global-nav .summary {
+  margin-bottom: 2rem;
+}
+
+.public-global-nav footer {
+  margin-bottom: 1rem;
+  color: var(--color-text-dim);
+  text-align: center;
+}
+
+.index-page {
+  height: 100%;
+  display: flex;
+  flex-direction: column;
+}
+
+.index-page .public-global-nav {
+  flex: 1 1 auto;
+  margin-top: 2rem;
+  width: 480px;
+}
+
+.public-page .public-global-nav {
+  position: fixed;
+  width: 1000px;
+  padding-left: 680px;
+  pointer-events: none;
+}
+
+.public-page .public-global-nav > * {
+  pointer-events: all;
+}
+
+.feed-page main, .profile-page main {
+  background-color: var(--color-bg-dim);
+  width: 640px;
+  flex: 1 1 auto;
+  display: flex;
+  flex-direction: column;
+  padding: 1rem;
+}
+
+.public-page main {
+  margin-right: 360px;
+}
+
+.top-links {
+  margin: 0;
+  padding: 0;
+  list-style-type: none;
+  border-top: 1px solid var(--color-text-dim);
+}
+
+.top-links a, .top-links .current {
+  display: flex;
+  flex-direction: row;
+  align-items: center;
+  justify-content: space-between;
+  font-size: 1.25rem;
+  font-weight: bold;
+  padding: 0.5rem;
+  border-bottom: 1px solid var(--color-text-dim);
+}
+
+.top-links a .icon {
+  width: 1.5rem;
+  height: 1.5rem;
+}
+
+.top-links a:hover, .top-links a:active, .top-links a:focus, .top-links .current {
+  background-color: var(--color-bg-dim);
+  text-decoration: none;
+}
+
+@media screen and (max-width: 1000px) {
+  .public-page .public-global-nav {
+    position: static;
+    width: auto;
+    height: auto;
+    padding: 0;
+  }
+
+  .public-page main {
+    margin: 0 auto;
+  }
+}
+
+/*******************************
+      PRIVATE PAGE LAYOUT
+*******************************/
+
+.private-global-nav {
+  display: flex;
+  width: 100%;
+  flex-direction: row;
+  align-items: center;
+  justify-content: space-between;
+  padding: 0 1rem;
+  height: 3rem;
+  background-color: var(--color-bg-dim);
+  border-bottom: 2px solid var(--color-accent);
+}
+
+.private-global-nav h1 {
+  margin: 0;
+  font-size: 1.5rem;
+}
+
+.private-global-nav a:link, .private-global-nav a:visited {
+  color: var(--color-text);
+}
+
+/*******************************
+           SETTINGS
+*******************************/
+
+.settings {
+  display: flex;
+  flex-direction: row;
+  width: 1000px;
+  max-width: 100%;
+  margin-top: 2rem;
+  border-top: 1px solid var(--color-text-dim);
+}
+
+.settings > nav {
+  flex: 0 0 280px;
+  padding: 1rem;
+  background-color: var(--color-bg-dim);
+}
+
+.settings > main {
+  flex: 0 0 720px;
+  display: flex;
+  flex-direction: column;
+  padding: 1rem;
+}
+
+.settings-form dl {
+  display: table;
+}
+
+.settings-form dl > div {
+  display: table-row;
+  margin: 0;
+}
+
+.settings-form dl > div > dt {
+  display: table-cell;
+  margin: 0;
+  padding: 0.5rem 1rem;
+  border: 1px solid var(--color-text-dim);
+}
+
+.settings-form dl > div > dd {
+  display: table-cell;
+  margin: 0;
+  padding: 0.5rem 1rem;
+  border: 1px solid var(--color-text-dim);
+}
+
+.settings-form dl > div > dt > label, .settings-form dl > div > dt > p:first-child {
+  display: block;
+  font-weight: bold;
+}
+
+.settings-form small {
+  font-size: 0.75rem;
+  color: var(--color-text-dim);
+}
+
+/*******************************
+            POSTS
+*******************************/
+
+.feed {
+  flex: 1 1;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+}
+
+ul.feed {
+  margin: 0;
+  padding: 0;
+  list-style-type: none;
+}
+
+ul.feed > li + li {
+  margin-top: 1rem;
+}
+
+.post {
+  background-color: var(--color-bg);
+  padding: 1rem 0.5rem;
+  border-radius: 1rem;
+}
+
+.post-body {
+  margin-left: 3.5rem;
+  margin-top: -0.5rem;
+  margin-bottom: 0.5rem;
+}
+
+.post.post-big, .post.post-big header .post-heading {
+  font-size: 1.25rem;
+}
+
+.post header {
+  display: flex;
+  flex-direction: row;
+}
+
+.post header .avatar {
+  order: 1;
+}
+
+.post header .post-heading {
+  order: 2;
+  flex: 1 1 auto;
+  display: flex;
+  justify-content: space-between;
+  margin: 0.5rem;
+  font-size: 1rem;
+  font-weight: normal;
+}
+
+.post-heading a:link, .post-heading a:visited {
+  color: var(--color-text);
+  text-decoration: none;
+}
+
+.post-heading a:hover, .post-heading a:active {
+  text-decoration: underline;
+}
+
+.post-heading time {
+  font-size: 0.75rem;
+  color: var(--color-text-dim);
+}
+
+.author-display-name {
+  font-weight: bold;
+}
+
+.author-name {
+  color: var(--color-text-dim);
+}
+
+.avatar {
+  position: relative;
+  width: 48px;
+  height: 48px;
+  overflow: hidden;
+  border-radius: 50%;
+}
+
+.avatar img {
+  width: 100%;
+  height: 100%;
+}
+
+figure {
+  text-align: center;
+}
+
+figure, figure img {
+  max-width: 100%;
+}
+
+.post footer {
+  color: var(--color-text-dim);
+}
+
+.post footer::before {
+  content: "";
+  display: block;
+  width: 80%;
+  height: 1px;
+  margin: 1rem auto;
+  border-bottom: 1px solid var(--color-text-dim);
+}
+
+.post footer dl {
+  display: flex;
+  flex-direction: row;
+  justify-content: center;
+  align-items: center;
+}
+
+.post footer dt, .post footer dd {
+  margin: 0 0.125rem;
+  padding: 0;
+}
+
+.post footer dd + dt {
+  margin-left: 1rem;
+}
+
+/*******************************
+           PROFILES
+*******************************/
+
+.profile-header {
+  margin-bottom: 1rem;
+}
+
+.profile-banner {
+  width: 100%;
+  height: 10rem;
+}
+
+.profile-header .profile-content {
+  padding: 1rem;
+  background-color: var(--color-bg);
+  border-radius: 1rem;
+}
+
+.profile-header h2 {
+  font-size: 1.5rem;
+}
+
+.profile-header h2 .profile-name-username {
+  font-size: 1.25rem;
+  font-weight: normal;
+  color: var(--color-text-dim);
+}
+
+.profile-avatar {
+  margin-top: -4rem;
+  width: 128px;
+  height: 128px;
+}
+
+.profile-avatar img {
+  width: 100%;
+  height: 100%;
+}
+
+.profile-stats {
+  display: flex;
+  flex-direction: row;
+}
+
+.profile-stats > div {
+  flex: 1 1 auto;
+  padding: 0 1rem;
+}
+
+.profile-stats > div + div {
+  border-left: 1px solid var(--color-text-dim);
+}
+
+.profile-stats dt {
+  font-weight: bold;
+  color: var(--color-text-dim);
+}
+
+.profile-stats dd {
+  margin: 0;
+}

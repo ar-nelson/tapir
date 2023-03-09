@@ -5,10 +5,11 @@ import { LocalDatabaseService } from "$/services/LocalDatabaseService.ts";
 export interface Persona {
   readonly name: string;
   readonly displayName: string;
+  readonly linkTitle?: string;
   readonly summary: string;
   readonly requestToFollow: boolean;
-  readonly createdAt: string;
-  readonly updatedAt?: string;
+  readonly createdAt: Date;
+  readonly updatedAt?: Date;
 }
 
 @InjectableAbstract()
@@ -28,16 +29,8 @@ export class PersonaStoreReadOnlyImpl extends PersonaStoreReadOnly {
     super();
   }
 
-  async *list(): AsyncIterable<Persona> {
-    for await (
-      const p of this.db.get("persona", { orderBy: [["createdAt", "ASC"]] })
-    ) {
-      yield {
-        ...p,
-        createdAt: p.createdAt.toJSON(),
-        updatedAt: p.updatedAt?.toJSON(),
-      };
-    }
+  list(): AsyncIterable<Persona> {
+    return this.db.get("persona", { orderBy: [["createdAt", "ASC"]] });
   }
 
   count(): Promise<number> {
@@ -48,11 +41,7 @@ export class PersonaStoreReadOnlyImpl extends PersonaStoreReadOnly {
     for await (
       const p of this.db.get("persona", { where: { main: true } })
     ) {
-      return {
-        ...p,
-        createdAt: p.createdAt.toJSON(),
-        updatedAt: p.updatedAt?.toJSON(),
-      };
+      return p;
     }
     throw new Error(
       "Database is in an illegal state: a main persona must exist",
@@ -63,11 +52,7 @@ export class PersonaStoreReadOnlyImpl extends PersonaStoreReadOnly {
     for await (
       const p of this.db.get("persona", { where: { name } })
     ) {
-      return {
-        ...p,
-        createdAt: p.createdAt.toJSON(),
-        updatedAt: p.updatedAt?.toJSON(),
-      };
+      return p;
     }
     return null;
   }

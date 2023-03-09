@@ -51,51 +51,51 @@ export class MastodonApiController {
     const serverConfig = await this.serverConfigStore.getServerConfig();
 
     return {
-      "uri": serverConfig.domain,
-      "title": "Tapir",
-      "short_description": "tapir",
-      "description": "tapir tapir tapir",
-      "email": "adam@nels.onl",
-      "version": "3.5.3",
-      "urls": {},
-      "stats": {
-        "user_count": await this.personaStore.count(),
-        "status_count": await this.localPostStore.count(),
-        "domain_count": 1,
+      uri: serverConfig.domain,
+      title: serverConfig.displayName,
+      short_description: "tapir",
+      description: "tapir tapir tapir",
+      email: "adam@nels.onl",
+      version: "3.5.3",
+      urls: {},
+      stats: {
+        user_count: await this.personaStore.count(),
+        status_count: await this.localPostStore.count(),
+        domain_count: 1,
       },
-      "thumbnail": null,
-      "languages": [
+      thumbnail: null,
+      languages: [
         "en",
       ],
-      "registrations": false,
-      "approval_required": false,
-      "invites_enabled": false,
-      "configuration": {
-        "statuses": {
-          "max_characters": 500,
-          "max_media_attachments": 0,
-          "characters_reserved_per_url": 23,
+      registrations: false,
+      approval_required: false,
+      invites_enabled: false,
+      configuration: {
+        statuses: {
+          max_characters: 500,
+          max_media_attachments: 0,
+          characters_reserved_per_url: 23,
         },
-        "media_attachments": {
-          "supported_mime_types": [],
-          "image_size_limit": 0,
-          "image_matrix_limit": 0,
-          "video_size_limit": 0,
-          "video_frame_rate_limit": 0,
-          "video_matrix_limit": 0,
+        media_attachments: {
+          supported_mime_types: [],
+          image_size_limit: 0,
+          image_matrix_limit: 0,
+          video_size_limit: 0,
+          video_frame_rate_limit: 0,
+          video_matrix_limit: 0,
         },
-        "polls": {
-          "max_options": 4,
-          "max_characters_per_option": 50,
-          "min_expiration": 300,
-          "max_expiration": 2629746,
+        polls: {
+          max_options: 4,
+          max_characters_per_option: 50,
+          min_expiration: 300,
+          max_expiration: 2629746,
         },
       },
-      "contact_account": await this.#personaToAccount(
+      contact_account: await this.#personaToAccount(
         await this.personaStore.getMain(),
         serverConfig,
       ),
-      "rules": [],
+      rules: [],
     };
   }
 
@@ -195,9 +195,9 @@ export class MastodonApiController {
       bot: false,
       discoverable: true,
       group: false,
-      created_at: persona.createdAt,
+      created_at: persona.createdAt.toJSON(),
       note: "",
-      url: urls.profile(persona.name, serverConfig.url),
+      url: urls.localProfile(persona.name, {}, serverConfig.url),
       avatar: urls.urlJoin(serverConfig.url, "tapir-avatar.jpg"),
       avatar_static: urls.urlJoin(serverConfig.url, "tapir-avatar.jpg"),
       header: "",
@@ -205,7 +205,7 @@ export class MastodonApiController {
       followers_count: await this.inFollowStore.countFollowers(persona.name),
       following_count: 0,
       statuses_count: await this.localPostStore.count(persona.name),
-      last_status_at: persona.createdAt,
+      last_status_at: persona.createdAt.toJSON(),
       emojis: [],
       fields: [],
     };
@@ -215,15 +215,15 @@ export class MastodonApiController {
     const account = await this.#personaToAccount(persona, serverConfig);
     return (post: LocalPost): Status => ({
       id: post.id,
-      created_at: post.createdAt,
+      created_at: post.createdAt.toJSON(),
       in_reply_to_id: null,
       in_reply_to_account_id: null,
       sensitive: !!post.collapseSummary,
       spoiler_text: post.collapseSummary ?? "",
       visibility: "public",
       language: "en",
-      uri: urls.localPost(post.id, serverConfig.url),
-      url: urls.localPost(post.id, serverConfig.url),
+      uri: urls.localPost(post.id, {}, serverConfig.url),
+      url: urls.localPost(post.id, {}, serverConfig.url),
       replies_count: 0,
       reblogs_count: 0,
       favourites_count: 0,

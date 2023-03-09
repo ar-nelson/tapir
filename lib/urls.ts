@@ -35,6 +35,17 @@ const mimetypeByExtension = Object.fromEntries(
   Object.entries(extensionByMimetype).map(([k, v]) => [v, k]),
 );
 
+export function withQueryParams(
+  url: string,
+  queryParams: Record<string, string | number>,
+) {
+  const entries = Object.entries(queryParams);
+  if (!entries.length) return url;
+  const usp = new URLSearchParams();
+  entries.forEach(([k, v]) => usp.set(k, `${v}`));
+  return `${url}?${usp.toString()}`;
+}
+
 export function urlJoin(prefix: string, suffix: string): string {
   if (
     prefix.endsWith("/") || prefix.endsWith("#") || prefix.endsWith(":") ||
@@ -45,20 +56,30 @@ export function urlJoin(prefix: string, suffix: string): string {
   return `${prefix}/${suffix}`;
 }
 
-export function localPost(id: string, prefix = "/"): string {
-  return urlJoin(prefix, `toot/${encodeURIComponent(id)}`);
+export function localPost(
+  id: string,
+  options: { page?: number },
+  prefix = "/",
+): string {
+  return withQueryParams(
+    urlJoin(prefix, `pub/post/${encodeURIComponent(id)}`),
+    options,
+  );
 }
 
-export function profile(personaName: string, prefix = "/"): string {
-  return urlJoin(prefix, `@${encodeURIComponent(personaName)}`);
-}
-
-export function activityPubActor(personaName: string, prefix = "/"): string {
-  return urlJoin(prefix, `ap/actor/${encodeURIComponent(personaName)}`);
+export function localProfile(
+  personaName: string,
+  options: { page?: number; view?: "feed" | "replies" | "media" },
+  prefix = "/",
+): string {
+  return withQueryParams(
+    urlJoin(prefix, `pub/feed/${encodeURIComponent(personaName)}`),
+    options,
+  );
 }
 
 export function localMedia(hash: string, prefix = "/"): string {
-  return urlJoin(prefix, `media/local/${encodeURIComponent(hash)}`);
+  return urlJoin(prefix, `pub/media/${encodeURIComponent(hash)}`);
 }
 
 export function localMediaWithMimetype(
@@ -68,7 +89,66 @@ export function localMediaWithMimetype(
 ): string {
   return urlJoin(
     prefix,
-    `media/local/${encodeURIComponent(hash)}${
+    `pub/media/${encodeURIComponent(hash)}${
+      extensionByMimetype[mimetype] ?? ""
+    }`,
+  );
+}
+
+export function remotePost(
+  id: string,
+  options: { page?: number },
+  prefix = "/",
+): string {
+  return withQueryParams(
+    urlJoin(prefix, `app/post/${encodeURIComponent(id)}`),
+    options,
+  );
+}
+
+export function remoteProfile(
+  acct: string,
+  options: { page?: number; view?: "feed" | "replies" | "media" },
+  prefix = "/",
+): string {
+  return withQueryParams(
+    urlJoin(prefix, `app/user/${encodeURIComponent(acct)}`),
+    options,
+  );
+}
+
+export function remoteMedia(hash: string, prefix = "/"): string {
+  return urlJoin(prefix, `app/media/${encodeURIComponent(hash)}`);
+}
+
+export function composePost(prefix = "/"): string {
+  return urlJoin(prefix, "app/compose");
+}
+
+export function editPost(id: string, prefix = "/"): string {
+  return urlJoin(prefix, `app/edit/${encodeURIComponent(id)}`);
+}
+
+export function deletePost(id: string, prefix = "/"): string {
+  return urlJoin(prefix, `app/delete/${encodeURIComponent(id)}`);
+}
+
+export function reactToPost(id: string, prefix = "/"): string {
+  return urlJoin(prefix, `app/react/${encodeURIComponent(id)}`);
+}
+
+export function boostPost(id: string, prefix = "/"): string {
+  return urlJoin(prefix, `app/boost/${encodeURIComponent(id)}`);
+}
+
+export function remoteMediaWithMimetype(
+  hash: string,
+  mimetype: string,
+  prefix = "/",
+): string {
+  return urlJoin(
+    prefix,
+    `app/media/${encodeURIComponent(hash)}${
       extensionByMimetype[mimetype] ?? ""
     }`,
   );
@@ -76,6 +156,10 @@ export function localMediaWithMimetype(
 
 export function extensionToMimetype(extension: string): string | undefined {
   return mimetypeByExtension[extension];
+}
+
+export function activityPubActor(personaName: string, prefix = "/"): string {
+  return urlJoin(prefix, `ap/actor/${encodeURIComponent(personaName)}`);
 }
 
 export function isActivityPubActor(url: string, prefix = "/"): string | null {
@@ -133,3 +217,7 @@ export function isActivityPubFollowers(
 export function contentTypeIsJson(contentType: string) {
   return /^application\/(\w+\+)?json(;.*)?$/i.test(contentType);
 }
+
+export const webfinger = "/.well-known/webfinger" as const;
+export const nodeInfoDirectory = "/.well-known/nodeinfo" as const;
+export const nodeInfoV2_0 = "/ndoeinfo/2.0" as const;

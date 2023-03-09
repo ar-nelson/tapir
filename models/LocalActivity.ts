@@ -131,7 +131,7 @@ export class LocalActivityStoreImpl extends LocalActivityStore {
           ...obj,
           id: urls.activityPubObject(ulid, await this.baseUrl),
           ...(obj.type === "Note" || obj.type === "Question")
-            ? { url: urls.localPost(ulid, await this.baseUrl) }
+            ? { url: urls.localPost(ulid, {}, await this.baseUrl) }
             : {},
         };
       }

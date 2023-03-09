@@ -21,8 +21,8 @@ export interface LocalPost {
   readonly id: string;
   readonly type: PostType;
   readonly persona: string;
-  readonly createdAt: string;
-  readonly updatedAt?: string;
+  readonly createdAt: Date;
+  readonly updatedAt?: Date;
   readonly content?: string;
   readonly collapseSummary?: string;
   readonly replyTo?: string;
@@ -100,8 +100,9 @@ export class LocalPostStoreImpl extends LocalPostStore {
   async #publicNote(persona: string, props: Partial<Object>): Promise<Object> {
     return {
       type: props.type ?? "Note",
-      attributedTo: urls.profile(
+      attributedTo: urls.localProfile(
         persona,
+        {},
         (await this.serverConfig).url,
       ),
       to: key.Public,
@@ -156,8 +157,8 @@ export class LocalPostStoreImpl extends LocalPostStore {
         ...p,
         content: p.content ?? undefined,
         collapseSummary: p.collapseSummary ?? undefined,
-        createdAt: p.createdAt.toJSON(),
-        updatedAt: p.updatedAt?.toJSON(),
+        createdAt: p.createdAt,
+        updatedAt: p.updatedAt ?? undefined,
       };
     }
   }
@@ -174,8 +175,8 @@ export class LocalPostStoreImpl extends LocalPostStore {
         ...p,
         content: p.content ?? undefined,
         collapseSummary: p.collapseSummary ?? undefined,
-        createdAt: p.createdAt.toJSON(),
-        updatedAt: p.updatedAt?.toJSON(),
+        createdAt: p.createdAt,
+        updatedAt: p.updatedAt ?? undefined,
       };
     }
     return null;

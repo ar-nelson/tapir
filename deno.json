@@ -1,11 +1,14 @@
 {
   "tasks": {
-    "start": "deno run -A --watch=static/,routes/ dev.ts"
+    "start": "deno run --allow-net --allow-read=tapir.json,static,data --allow-write=data tapir.ts",
+    "dev": "deno run --allow-read=resources/buildMeta.json --allow-write=resources/buildMeta.json updateBuildDate.ts && deno run --allow-net --allow-read=tapir.json,static,data --allow-write=data --watch tapir.ts"
   },
   "importMap": "./import_map.json",
   "compilerOptions": {
+    "types": ["./lib/jsx.d.ts"],
     "jsx": "react-jsx",
-    "jsxImportSource": "preact",
-    "emitDecoratorMetadata": true
+    "jsxImportSource": "$jsx",
+    "emitDecoratorMetadata": true,
+    "lib": ["deno.worker"]
   }
 }

@@ -21,7 +21,7 @@ import { JsonLdDocument } from "$/lib/jsonld.ts";
 import { publicKeyToPem } from "$/lib/signatures.ts";
 import { asyncToArray } from "$/lib/utils.ts";
 import * as urls from "$/lib/urls.ts";
-import { log } from "$/deps.ts";
+import { log, Status } from "$/deps.ts";
 
 export interface HandlerState {
   injector: Injector;
@@ -61,9 +61,9 @@ export class ActivityPubController {
 
       name: persona.displayName,
       preferredUsername: persona.name,
-      url: urls.profile(persona.name, serverConfig.url),
+      url: urls.localProfile(persona.name, {}, serverConfig.url),
       summary: persona.summary,
-      published: persona.createdAt,
+      published: persona.createdAt.toJSON(),
       manuallyApprovesFollowers: persona.requestToFollow,
       discoverable: false,
 
@@ -161,11 +161,11 @@ export class ActivityPubController {
   async onInboxPost(
     personaName: string,
     activity: Activity,
-  ): Promise<Response> {
+  ): Promise<{ error: string; status?: number } | null> {
     log.info(JSON.stringify(activity, null, 2));
     const actor = activity.actor;
     if (typeof actor !== "string") {
-      return this.#errorResponse("Actor must be a string");
+      return { error: "Actor must be a string" };
     }
     switch (activity.type) {
       case "Follow":
@@ -180,36 +180,29 @@ export class ActivityPubController {
           log.error(e.message);
           switch (e.type) {
             case InFollowErrorType.DuplicateFollow:
-              return this.#errorResponse(e.message, 409);
+              return { error: e.message, status: Status.Conflict };
             default:
-              return this.#errorResponse(e.message);
+              return { error: e.message };
           }
         }
-        return new Response(null, { status: 202 });
+        return null;
       case "Undo": {
         const id = typeof activity.object === "string"
           ? activity.object
           : `${(activity.object as { id?: string })?.id}`;
         if (!id) {
-          return this.#errorResponse(
-            `Cannot undo: no valid object ID in activity`,
-          );
+          return { error: `Cannot undo: no valid object ID in activity` };
         }
         const follow = await this.inFollowStore.get({ id });
         if (!follow) {
-          return this.#errorResponse(`Cannot undo: no activity with ID ${id}`);
+          return { error: `Cannot undo: no activity with ID ${id}` };
         }
         await this.inFollowStore.delete({ id });
         log.info(`Unfollowed by ${follow.actor}`);
-        return new Response(null, { status: 202 });
+        return null;
       }
       default:
-        return this.#errorResponse("Not supported");
+        return { error: "Not supported" };
     }
-  }
-
-  #errorResponse(message: string, status = 400) {
-    log.error(message);
-    return Response.json({ error: message }, { status });
   }
 }

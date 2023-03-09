@@ -15,10 +15,7 @@ import { BlockedServerStoreReadOnly } from "$/models/BlockedServerStoreReadOnly.
 import { ServerConfigStore } from "$/models/ServerConfig.ts";
 import { HttpClientService } from "$/services/HttpClientService.ts";
 import { JsonLdService } from "$/services/JsonLdService.ts";
-import { CONTENT_TYPE } from "$/schemas/activitypub/mod.ts";
-import defaultContext from "$/schemas/activitypub/defaultContext.json" assert {
-  type: "json",
-};
+import { CONTENT_TYPE, defaultContext } from "$/schemas/activitypub/mod.ts";
 import * as urls from "$/lib/urls.ts";
 import { log } from "$/deps.ts";
 

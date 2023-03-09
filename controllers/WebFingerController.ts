@@ -38,14 +38,14 @@ export class WebFingerController {
     return {
       subject: `acct:${name}@${serverConfig.domain}`,
       aliases: [
-        urls.profile(name, serverConfig.url),
+        urls.localProfile(name, {}, serverConfig.url),
         urls.activityPubActor(name, serverConfig.url),
       ],
       links: [
         {
           "rel": "http://webfinger.net/rel/profile-page",
           "type": "text/html",
-          "href": urls.profile(name, serverConfig.url),
+          "href": urls.localProfile(name, {}, serverConfig.url),
         },
         {
           "rel": "self",

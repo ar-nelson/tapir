@@ -8,6 +8,7 @@ console.log("This will generate a tapir.json file.");
 alert("If you already have a tapir.json file, this script will overwrite it!");
 
 const domain = prompt("Domain (e.g., tapir.social):")!,
+  displayName = prompt("Server display name:")!,
   loginName = prompt("Login name:")!;
 
 checkPersonaName(loginName);
@@ -24,8 +25,11 @@ const salt = crypto.getRandomValues(new Uint8Array(16)),
   hash = hashPassword(password, salt),
   keyPair = await generateKeyPair(),
   json: ServerConfig = {
+    displayName,
+    summary: "just a harmless little tapir server",
     domain,
     url: `https://${domain}`,
+    locale: "en-US",
     loginName,
     passwordHash: base64.encode(hash),
     passwordSalt: base64.encode(salt),

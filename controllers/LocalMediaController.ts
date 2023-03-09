@@ -1,3 +1,4 @@
+import { Context, Status } from "$/deps.ts";
 import { Singleton } from "$/lib/inject.ts";
 import { LocalMediaStore } from "$/models/LocalMedia.ts";
 import * as urls from "$/lib/urls.ts";
@@ -11,29 +12,27 @@ export class AbstractMediaController {
     >,
   ) {}
 
-  async getMedia(filename: string): Promise<Response> {
+  async getMedia(ctx: Context, filename: string): Promise<void> {
     const split = filename.split(".");
     let mimetype: string | undefined = undefined;
     if (split.length === 2) {
       mimetype = urls.extensionToMimetype(`.${split[1]}`);
-      if (!mimetype) {
-        return new Response(`no known mimetype for extension: .${split[1]}`, {
-          status: 404,
-        });
-      }
-    } else if (split.length > 2) {
-      return new Response("not a valid media URL", { status: 404 });
+      ctx.assert(
+        mimetype,
+        Status.NotFound,
+        `No known mimetype for extension: .${split[1]}`,
+      );
+    } else {
+      ctx.assert(split.length === 1, Status.NotFound, "Not a valid media URL");
     }
     const media = await this.lookupMedia(split[0]);
-    if (!media) {
-      return new Response("media not found", { status: 404 });
-    }
-    return new Response(media.data, {
-      headers: {
-        "content-type": mimetype ?? media.mimetype,
-        "cache-control": "public, max-age=604800, immutable",
-      },
-    });
+    ctx.assert(media, Status.NotFound, "Media not found");
+    ctx.response.headers.set("content-type", mimetype ?? media.mimetype);
+    ctx.response.headers.set(
+      "cache-control",
+      "public, max-age=604800, immutable",
+    );
+    ctx.response.body = media.data;
   }
 }
 

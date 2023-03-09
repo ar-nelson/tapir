@@ -1,4 +1,4 @@
-import { crypto_argon2i } from "$/deps.ts";
+import { Context, crypto_argon2i, Status } from "$/deps.ts";
 
 export async function asyncToArray<T>(iter: AsyncIterable<T>): Promise<T[]> {
   const xs: T[] = [];
@@ -100,10 +100,10 @@ export function toHex(bin: Uint8Array): string {
 }
 
 export function jsonOr404(
+  ctx: Context,
   json: unknown,
   message = "Record not found",
-): Response {
-  return json == null
-    ? Response.json({ error: message }, { status: 404 })
-    : Response.json(json);
+): void {
+  ctx.assert(json != null, Status.NotFound, message);
+  ctx.response.body = json;
 }
