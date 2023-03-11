@@ -1,4 +1,5 @@
 import { Injectable } from "$/lib/inject.ts";
+import { Status } from "$/deps.ts";
 import { urlJoin } from "$/lib/urls.ts";
 import { I18nService } from "$/services/I18nService.ts";
 import { ViewRouter } from "$/services/ViewRouter.ts";
@@ -7,19 +8,20 @@ import { LocalMediaController } from "$/controllers/LocalMediaController.ts";
 
 import { PublicFeedPage } from "$/views/pages/pub/Feed.tsx";
 import { PublicProfilePage } from "$/views/pages/pub/Profile.tsx";
+import { NotFoundPage } from "$/views/pages/pub/NotFound.tsx";
 
 @Injectable()
 export class PublicRouter extends ViewRouter {
   constructor(
     controller: PublicFrontendController,
-    localMediaController: LocalMediaController,
     i18n: I18nService,
+    localMediaController: LocalMediaController,
   ) {
     super(i18n);
 
     this.get(
       "/",
-      (ctx) => ctx.response.redirect(urlJoin(`${ctx.request.url}`, "/feed")),
+      (ctx) => ctx.response.redirect(urlJoin(`${ctx.request.url}`, "feed")),
     );
     this.getView(
       "/feed",
@@ -41,5 +43,10 @@ export class PublicRouter extends ViewRouter {
       "/media/:hash",
       (ctx) => localMediaController.getMedia(ctx, ctx.params.hash),
     );
+
+    this.getView("/(.*)", async (ctx) => {
+      ctx.response.status = Status.NotFound;
+      return NotFoundPage({ server: await controller.serverDetail() });
+    });
   }
 }

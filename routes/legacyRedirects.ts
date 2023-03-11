@@ -44,6 +44,10 @@ export class LegacyRedirectsRouter extends Router {
       ctx.response.status = Status.MovedPermanently;
       ctx.response.redirect(urls.localPost(ctx.params.id, {}));
     });
+    this.get("/public/local", (ctx) => {
+      ctx.response.status = Status.MovedPermanently;
+      ctx.response.redirect("/pub/feed");
+    });
 
     this.get("/media/local/:hash", (ctx) => {
       ctx.response.status = Status.MovedPermanently;

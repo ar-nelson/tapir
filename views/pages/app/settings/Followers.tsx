@@ -50,8 +50,17 @@ export const SettingsFollowersPage = view<{
                 {requests.map((r) => (
                   <li>
                     <FollowerLink follow={r} /> -{" "}
-                    <PostButton url="./accept" id={r.id} text="Accept" /> -{" "}
-                    <PostButton url="./reject" id={r.id} text="Reject" />
+                    <PostButton
+                      url="./followers/accept"
+                      id={r.id}
+                      text="Accept"
+                    />{" "}
+                    -{" "}
+                    <PostButton
+                      url="./followers/reject"
+                      id={r.id}
+                      text="Reject"
+                    />
                   </li>
                 ))}
               </ul>

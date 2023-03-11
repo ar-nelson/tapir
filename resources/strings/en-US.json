@@ -3,6 +3,11 @@
   "footer": "Powered by %s v%s · Built %s · %s",
   "justNow": "just now",
   "localTimeline": "Local Timeline",
+  "notFound": "Error 404: Not Found",
+  "notFoundText": "Whatever you were looking for, it's not here.",
+  "serverError": "Flagrant System Error",
+  "serverErrorText": "The system is down. I dunno what you did, moron, but you sure screwed everything up good.",
+  "errorBack": "Return from whence you came",
   "nav": {
     "home": "Home",
     "federated": "Federated",

@@ -1,4 +1,11 @@
-import { Context, Router, RouterContext, Status } from "$/deps.ts";
+import {
+  Context,
+  isHttpError,
+  log,
+  Router,
+  RouterContext,
+  Status,
+} from "$/deps.ts";
 import { Injectable } from "$/lib/inject.ts";
 import { jsonOr404 } from "$/lib/utils.ts";
 import { BlockedServerStore } from "$/models/BlockedServer.ts";
@@ -13,7 +20,7 @@ export class ActivityPubRouter extends Router {
   ) {
     super();
 
-    this.use((ctx, next) => this.#middleware(ctx, next))
+    this.use("/", (ctx, next) => this.#middleware(ctx, next))
       .get(
         "/activity/:id",
         async (ctx) =>
@@ -39,7 +46,13 @@ export class ActivityPubRouter extends Router {
         async (ctx) =>
           jsonOr404(ctx, await controller.getPostCollection(ctx.params.name)),
       )
-      .post("/actor/:name/inbox", (ctx) => this.#inbox(ctx));
+      .post("/actor/:name/inbox", (ctx) => this.#inbox(ctx))
+      .get("/(.*)", (ctx) => {
+        ctx.response.status = Status.NotFound;
+        ctx.response.body = {
+          error: "Endpoint does not exist or is not yet implemented",
+        };
+      });
   }
 
   async #inbox(ctx: RouterContext<"/actor/:name/inbox", { name: string }>) {
@@ -75,7 +88,18 @@ export class ActivityPubRouter extends Router {
 
   async #middleware(ctx: Context, next: () => Promise<unknown>) {
     ctx.response.type = "json";
-    await next();
+    try {
+      await next();
+    } catch (err) {
+      log.error(`Error occurred at URL ${ctx.request.url}:`);
+      log.error(err);
+      if (isHttpError(err)) {
+        ctx.response.status = err.status;
+      } else {
+        ctx.response.status = Status.InternalServerError;
+      }
+      ctx.response.body = { error: `${err.message ?? err}` };
+    }
     if (
       ctx.response.status === 200 && ctx.response.body &&
       typeof ctx.response.body === "object"
@@ -84,7 +108,7 @@ export class ActivityPubRouter extends Router {
         "@context": defaultContext,
         ...ctx.response.body,
       };
-      ctx.response.headers.set("content-type", CONTENT_TYPE);
     }
+    ctx.response.headers.set("content-type", CONTENT_TYPE);
   }
 }
