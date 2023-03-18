@@ -1,7 +1,9 @@
 import {
   ColumnOf,
+  Columns,
   ColumnsOf,
   DatabaseSpec,
+  DatabaseValues,
   DB,
   DBLike,
   InRow,
@@ -9,69 +11,93 @@ import {
   JoinChain,
   OrderDirection,
   OutRow,
-  PrimaryKey,
   Q,
   Query,
   QueryOperator,
-  rowCompare,
-  rowQuery,
   TableOf,
 } from "$/lib/sql/mod.ts";
 import { DBFactory } from "$/lib/db/DBFactory.ts";
 import { UlidService } from "$/services/UlidService.ts";
 import { Constructor, Singleton } from "$/lib/inject.ts";
 import { mapObject } from "$/lib/utils.ts";
+import Loki from "$/lib/loki.js";
 
-type TableMapMap<Spec extends DatabaseSpec> = {
-  [T in TableOf<Spec>]: Map<
-    PrimaryKey<Spec, T>,
-    OutRow<ColumnsOf<Spec, T>>
-  >;
-};
+function escapeRegExp(s: string) {
+  return s.replace(/[.*+?^${}()|[\]\\]/g, "\\$&"); // $& means the whole matched string
+}
 
 export abstract class InMemoryDB<Spec extends DatabaseSpec>
   implements DB<Spec> {
-  private readonly tables: TableMapMap<Spec>;
+  private readonly db: Loki;
 
   constructor(
     private readonly spec: Spec,
     private readonly ulid: UlidService,
   ) {
-    this.tables = mapObject(spec.tables, () => new Map()) as TableMapMap<Spec>;
+    this.db = new Loki("InMemoryDB", {
+      env: "BROWSER",
+      adapter: new Loki.LokiMemoryAdapter(),
+    });
+    for (const [tableName, table] of Object.entries(spec.tables)) {
+      this.db.addCollection(tableName, { indices: [table.primaryKey] });
+    }
   }
 
-  private *query<T extends TableOf<Spec>>(
-    table: T,
-    where: Query<Spec["tables"][T]["columns"]>,
-  ): Iterable<PrimaryKey<Spec, T>> {
-    const pk = this.spec.tables[table].primaryKey,
-      wherePk = where[pk];
-    if (
-      wherePk instanceof Q
-        ? wherePk.operator === QueryOperator.Equal
-        : pk in where
-    ) {
-      const k = (wherePk instanceof Q ? wherePk.value : wherePk) as PrimaryKey<
-        Spec,
-        T
-      >;
-      if (
-        this.tables[table].has(k) &&
-        (Object.keys(where).length === 1 ||
-          rowQuery(this.spec.tables[table].columns, where)(
-            this.tables[table].get(k)!,
-          ))
-      ) {
-        yield k;
-      }
-    } else {
-      const query = rowQuery(this.spec.tables[table].columns, where);
-      for (const [k, v] of this.tables[table]) {
-        if (query(v)) {
-          yield k;
-        }
-      }
+  #columnQuery(q: Q<DatabaseValues>): unknown {
+    switch (q.operator) {
+      case QueryOperator.Null:
+        return null;
+      case QueryOperator.NotNull:
+        return { $ne: null };
+      case QueryOperator.Equal:
+        return q.value;
+      case QueryOperator.NotEqual:
+        return { $ne: q.value };
+      case QueryOperator.LowerThan:
+        return { $lt: q.value };
+      case QueryOperator.LowerThanEqual:
+        return { $lte: q.value };
+      case QueryOperator.GreaterThan:
+        return { $gt: q.value };
+      case QueryOperator.GreaterThanEqual:
+        return { $gte: q.value };
+      case QueryOperator.In:
+        return { $in: q.value };
+      case QueryOperator.NotIn:
+        return { $nin: q.value };
+      case QueryOperator.Like:
+        return {
+          $regex: new RegExp(
+            `${q.value}`.split("%").map(escapeRegExp).join(".*"),
+          ),
+        };
+      case QueryOperator.Ilike:
+        return {
+          $regex: new RegExp(
+            `${q.value}`.split("%").map(escapeRegExp).join(".*"),
+            "i",
+          ),
+        };
+      case QueryOperator.Between:
+        return {
+          $and: [{ $gte: (q.value as unknown[])[0] }, {
+            $lte: (q.value as unknown[])[1],
+          }],
+        };
+      case QueryOperator.NotBetween:
+        return {
+          $or: [{ $lt: (q.value as unknown[])[0] }, {
+            $gt: (q.value as unknown[])[1],
+          }],
+        };
     }
+  }
+
+  #query(where: Query<Columns>) {
+    return mapObject(
+      where,
+      (_k, v) => v instanceof Q ? this.#columnQuery(v) : v,
+    );
   }
 
   get<T extends TableOf<Spec>>(table: T, options?: {
@@ -96,28 +122,23 @@ export abstract class InMemoryDB<Spec extends DatabaseSpec>
     orderBy?: [ColumnOf<Spec, T>, OrderDirection][];
     limit?: number;
   }): AsyncIterable<any> {
-    const table = this.tables[tableName];
-    let iter = options.where
-      ? this.query(tableName, options.where)
-      : table.keys();
-    const limit = options.limit ?? Infinity;
-    let n = 0;
+    let query = this.db.getCollection(tableName)
+      .chain()
+      .find(this.#query(options.where ?? {}), options.limit === 1);
     if (options.orderBy?.length) {
-      const cmp = ([col, ord]: [ColumnOf<Spec, T>, OrderDirection]) =>
-        rowCompare(this.spec.tables[tableName].columns, col, ord);
-      iter = [...iter].sort(
-        options.orderBy.reduce(
-          (last, ord) => {
-            const next = cmp(ord);
-            return (a, b) => last(a, b) || next(table.get(a)!, table.get(b)!);
-          },
-          (_a: PrimaryKey<Spec, T>, _b: PrimaryKey<Spec, T>) => 0,
-        ),
+      query = query.compoundsort(
+        options.orderBy.map(([k, o]) => [k, o === "DESC"]),
       );
     }
-    for (const k of iter) {
-      if (n++ >= limit) return;
-      yield table.get(k)!;
+    if (options.limit) {
+      query = query.limit(options.limit);
+    }
+    const fields = options.returning ??
+      Object.keys(this.spec.tables[tableName].columns);
+    for (const row of query.data()) {
+      yield Object.fromEntries(
+        Object.entries(row).filter(([key]) => fields.includes(key)),
+      );
     }
   }
 
@@ -137,11 +158,12 @@ export abstract class InMemoryDB<Spec extends DatabaseSpec>
     table: T,
     where: Query<ColumnsOf<Spec, T>>,
   ): Promise<number> {
-    let n = 0;
-    for (const _ of this.query(table, where)) {
-      n++;
-    }
-    return Promise.resolve(n);
+    return Promise.resolve(
+      this.db.getCollection(table)
+        .chain()
+        .find(this.#query(where))
+        .count(),
+    );
   }
 
   insert<T extends TableOf<Spec>>(
@@ -149,17 +171,19 @@ export abstract class InMemoryDB<Spec extends DatabaseSpec>
     rows: InRow<ColumnsOf<Spec, T>>[],
   ): Promise<void> {
     const spec = this.spec.tables[tableName] as Spec["tables"][T],
-      table = this.tables[tableName];
-    for (const inRow of rows) {
-      const row = mapObject(
-        spec.columns,
-        (name, col) =>
-          inToOut(col, (inRow as any)[name], true, this.ulid) as any,
-      ) as OutRow<ColumnsOf<Spec, T>>;
-      table.set(row[spec.primaryKey] as PrimaryKey<Spec, T>, {
-        ...row,
-      });
-    }
+      finalRows = rows.map((inRow) =>
+        mapObject(
+          spec.columns,
+          (name, col) =>
+            inToOut(
+              col,
+              (inRow as { [k: string]: unknown })[name],
+              true,
+              this.ulid,
+            ),
+        )
+      );
+    this.db.getCollection(tableName).insert(finalRows);
     return Promise.resolve();
   }
 
@@ -168,18 +192,21 @@ export abstract class InMemoryDB<Spec extends DatabaseSpec>
     where: Query<ColumnsOf<Spec, T>>,
     fields: Partial<InRow<ColumnsOf<Spec, T>>>,
   ): Promise<number> {
-    const spec = this.spec.tables[tableName], table = this.tables[tableName];
+    const spec = this.spec.tables[tableName] as Spec["tables"][T];
     let n = 0;
-    for (const k of this.query(tableName, where)) {
-      table.set(k, {
-        ...table.get(k)!,
-        ...mapObject(
-          fields,
-          (k, v) => inToOut(spec.columns[k as ColumnOf<Spec, T>], v as any),
-        ),
-      });
-      n++;
-    }
+    this.db.getCollection(tableName).findAndUpdate(
+      this.#query(where),
+      (row: OutRow<ColumnsOf<Spec, T>>) => {
+        n++;
+        return {
+          ...row,
+          ...mapObject(
+            fields,
+            (k, v) => inToOut(spec.columns[k as ColumnOf<Spec, T>], v),
+          ),
+        };
+      },
+    );
     return Promise.resolve(n);
   }
 
@@ -187,13 +214,8 @@ export abstract class InMemoryDB<Spec extends DatabaseSpec>
     tableName: T,
     where: Query<ColumnsOf<Spec, T>>,
   ): Promise<number> {
-    const table = this.tables[tableName];
-    let n = 0;
-    for (const k of this.query(tableName, where)) {
-      table.delete(k);
-      n++;
-    }
-    return Promise.resolve(n);
+    this.db.getCollection(tableName).findAndRemove(this.#query(where));
+    return Promise.resolve(0); // TODO: Return # of deleted rows
   }
 
   transaction<R>(callback: (t: DBLike<Spec>) => Promise<R>): Promise<R> {
