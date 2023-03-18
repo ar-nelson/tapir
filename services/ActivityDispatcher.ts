@@ -13,18 +13,13 @@ import { InFollowStoreReadOnly } from "$/models/InFollowStoreReadOnly.ts";
 import { KnownServerStoreReadOnly } from "$/models/KnownServer.ts";
 import { BlockedServerStoreReadOnly } from "$/models/BlockedServerStoreReadOnly.ts";
 import { ServerConfigStore } from "$/models/ServerConfig.ts";
-import { HttpClientService } from "$/services/HttpClientService.ts";
+import { HttpDispatcher, Priority } from "$/services/HttpDispatcher.ts";
 import { JsonLdService } from "$/services/JsonLdService.ts";
 import { CONTENT_TYPE, defaultContext } from "$/schemas/activitypub/mod.ts";
 import * as urls from "$/lib/urls.ts";
 import { log } from "$/deps.ts";
 
-export enum Priority {
-  Optional,
-  Eventually,
-  Soon,
-  Immediate,
-}
+export { Priority } from "$/services/HttpDispatcher.ts";
 
 @InjectableAbstract()
 export abstract class ActivityDispatcher {
@@ -37,14 +32,22 @@ export abstract class ActivityDispatcher {
   abstract request(
     url: URL,
     fromPersona: string,
-    priority: Priority,
+    priority?: Priority,
   ): Promise<Object>;
 
   abstract dispatchTo(
     url: URL,
     activity: Activity,
     fromPersona: string,
+    priority?: Priority,
   ): Promise<Response>;
+
+  abstract dispatchAllTo(
+    url: URL,
+    activities: Activity[],
+    fromPersona: string,
+    priority?: Priority,
+  ): Promise<void>;
 }
 
 @Singleton(ActivityDispatcher)
@@ -52,7 +55,7 @@ export class ActivityDispatcherImpl extends ActivityDispatcher {
   private readonly serverConfig;
 
   constructor(
-    private readonly httpClient: HttpClientService,
+    private readonly httpDispatcher: HttpDispatcher,
     private readonly jsonLd: JsonLdService,
     private readonly personaStore: PersonaStoreReadOnly,
     private readonly inFollowStore: InFollowStoreReadOnly,
@@ -127,10 +130,16 @@ export class ActivityDispatcherImpl extends ActivityDispatcher {
 
     for (const inbox of inboxes) {
       try {
-        const rsp = await this.dispatchTo(new URL(inbox), activity, persona);
+        const rsp = await this.dispatchTo(
+          new URL(inbox),
+          activity,
+          persona,
+          priority,
+        );
         if (!rsp.ok) {
           log.error(
-            `Activity dispatch to ${inbox} failed: HTTP ${rsp.status} ${rsp.statusText}, ${rsp.text()}`,
+            `Activity dispatch to ${inbox} failed: HTTP ${rsp.status} ${rsp.statusText}, ${await rsp
+              .text()}`,
           );
         }
       } catch (e) {
@@ -144,54 +153,48 @@ export class ActivityDispatcherImpl extends ActivityDispatcher {
     url: URL,
     activity: Activity,
     fromPersona: string,
+    priority: Priority,
   ): Promise<Response> {
-    if (await this.blockedServerStore.blocksActivityUrl(url)) {
-      throw new Error("URL is blocked");
-    }
-    const req = new Request(url, {
-        method: "POST",
-        body: JSON.stringify({ "@context": defaultContext, ...activity }),
-        headers: {
-          "content-type": CONTENT_TYPE,
-          "accept": CONTENT_TYPE,
-        },
-      }),
-      serverConfig = await this.serverConfig,
-      signedReq = await signRequest(
-        req,
-        `${urls.activityPubActor(fromPersona, serverConfig.url)}#main-key`,
-        serverConfig.privateKey,
-      );
+    const req = await this.#buildRequest(
+      url,
+      "POST",
+      fromPersona,
+      JSON.stringify({ "@context": defaultContext, ...activity }),
+    );
     log.info(`Dispatching ${activity.type} activity to ${url}`);
-    return this.httpClient.fetch(signedReq);
+    return this.httpDispatcher.dispatch(req, priority).response;
+  }
+
+  async dispatchAllTo(
+    url: URL,
+    activities: Activity[],
+    fromPersona: string,
+    priority: Priority,
+  ): Promise<void> {
+    const reqs = await Promise.all(
+      activities.map((activity) =>
+        this.#buildRequest(
+          url,
+          "POST",
+          fromPersona,
+          JSON.stringify({ "@context": defaultContext, ...activity }),
+        )
+      ),
+    );
+    log.info(`Dispatching ${activities.length} activities to ${url}`);
+    return this.httpDispatcher.dispatchInOrder(reqs, priority).dispatched;
   }
 
   async request(
     url: URL,
     fromPersona: string,
-    _priority: Priority,
+    priority: Priority = Priority.Immediate,
   ): Promise<Object> {
-    // TODO: Do something with priority
     log.info(`Requesting: ${url}`);
-    if (await this.blockedServerStore.blocksActivityUrl(url)) {
-      throw new Error(`Cannot request activity data: URL ${url} is blocked`);
-    }
-    const persona = await this.personaStore.get(fromPersona);
-    if (persona == null) {
-      throw new Error(
-        `Cannot request activity data using nonexistent persona ${
-          JSON.stringify(fromPersona)
-        }`,
-      );
-    }
-    const req = new Request(url, { headers: { "accept": CONTENT_TYPE } }),
-      serverConfig = await this.serverConfig,
-      signedReq = await signRequest(
-        req,
-        `${urls.activityPubActor(fromPersona, serverConfig.url)}#main-key`,
-        serverConfig.privateKey,
-      ),
-      rsp = await this.httpClient.fetch(signedReq);
+    const rsp = await this.httpDispatcher.dispatch(
+      await this.#buildRequest(url, "GET", fromPersona),
+      priority,
+    ).response;
     if (rsp.ok) {
       const json = await rsp.json(),
         compacted = await this.jsonLd.processDocument({
@@ -204,8 +207,42 @@ export class ActivityDispatcherImpl extends ActivityDispatcher {
       );
     } else {
       throw new Error(
-        `ActivityPub request for ${url} failed: HTTP ${rsp.status} ${rsp.statusText}, ${rsp.text()}`,
+        `ActivityPub request for ${url} failed: HTTP ${rsp.status} ${rsp.statusText}, ${await rsp
+          .text()}`,
       );
     }
+  }
+
+  async #buildRequest(
+    url: URL,
+    method: "GET" | "POST",
+    personaName: string,
+    body?: string,
+  ): Promise<Request> {
+    if (await this.blockedServerStore.blocksActivityUrl(url)) {
+      throw new Error(`Cannot send ActivityPub request: URL ${url} is blocked`);
+    }
+    const persona = await this.personaStore.get(personaName);
+    if (persona == null) {
+      throw new Error(
+        `Cannot send ActivityPub request as nonexistent persona ${
+          JSON.stringify(personaName)
+        }`,
+      );
+    }
+    const req = new Request(url, {
+        method,
+        headers: {
+          "accept": CONTENT_TYPE,
+          ...body == null ? {} : { "content-type": CONTENT_TYPE },
+        },
+        body,
+      }),
+      serverConfig = await this.serverConfig;
+    return signRequest(
+      req,
+      `${urls.activityPubActor(personaName, serverConfig.url)}#main-key`,
+      serverConfig.privateKey,
+    );
   }
 }

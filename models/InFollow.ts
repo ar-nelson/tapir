@@ -1,5 +1,6 @@
 import { InjectableAbstract, Singleton } from "$/lib/inject.ts";
 import * as urls from "$/lib/urls.ts";
+import { Activity } from "$/schemas/activitypub/mod.ts";
 import { LocalDatabaseService } from "$/services/LocalDatabaseService.ts";
 import { ActivityDispatcher, Priority } from "$/services/ActivityDispatcher.ts";
 import { Actor, isActor } from "$/schemas/activitypub/mod.ts";
@@ -171,19 +172,20 @@ export class InFollowStoreImpl extends InFollowStore {
       object: id,
     }, persona);
     this._base.expireFollowerInboxes();
+    const activities: Activity[] = [];
     for await (
       const post of this.localPostStore.list({ persona, order: "ASC" })
     ) {
       // TODO: Handle posts with limited visibility
       const activity = await this.localActivityStore.get(post.id);
-      if (activity) {
-        this.activityDispatcher.dispatchTo(
-          new URL(inbox),
-          activity.json,
-          persona,
-        );
-      }
+      if (activity) activities.push(activity.json);
     }
+    await this.activityDispatcher.dispatchAllTo(
+      new URL(inbox),
+      activities,
+      persona,
+      Priority.Optional,
+    );
   }
 
   async accept(

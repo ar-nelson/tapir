@@ -1,4 +1,5 @@
-import { base64, datetime } from "$/deps.ts";
+import { datetime, diffInMin } from "$/lib/datetime/mod.ts";
+import { base64 } from "$/deps.ts";
 
 export function generateKeyPair(): Promise<CryptoKeyPair> {
   return crypto.subtle.generateKey(
@@ -156,9 +157,8 @@ export async function verifyRequest(
       case "date":
         s = request.headers.get(h) ?? "";
         try {
-          const d = new Date(s),
-            diff = datetime.difference(d, new Date(), { units: ["minutes"] });
-          if (Math.abs(diff.minutes!) > 30) {
+          const minutes = diffInMin(datetime(new Date(s)), datetime());
+          if (Math.abs(minutes) > 30) {
             return {
               verified: false,
               error: `date out of range: ${JSON.stringify(s)}`,

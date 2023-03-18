@@ -5,7 +5,7 @@ import { LocalDatabaseService } from "$/services/LocalDatabaseService.ts";
 export interface Persona {
   readonly name: string;
   readonly displayName: string;
-  readonly linkTitle?: string;
+  readonly linkTitle?: string | null;
   readonly summary: string;
   readonly requestToFollow: boolean;
   readonly createdAt: Date;

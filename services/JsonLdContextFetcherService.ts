@@ -1,5 +1,6 @@
 import { InjectableAbstract, Singleton } from "$/lib/inject.ts";
 import { JsonLdContext, JsonLdError } from "$/lib/jsonld.ts";
+import { HttpDispatcher, Priority } from "$/services/HttpDispatcher.ts";
 
 @InjectableAbstract()
 export abstract class JsonLdContextFetcherService {
@@ -8,8 +9,13 @@ export abstract class JsonLdContextFetcherService {
 
 @Singleton(JsonLdContextFetcherService)
 export class HttpJsonLdContextFetcherService {
+  constructor(private readonly dispatcher: HttpDispatcher) {}
+
   async getContext(iri: string): Promise<JsonLdContext> {
-    const rsp = await fetch(iri, { headers: { accept: "application/json" } });
+    const rsp = await this.dispatcher.dispatch(
+      new Request(iri, { headers: { accept: "application/ld+json" } }),
+      Priority.Soon,
+    ).response;
     const json = await rsp.json();
     if (
       json && typeof json === "object" && json["@context"] &&

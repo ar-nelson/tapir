@@ -77,11 +77,15 @@ export class ActivityPubRouter extends Router {
       );
     }
 
-    ctx.assert(
-      activity,
-      Status.BadRequest,
-      "Request body was not a valid Activity",
-    );
+    if (!activity) {
+      log.error(
+        `Request body was not a valid Activity:\n${
+          JSON.stringify(json, null, 2)
+        }`,
+      );
+      ctx.throw(Status.BadRequest, "Request body was not a valid Activity");
+    }
+
     await this.controller.onInboxPost(ctx.params.name, activity);
     ctx.response.status = 202;
   }
@@ -101,7 +105,7 @@ export class ActivityPubRouter extends Router {
       ctx.response.body = { error: `${err.message ?? err}` };
     }
     if (
-      ctx.response.status === 200 && ctx.response.body &&
+      ctx.response.status === Status.OK && ctx.response.body &&
       typeof ctx.response.body === "object"
     ) {
       ctx.response.body = {

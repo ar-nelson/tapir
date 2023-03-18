@@ -1,11 +1,5 @@
-export {
-  assert,
-  assertArrayIncludes,
-  assertEquals,
-  assertThrows,
-} from "https://deno.land/std@0.178.0/testing/asserts.ts";
+export * from "https://deno.land/std@0.178.0/testing/asserts.ts";
 export * as base64 from "https://deno.land/std@0.178.0/encoding/base64.ts";
-export * as datetime from "https://deno.land/std@0.178.0/datetime/mod.ts";
 export * as log from "https://deno.land/std@0.178.0/log/mod.ts";
 export * as path from "https://deno.land/std@0.178.0/path/mod.ts";
 export { sprintf } from "https://deno.land/std@0.178.0/fmt/printf.ts";
