@@ -1,24 +1,22 @@
 import { Request, Status } from "$/deps.ts";
 import { Injectable } from "$/lib/inject.ts";
 import { urlJoin } from "$/lib/urls.ts";
-import { binaryEqual, hashPassword } from "$/lib/utils.ts";
 import { I18nService } from "$/services/I18nService.ts";
 import { ViewRouter } from "$/services/ViewRouter.ts";
-import { ServerConfig, ServerConfigStore } from "$/models/ServerConfig.ts";
+import { InstanceConfigStore } from "$/models/InstanceConfig.ts";
 import { SettingsRouter } from "$/routes/settings.ts";
 
 @Injectable()
 export class PrivateRouter extends ViewRouter {
   constructor(
-    serverConfigStore: ServerConfigStore,
+    instanceConfigStore: InstanceConfigStore,
     settingsRouter: SettingsRouter,
     i18n: I18nService,
   ) {
     super(i18n);
 
     this.use(async (ctx, next) => {
-      const serverConfig = await serverConfigStore.getServerConfig();
-      if (this.#validateAuth(ctx.request, serverConfig)) {
+      if (await this.#validateAuth(ctx.request, instanceConfigStore)) {
         await next();
       } else {
         ctx.response.headers.set("WWW-Authenticate", "Basic realm=tapir");
@@ -34,7 +32,10 @@ export class PrivateRouter extends ViewRouter {
     this.use("/settings", settingsRouter.routes());
   }
 
-  #validateAuth(req: Request, config: ServerConfig): boolean {
+  async #validateAuth(
+    req: Request,
+    configStore: InstanceConfigStore,
+  ): Promise<boolean> {
     const auth = req.headers.get("Authorization") ?? "",
       match = /^Basic ([a-z0-9\/+=]+)$/i.exec(auth);
     if (!match) {
@@ -46,8 +47,8 @@ export class PrivateRouter extends ViewRouter {
       return false;
     }
     const user = userpass.slice(0, split),
-      pass = userpass.slice(split + 1),
-      hash = hashPassword(pass, config.passwordSalt);
-    return user === config.loginName && binaryEqual(hash, config.passwordHash);
+      pass = userpass.slice(split + 1);
+    return user === (await configStore.get()).loginName &&
+      await configStore.checkPassword(pass);
   }
 }

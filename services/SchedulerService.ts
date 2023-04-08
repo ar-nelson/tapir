@@ -1,13 +1,10 @@
 import { InjectableAbstract, Singleton } from "$/lib/inject.ts";
-import { DateTime, datetime, diffInMillisec } from "$/lib/datetime/mod.ts";
-
-export interface Interval {
-  millisecond?: number;
-  second?: number;
-  minute?: number;
-  hour?: number;
-  day?: number;
-}
+import {
+  DateDiff,
+  DateTime,
+  datetime,
+  diffInMillisec,
+} from "$/lib/datetime/mod.ts";
 
 export enum Reschedule {
   Always,
@@ -21,7 +18,7 @@ export interface ScheduleEntry {
   last?: DateTime;
   next?: DateTime;
   lastError?: string | Error;
-  repeat?: Interval;
+  repeat?: DateDiff;
 }
 
 @InjectableAbstract()
@@ -60,7 +57,7 @@ export abstract class SchedulerService {
   async schedule(
     key: string,
     fn: () => void | Promise<void>,
-    time: DateTime | Interval,
+    time: DateTime | DateDiff,
     reschedule = Reschedule.Always,
   ): Promise<void> {
     const existing = this.entries.get(key),
@@ -83,9 +80,9 @@ export abstract class SchedulerService {
           }
           break;
         case Reschedule.Repeat:
-          if (time instanceof Date) {
+          if (time instanceof DateTime) {
             throw new TypeError(
-              "Reschedule.Repeat cannot be used with a literal Date",
+              "Reschedule.Repeat cannot be used with a literal DateTime",
             );
           }
           finalTime = newTime;

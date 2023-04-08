@@ -1,9 +1,24 @@
-export { isCollection, isCollectionPage, isLink, isObject } from "./Object.ts";
-export { isActor } from "./Actor.ts";
-export { isActivity } from "./Activity.ts";
+export {
+  assertIsCollection,
+  assertIsCollectionPage,
+  assertIsLink,
+  assertIsObject,
+  isCollection,
+  isCollectionPage,
+  isLink,
+  isObject,
+} from "./Object.ts";
+export { assertIsActor, isActor } from "./Actor.ts";
+export { assertIsActivity, isActivity } from "./Activity.ts";
 export { key } from "./namespace.ts";
 
-export type { Collection, CollectionPage, Link, Object } from "./Object.ts";
+export type {
+  Collection,
+  CollectionPage,
+  Link,
+  LinkRefs,
+  Object,
+} from "./Object.ts";
 export type { Actor } from "./Actor.ts";
 export type { Activity } from "./Activity.ts";
 

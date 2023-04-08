@@ -67,6 +67,10 @@ export class Column {
       string += " PRIMARY KEY";
     }
 
+    if (this.isAutoIncrement) {
+      string += this.dialect === "sqlite3" ? " AUTOINCREMENT" : "";
+    }
+
     if (this.isUnique && !this.isPrimary) {
       string += " UNIQUE";
     }
@@ -126,6 +130,8 @@ export class Column {
       if (!this.isPrimary) {
         this.isUnique = true;
       }
+    } else if (this.dialect === "sqlite3") {
+      this.isAutoIncrement = true;
     }
 
     return this;

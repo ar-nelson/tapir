@@ -1,3 +1,6 @@
+import { mapObject } from "$/lib/utils.ts";
+import { UlidService } from "$/services/UlidService.ts";
+import { Column } from "./Column.ts";
 import {
   Columns,
   ColumnsOf,
@@ -14,10 +17,7 @@ import { DatabaseValues, Q, QueryOperator } from "./Q.ts";
 import { JoinType, OrderDirection, QueryBuilder } from "./QueryBuilder.ts";
 import { Schema } from "./Schema.ts";
 import { Table } from "./Table.ts";
-import { Column } from "./Column.ts";
 import { DBDialects } from "./TypeUtils.ts";
-import { UlidService } from "$/services/UlidService.ts";
-import { mapObject } from "$/lib/utils.ts";
 
 export function createColumn(
   t: Table,
@@ -33,7 +33,8 @@ export function createColumn(
       c = t.text(name);
       break;
     case ColumnType.Integer:
-      c = t.integer(name);
+      if (col.autoIncrement) c = t.increments(name);
+      else c = t.integer(name);
       break;
     case ColumnType.Boolean:
       c = t.boolean(name);
@@ -49,8 +50,8 @@ export function createColumn(
       break;
   }
   if (col.nullable) c = c.nullable();
-  else c = c.notNullable();
-  if (col.default) c = c.default(col.default);
+  else if (!col.autoIncrement) c = c.notNullable();
+  if (col.default != null) c = c.default(col.default);
   return c;
 }
 
@@ -63,6 +64,9 @@ export function createTable(
     for (const [name, col] of Object.entries(table.columns)) {
       const c = createColumn(t, name, col);
       if (name === table.primaryKey) c.primary();
+    }
+    for (const index of table.indexes ?? []) {
+      t.index(typeof index === "string" ? [index] : index);
     }
   });
 }
@@ -96,16 +100,31 @@ export function insert<C extends Columns>(
   dialect: DBDialects,
   spec: TableSpec<C>,
   rows: InRow<C>[],
+  returning: (keyof C)[] = [],
   ulidService?: UlidService,
 ): { text: string; values: DatabaseValues[] } {
-  return new QueryBuilder(table, dialect).insert(
+  let q = new QueryBuilder(table, dialect).insert(
     rows.map((r) =>
       mapObject(
         r,
-        (k: keyof C, v) => inToOut(spec.columns[k], v, true, ulidService),
+        (k: keyof C, v) => {
+          if (k in spec.columns) {
+            return inToOut(spec.columns[k], v, true, ulidService);
+          }
+          throw new Error(
+            `No such column: ${JSON.stringify(k)} in table ${
+              JSON.stringify(table)
+            }`,
+          );
+        },
       )
     ),
-  ).toSQL();
+  );
+  if (returning.length) {
+    q = q.returning(...returning as string[]);
+  }
+  console.log(q.toSQL());
+  return q.toSQL();
 }
 
 export function update<C extends Columns>(

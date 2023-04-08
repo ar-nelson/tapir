@@ -1,7 +1,7 @@
+import { log } from "$/deps.ts";
 import { InjectableAbstract, Singleton } from "$/lib/inject.ts";
 import { LocalDatabaseService } from "$/services/LocalDatabaseService.ts";
 import { LocalRepoService } from "$/services/LocalRepoService.ts";
-import { log } from "$/deps.ts";
 
 export interface LocalMedia {
   readonly hash: string;

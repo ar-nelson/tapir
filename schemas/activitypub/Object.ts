@@ -1,4 +1,4 @@
-import { MatchesSchema, matchesSchema } from "$/deps.ts";
+import { assertMatchesSchema, MatchesSchema, matchesSchema } from "$/deps.ts";
 
 export const ObjectCommon = {
   id: ["optional", "string"],
@@ -88,6 +88,11 @@ export const LinkSchema = {
   let: commonDefs,
 } as const;
 
+export const LinkRefsSchema = {
+  schema: ["ref", "LinkRefs"],
+  let: commonDefs,
+} as const;
+
 export const CollectionSchema = {
   schema: ["ref", "Collection"],
   let: commonDefs,
@@ -100,6 +105,7 @@ export const CollectionPageSchema = {
 
 export type Object = MatchesSchema<typeof ObjectSchema>;
 export type Link = MatchesSchema<typeof LinkSchema>;
+export type LinkRefs = MatchesSchema<typeof LinkRefsSchema>;
 export type Collection = MatchesSchema<typeof CollectionSchema>;
 export type CollectionPage = MatchesSchema<typeof CollectionPageSchema>;
 
@@ -107,3 +113,8 @@ export const isObject = matchesSchema(ObjectSchema);
 export const isLink = matchesSchema(LinkSchema);
 export const isCollection = matchesSchema(CollectionSchema);
 export const isCollectionPage = matchesSchema(CollectionPageSchema);
+
+export const assertIsObject = assertMatchesSchema(ObjectSchema);
+export const assertIsLink = assertMatchesSchema(LinkSchema);
+export const assertIsCollection = assertMatchesSchema(CollectionSchema);
+export const assertIsCollectionPage = assertMatchesSchema(CollectionPageSchema);

@@ -1,5 +1,5 @@
 import { Injector, Singleton } from "$/lib/inject.ts";
-import { ServerConfigStore } from "$/models/ServerConfig.ts";
+import { TapirConfig } from "$/models/TapirConfig.ts";
 import { PersonaStore } from "$/models/Persona.ts";
 import { LocalPostStore } from "$/models/LocalPost.ts";
 import { LocalActivityStore } from "$/models/LocalActivity.ts";
@@ -16,9 +16,9 @@ import {
   isActivity,
   Object,
 } from "$/schemas/activitypub/mod.ts";
+import { ActivityPubGeneratorService } from "$/services/ActivityPubGeneratorService.ts";
 import { JsonLdService } from "$/services/JsonLdService.ts";
 import { JsonLdDocument } from "$/lib/jsonld.ts";
-import { publicKeyToPem } from "$/lib/signatures.ts";
 import { asyncToArray } from "$/lib/utils.ts";
 import * as urls from "$/lib/urls.ts";
 import { log, Status } from "$/deps.ts";
@@ -31,11 +31,12 @@ export interface HandlerState {
 @Singleton()
 export class ActivityPubController {
   constructor(
-    private readonly serverConfigStore: ServerConfigStore,
+    private readonly config: TapirConfig,
     private readonly personaStore: PersonaStore,
     private readonly localPostStore: LocalPostStore,
     private readonly localActivityStore: LocalActivityStore,
     private readonly inFollowStore: InFollowStore,
+    private readonly apGen: ActivityPubGeneratorService,
     private readonly jsonLd: JsonLdService,
   ) {}
 
@@ -50,55 +51,17 @@ export class ActivityPubController {
   }
 
   async getPersona(name: string): Promise<Actor | undefined> {
-    const serverConfig = await this.serverConfigStore.getServerConfig(),
-      persona = await this.personaStore.get(name);
+    const persona = await this.personaStore.get(name);
     if (!persona) {
       return undefined;
     }
-    return {
-      id: urls.activityPubActor(name, serverConfig.url),
-      type: "Person",
-
-      name: persona.displayName,
-      preferredUsername: persona.name,
-      url: urls.localProfile(persona.name, {}, serverConfig.url),
-      summary: persona.summary,
-      published: persona.createdAt.toJSON(),
-      manuallyApprovesFollowers: persona.requestToFollow,
-      discoverable: false,
-
-      inbox: urls.activityPubInbox(persona.name, serverConfig.url),
-      outbox: urls.activityPubOutbox(persona.name, serverConfig.url),
-      followers: urls.activityPubFollowers(
-        persona.name,
-        serverConfig.url,
-      ),
-      following: urls.activityPubFollowing(
-        persona.name,
-        serverConfig.url,
-      ),
-
-      icon: {
-        type: "Image",
-        mediaType: "image/jpeg",
-        url: urls.urlJoin(serverConfig.url, "tapir-avatar.jpg"),
-      },
-
-      publicKey: {
-        id: `${urls.activityPubActor(persona.name, serverConfig.url)}#main-key`,
-        owner: urls.activityPubActor(persona.name, serverConfig.url),
-        publicKeyPem: await publicKeyToPem(
-          serverConfig.publicKey,
-        ),
-      },
-    };
+    return this.apGen.actor(persona, await this.personaStore.publicKey(name));
   }
 
   async getPostCollection(
     personaName: string,
   ): Promise<Collection | undefined> {
-    const serverConfig = await this.serverConfigStore.getServerConfig(),
-      persona = await this.personaStore.get(personaName),
+    const persona = await this.personaStore.get(personaName),
       posts: Activity[] = [];
     if (!persona) {
       return undefined;
@@ -116,38 +79,24 @@ export class ActivityPubController {
       }
       posts.push(activity.json);
     }
-    return {
-      id: urls.activityPubOutbox(personaName, serverConfig.url),
-      type: "OrderedCollection",
-
-      totalItems: posts.length,
-      orderedItems: posts,
-    };
+    return this.apGen.collection(
+      urls.activityPubOutbox(personaName, this.config.url),
+      posts,
+    );
   }
 
   async getFollowers(personaName: string): Promise<Collection | undefined> {
-    const serverConfig = await this.serverConfigStore.getServerConfig(),
-      followers = await asyncToArray(
-        this.inFollowStore.listFollowers(personaName),
-      );
-    return {
-      id: urls.activityPubFollowers(personaName, serverConfig.url),
-      type: "OrderedCollectionPage",
-
-      totalItems: followers.length,
-      orderedItems: followers.map((f) => f.actor),
-    };
+    return this.apGen.collectionPage(
+      urls.activityPubFollowers(personaName, this.config.url),
+      await asyncToArray(this.inFollowStore.listFollowers(personaName)),
+    );
   }
 
-  async getFollowing(personaName: string): Promise<Collection | undefined> {
-    const serverConfig = await this.serverConfigStore.getServerConfig();
-    return {
-      id: urls.activityPubFollowing(personaName, serverConfig.url),
-      type: "OrderedCollectionPage",
-
-      totalItems: 0,
-      orderedItems: [],
-    };
+  getFollowing(personaName: string): Promise<Collection | undefined> {
+    return Promise.resolve(this.apGen.collectionPage(
+      urls.activityPubFollowing(personaName, this.config.url),
+      [],
+    ));
   }
 
   async getActivity(id: string): Promise<Activity | null> {

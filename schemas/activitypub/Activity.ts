@@ -1,4 +1,4 @@
-import { MatchesSchema, matchesSchema } from "$/deps.ts";
+import { assertMatchesSchema, MatchesSchema, matchesSchema } from "$/deps.ts";
 import { commonDefs, ObjectCommon } from "$/schemas/activitypub/Object.ts";
 
 export const schema = {
@@ -51,3 +51,4 @@ export const schema = {
 export type Activity = MatchesSchema<typeof schema>;
 
 export const isActivity = matchesSchema(schema);
+export const assertIsActivity = assertMatchesSchema(schema);

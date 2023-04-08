@@ -1,3 +1,7 @@
+// deno-lint-ignore-file no-explicit-any
+import { log, Sqlite } from "$/deps.ts";
+import { DBFactory } from "$/lib/db/DBFactory.ts";
+import { Constructor, Singleton } from "$/lib/inject.ts";
 import {
   ColumnOf,
   Columns,
@@ -24,11 +28,8 @@ import {
   TableSpec,
   update,
 } from "$/lib/sql/mod.ts";
-import { DBFactory } from "$/lib/db/DBFactory.ts";
-import { UlidService } from "$/services/UlidService.ts";
-import { Constructor, Singleton } from "$/lib/inject.ts";
 import { fileExists, mapObject } from "$/lib/utils.ts";
-import { log, Sqlite } from "$/deps.ts";
+import { UlidService } from "$/services/UlidService.ts";
 
 function rowConverter<C extends Columns>(
   spec: TableSpec<C>,
@@ -42,6 +43,8 @@ function rowConverter<C extends Columns>(
         case ColumnType.Json:
           return (r) =>
             last(r[k] != null ? { ...r, [k]: JSON.parse(r[k] as string) } : r);
+        case ColumnType.Boolean:
+          return (r) => last(r[k] == null ? r : { ...r, [k]: !!r[k] });
         default:
           return last;
       }
@@ -60,8 +63,7 @@ class SqliteDBApi<Spec extends DatabaseSpec> implements DBLike<Spec> {
       ) => Partial<OutRow<ColumnsOf<Spec, T>>>;
     },
     protected dbPromise: Promise<Sqlite>,
-  ) {
-  }
+  ) {}
 
   get<T extends TableOf<Spec>>(table: T, options?: {
     where?: Query<ColumnsOf<Spec, T>>;
@@ -138,19 +140,36 @@ class SqliteDBApi<Spec extends DatabaseSpec> implements DBLike<Spec> {
     return db.query(text, values)[0][0] as number;
   }
 
-  async insert<T extends TableOf<Spec>>(
+  insert<T extends TableOf<Spec>>(
     table: T,
     rows: InRow<ColumnsOf<Spec, T>>[],
-  ): Promise<void> {
+  ): Promise<void>;
+
+  insert<T extends TableOf<Spec>, Returned extends ColumnOf<Spec, T>>(
+    table: T,
+    rows: InRow<ColumnsOf<Spec, T>>[],
+    returning: Returned[],
+  ): Promise<Pick<OutRow<ColumnsOf<Spec, T>>, Returned>[]>;
+
+  async insert<T extends TableOf<Spec>, Returned extends ColumnOf<Spec, T>>(
+    table: T,
+    rows: InRow<ColumnsOf<Spec, T>>[],
+    returning?: ColumnOf<Spec, T>[],
+  ): Promise<void | Pick<OutRow<ColumnsOf<Spec, T>>, Returned>[]> {
     const db = await this.dbPromise,
       { text, values } = insert(
         table,
         "sqlite3",
         this.spec.tables[table],
         rows,
+        returning,
         this.ulid,
       );
-    db.query(text, values);
+    return db.queryEntries(text, values).map(
+      this.convertRow[table] as any,
+    ) as OutRow<
+      ColumnsOf<Spec, T>
+    >[];
   }
 
   async update<T extends TableOf<Spec>>(
@@ -206,7 +225,7 @@ export abstract class SqliteDB<Spec extends DatabaseSpec>
             await Deno.remove(filename);
           }
         }
-        const db = new Sqlite(filename);
+        let db = new Sqlite(filename);
         if (
           db.query(new Schema("sqlite3").hasTable("_version")).length
         ) {
@@ -219,7 +238,13 @@ export abstract class SqliteDB<Spec extends DatabaseSpec>
               `Database version is in the future: got ${foundVersion}, expected ${spec.version}`,
             );
           } else if (foundVersion < spec.version) {
-            migrateSqliteDatabase(db, foundVersion, specVersions);
+            db = await migrateSqliteDatabase(
+              db,
+              filename,
+              foundVersion,
+              specVersions,
+              ulid,
+            );
           }
         } else {
           log.info(
@@ -287,35 +312,94 @@ export class SqliteDBFactory extends DBFactory {
   }
 }
 
-function migrateSqliteDatabase(
+async function migrateSqliteDatabase(
   db: Sqlite,
+  filename: string,
   currentVersion: number,
   specVersions: readonly DatabaseSpec[],
-) {
-  const startAt = specVersions.findIndex((s) => s.version === currentVersion);
-  if (startAt === -1) {
-    throw new Error(
-      `Cannot migrate database: no past spec exists for version ${currentVersion}`,
-    );
-  }
-  for (let i = startAt; i < specVersions.length - 1; i++) {
-    const from = specVersions[i],
-      to = specVersions[i + 1],
-      sql = schemaMigration("sqlite3", from, to);
-    log.info(
-      `RUNNING DATABASE MIGRATION FROM VERSION ${from.version} TO ${to.version}:`,
-    );
-    for (const line of sql) {
-      log.info(line);
-      db.execute(line);
+  ulid: UlidService,
+): Promise<Sqlite> {
+  db.close();
+  const backupFile = filename + ".backup";
+  await Deno.copyFile(filename, backupFile);
+  db = new Sqlite(filename);
+  let lastVersion = currentVersion, nextVersion = currentVersion;
+
+  try {
+    const startAt = specVersions.findIndex((s) => s.version === currentVersion);
+    if (startAt === -1) {
+      throw new Error(
+        `Cannot migrate database: no past spec exists for version ${currentVersion}`,
+      );
     }
-    const { text, values } = new QueryBuilder("_version", "sqlite3").where(
-      "version",
-      from.version,
-    ).update({
-      version: to.version,
-    }).toSQL();
-    db.query(text, values);
-    log.info("MIGRATION COMPLETE");
+    for (let i = startAt; i < specVersions.length - 1; i++) {
+      const from = specVersions[i],
+        to = specVersions[i + 1];
+      lastVersion = from.version, nextVersion = to.version;
+      const postMigrateHooks = await Promise.all(
+        Object.values(to.tables).map(async ({ preMigrate, postMigrate }) => {
+          let migrateArg: unknown = undefined;
+          if (preMigrate) {
+            migrateArg = await preMigrate(
+              new SqliteDBApi(
+                from,
+                ulid,
+                mapObject(from.tables, (_k, v) => rowConverter(v)) as any,
+                Promise.resolve(db),
+              ),
+            );
+          }
+          return { migrateArg, postMigrate };
+        }),
+      );
+      const sql = schemaMigration("sqlite3", from, to);
+      log.info(
+        `RUNNING DATABASE MIGRATION FROM VERSION ${from.version} TO ${to.version}:`,
+      );
+      for (const line of sql) {
+        log.info(line);
+        db.execute(line);
+      }
+      for (const { migrateArg, postMigrate } of postMigrateHooks) {
+        if (postMigrate) {
+          await postMigrate(
+            new SqliteDBApi(
+              to,
+              ulid,
+              mapObject(to.tables, (_k, v) => rowConverter(v)) as any,
+              Promise.resolve(db),
+            ),
+            migrateArg,
+          );
+        }
+      }
+      const { text, values } = new QueryBuilder("_version", "sqlite3").where(
+        "version",
+        from.version,
+      ).update({
+        version: to.version,
+      }).toSQL();
+      db.query(text, values);
+      log.info("MIGRATION COMPLETE");
+    }
+    await Deno.remove(backupFile);
+  } catch (e) {
+    log.critical("!! SQLITE DATABASE MIGRATION FAILED !!");
+    log.critical(
+      `Migration of ${filename} from v${lastVersion} to v${nextVersion} failed with exception:`,
+    );
+    log.critical(e);
+    db.close();
+    await Deno.rename(backupFile, filename);
+    log.critical(
+      "THIS IS AN UNRECOVERABLE ERROR, but your data has not been lost. The database has been restored to its previous state.",
+    );
+    log.critical(
+      "Please report this error at https://github.com/ar-nelson/tapir/issues",
+    );
+
+    Deno.exit(1);
   }
+
+  return db;
 }

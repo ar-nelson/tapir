@@ -1,20 +1,23 @@
 import { InjectableAbstract, Singleton } from "$/lib/inject.ts";
 import { OrderDirection, Q } from "$/lib/sql/mod.ts";
-import { LocalDatabaseService } from "$/services/LocalDatabaseService.ts";
-import { UlidService } from "$/services/UlidService.ts";
+import * as urls from "$/lib/urls.ts";
+import { ActivityDispatchStore } from "$/models/ActivityDispatch.ts";
+import { InFollowStore } from "$/models/InFollow.ts";
 import { LocalActivityStore } from "$/models/LocalActivity.ts";
 import { LocalAttachment } from "$/models/LocalAttachment.ts";
 import { LocalMediaStore } from "$/models/LocalMedia.ts";
-import { ServerConfigStore } from "$/models/ServerConfig.ts";
-import { Activity, key, Object } from "$/schemas/activitypub/mod.ts";
-import * as urls from "$/lib/urls.ts";
+import { TapirConfig } from "$/models/TapirConfig.ts";
+import { ActivityPubGeneratorService } from "$/services/ActivityPubGeneratorService.ts";
+import { LocalDatabaseService } from "$/services/LocalDatabaseService.ts";
+import { UlidService } from "$/services/UlidService.ts";
 
 export enum PostType {
   Note = 0,
   Reply = 1,
   Boost = 2,
-  Quote = 3,
-  Poll = 4,
+  Poll = 3,
+  Article = 4,
+  Link = 5,
 }
 
 export interface LocalPost {
@@ -58,83 +61,17 @@ export abstract class LocalPostStore {
 
 @Singleton(LocalPostStore)
 export class LocalPostStoreImpl extends LocalPostStore {
-  private readonly serverConfig;
-
   constructor(
     private readonly db: LocalDatabaseService,
-    private readonly localActivityStore: LocalActivityStore,
+    private readonly apGen: ActivityPubGeneratorService,
+    private readonly activityDispatchStore: ActivityDispatchStore,
     private readonly localMediaStore: LocalMediaStore,
+    private readonly localActivityStore: LocalActivityStore,
+    private readonly inFollowStore: InFollowStore,
     private readonly ulid: UlidService,
-    serverConfigStore: ServerConfigStore,
+    private readonly config: TapirConfig,
   ) {
     super();
-    this.serverConfig = serverConfigStore.getServerConfig();
-  }
-
-  async #publicActivity(
-    persona: string,
-    props: {
-      type: Activity["type"];
-      createdAt?: Date;
-      object?: Object | string;
-      target?: Object | string;
-    },
-  ): Promise<Omit<Activity, "id">> {
-    return {
-      type: props.type,
-      actor: urls.activityPubActor(
-        persona,
-        (await this.serverConfig).url,
-      ),
-      to: key.Public,
-      cc: urls.activityPubFollowers(
-        persona,
-        (await this.serverConfig).url,
-      ),
-      published: (props.createdAt ?? new Date()).toJSON(),
-      ...props.object ? { object: props.object } : {},
-      ...props.target ? { target: props.target } : {},
-    };
-  }
-
-  async #publicNote(persona: string, props: Partial<Object>): Promise<Object> {
-    return {
-      type: props.type ?? "Note",
-      attributedTo: urls.localProfile(
-        persona,
-        {},
-        (await this.serverConfig).url,
-      ),
-      to: key.Public,
-      cc: urls.activityPubFollowers(
-        persona,
-        (await this.serverConfig).url,
-      ),
-      ...props,
-    };
-  }
-
-  async #attachment(attachment: LocalAttachment): Promise<Object> {
-    const media = await this.localMediaStore.getMeta(attachment.original);
-    if (media == null) {
-      throw new Error(
-        `No media exists for attachment with hash ${attachment.original}`,
-      );
-    }
-    const obj = {
-      type: "Document",
-      mediaType: media.mimetype,
-      url: urls.localMediaWithMimetype(
-        media.hash,
-        media.mimetype,
-        (await this.serverConfig).url,
-      ),
-      ...media.width ? { width: media.width } : {},
-      ...media.height ? { height: media.height } : {},
-      ...attachment.blurhash ? { blurhash: attachment.blurhash } : {},
-      ...attachment.alt ? { name: attachment.alt } : {},
-    };
-    return obj;
   }
 
   async *list({ persona, limit, beforeId, order = "DESC" }: {
@@ -194,22 +131,34 @@ export class LocalPostStoreImpl extends LocalPostStore {
       createdAt,
       collapseSummary: post.collapseSummary,
     }]);
-    const attachments = createAttachments ? await createAttachments(id) : [];
-    await this.localActivityStore.create(
-      await this.#publicActivity(post.persona, {
+    const attachments = createAttachments ? await createAttachments(id) : [],
+      media = await Promise.all(attachments.map(async (attachment) => {
+        const media = await this.localMediaStore.getMeta(attachment.original);
+        if (media == null) {
+          throw new Error(
+            `No media exists for attachment with hash ${attachment.original}`,
+          );
+        }
+        return media;
+      }));
+    await this.activityDispatchStore.createAndDispatch(
+      await this.inFollowStore.listFollowerInboxes(post.persona),
+      this.apGen.publicActivity(post.persona, {
         type: "Create",
         createdAt,
-        object: await this.#publicNote(post.persona, {
+        object: this.apGen.publicObject(post.persona, {
+          type: "Note",
           content: post.content,
           published: createdAt.toJSON(),
           updated: createdAt.toJSON(),
           summary: post.collapseSummary,
           attachment: await Promise.all(
-            attachments.map((a) => this.#attachment(a)),
+            attachments.map((a, i) =>
+              this.apGen.attachment({ ...media[i], ...a })
+            ),
           ),
         }),
       }),
-      post.persona,
       id,
     );
     return id;
@@ -238,14 +187,14 @@ export class LocalPostStoreImpl extends LocalPostStore {
       collapseSummary: update.collapseSummary,
       updatedAt,
     });
-    await this.localActivityStore.create(
-      await this.#publicActivity(existing.persona, {
+    await this.activityDispatchStore.createAndDispatch(
+      await this.activityDispatchStore.inboxesWhichReceived(id),
+      this.apGen.publicActivity(existing.persona, {
         type: "Update",
         createdAt: updatedAt,
-        target: urls.activityPubObject(id, (await this.serverConfig).url),
+        target: urls.activityPubObject(id, this.config.url),
         object: newJson,
       }),
-      existing.persona,
     );
     await this.localActivityStore.updateObject(id, newJson);
   }
@@ -256,12 +205,17 @@ export class LocalPostStoreImpl extends LocalPostStore {
       return;
     }
     await this.db.delete("post", { id });
-    await this.localActivityStore.create(
-      await this.#publicActivity(existing.persona, {
+
+    // TODO: This is not suffficient if there are still pending Creates!
+    // The pending Creates should be canceled.
+    // Also a Delete should probably just be spammed to the whole network.
+
+    await this.activityDispatchStore.createAndDispatch(
+      await this.activityDispatchStore.inboxesWhichReceived(id),
+      this.apGen.publicActivity(existing.persona, {
         type: "Delete",
-        target: urls.activityPubObject(id, (await this.serverConfig).url),
+        target: urls.activityPubObject(id, this.config.url),
       }),
-      existing.persona,
     );
   }
 }

@@ -1,3 +1,4 @@
+import { Constructor } from "$/lib/inject.ts";
 import {
   ColumnOf,
   ColumnsOf,
@@ -11,7 +12,6 @@ import {
   Query,
   TableOf,
 } from "$/lib/sql/mod.ts";
-import { Constructor } from "$/lib/inject.ts";
 
 export abstract class AbstractDatabaseService<Spec extends DatabaseSpec>
   implements DB<Spec> {
@@ -53,6 +53,12 @@ export abstract class AbstractDatabaseService<Spec extends DatabaseSpec>
     table: T,
     rows: InRow<ColumnsOf<Spec, T>>[],
   ): Promise<void>;
+
+  abstract insert<T extends TableOf<Spec>, Returned extends ColumnOf<Spec, T>>(
+    table: T,
+    rows: InRow<ColumnsOf<Spec, T>>[],
+    returning: Returned[],
+  ): Promise<Pick<OutRow<ColumnsOf<Spec, T>>, Returned>[]>;
 
   abstract update<T extends TableOf<Spec>>(
     table: T,

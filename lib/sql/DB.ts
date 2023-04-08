@@ -1,6 +1,6 @@
+import { UlidService } from "$/services/UlidService.ts";
 import { DatabaseValues, Q } from "./Q.ts";
 import { JoinType, OrderDirection } from "./QueryBuilder.ts";
-import { UlidService } from "$/services/UlidService.ts";
 
 export enum ColumnType {
   Ulid,
@@ -37,6 +37,7 @@ export interface ColumnSpec<T extends ColumnType> {
   default?: ColumnTypeInValue<T>;
   nullable?: boolean;
   renamedFrom?: string;
+  autoIncrement?: boolean;
 }
 
 export type ColumnInValue<S extends ColumnSpec<ColumnType>> =
@@ -58,6 +59,12 @@ export type TableSpec<C extends Columns> = {
   primaryKey: keyof C & string;
   columns: C;
   renamedFrom?: string;
+  indexes?: readonly (string | readonly string[])[];
+  preMigrate?: (db: DBLike<DatabaseSpec>) => Promise<unknown>;
+  postMigrate?: (
+    db: DBLike<DatabaseSpec>,
+    preMigrateState?: unknown,
+  ) => Promise<void>;
 };
 
 export type InRow<C extends Columns> =
@@ -199,6 +206,12 @@ export interface DBLike<Spec extends DatabaseSpec> {
     table: T,
     rows: InRow<ColumnsOf<Spec, T>>[],
   ): Promise<void>;
+
+  insert<T extends TableOf<Spec>, Returned extends ColumnOf<Spec, T>>(
+    table: T,
+    rows: InRow<ColumnsOf<Spec, T>>[],
+    returning: Returned[],
+  ): Promise<Pick<OutRow<ColumnsOf<Spec, T>>, Returned>[]>;
 
   update<T extends TableOf<Spec>>(
     table: T,

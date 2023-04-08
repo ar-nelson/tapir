@@ -1,9 +1,4 @@
-import { Repo } from "./Repo.ts";
-import {
-  RepoConfig,
-  ServerConfig,
-  ServerConfigStore,
-} from "$/models/ServerConfig.ts";
+import { RepoConfig, TapirConfig } from "$/models/TapirConfig.ts";
 import { ConditionalResolver, Constructor, Singleton } from "$/lib/inject.ts";
 import { AbstractRepoService, RepoFactory } from "$/lib/repo/RepoFactory.ts";
 import { InMemoryRepoFactory } from "$/lib/repo/InMemoryRepo.ts";
@@ -12,33 +7,31 @@ import { dirExists } from "$/lib/utils.ts";
 import { path } from "$/deps.ts";
 
 export function RepoSelector<Service extends AbstractRepoService>(
-  getConfig: (serverConfig: ServerConfig) => RepoConfig,
-  fileSystemPath: string,
+  getConfig: (config: TapirConfig) => Required<RepoConfig>,
 ): Constructor<ConditionalResolver<Service>> {
   @Singleton()
   class DBSelectorImpl extends ConditionalResolver<Service> {
     constructor(
-      private readonly serverConfigStore: ServerConfigStore,
+      private readonly config: TapirConfig,
     ) {
       super();
     }
 
     async resolve(): Promise<Constructor<Service>> {
-      const serverConfig = await this.serverConfigStore.getServerConfig(),
-        repoConfig = getConfig(serverConfig);
+      const repoConfig = getConfig(this.config);
       let factory: RepoFactory;
       switch (repoConfig.type) {
         case "inmemory":
           factory = new InMemoryRepoFactory();
           break;
         case "file":
-          if (!await dirExists(serverConfig.dataDir)) {
-            await Deno.mkdir(serverConfig.dataDir, { recursive: true });
+          if (!await dirExists(this.config.dataDir)) {
+            await Deno.mkdir(this.config.dataDir, { recursive: true });
           }
           factory = new FileSystemRepoFactory(
             path.join(
-              serverConfig.dataDir,
-              repoConfig.path ?? fileSystemPath,
+              this.config.dataDir,
+              repoConfig.path,
             ),
           );
           break;

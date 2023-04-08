@@ -1,62 +1,38 @@
-import { InjectableAbstract, Singleton } from "$/lib/inject.ts";
-import * as urls from "$/lib/urls.ts";
-import { Activity } from "$/schemas/activitypub/mod.ts";
-import { LocalDatabaseService } from "$/services/LocalDatabaseService.ts";
-import { ActivityDispatcher, Priority } from "$/services/ActivityDispatcher.ts";
-import { Actor, isActor } from "$/schemas/activitypub/mod.ts";
-import { LocalActivityStore } from "$/models/LocalActivity.ts";
-import { LocalPostStore } from "$/models/LocalPost.ts";
-import { ServerConfigStore } from "$/models/ServerConfig.ts";
-import { KnownServerStore } from "$/models/KnownServer.ts";
-import { PersonaStoreReadOnly } from "$/models/Persona.ts";
 import { log } from "$/deps.ts";
-import {
-  InFollowStoreReadOnly,
-  InFollowStoreReadOnlyImpl,
-} from "./InFollowStoreReadOnly.ts";
-export * from "./InFollowStoreReadOnly.ts";
+import { InjectableAbstract, Singleton } from "$/lib/inject.ts";
+import { Q } from "$/lib/sql/mod.ts";
+import { ActivityDispatchStore } from "$/models/ActivityDispatch.ts";
+import { KnownActorStore } from "$/models/KnownActor.ts";
+import { KnownServerStoreReadOnly } from "$/models/KnownServer.ts";
+import { PersonaStoreReadOnly } from "$/models/PersonaStoreReadOnly.ts";
+import { ActivityPubGeneratorService } from "$/services/ActivityPubGeneratorService.ts";
+import { LocalDatabaseService } from "$/services/LocalDatabaseService.ts";
 
-export enum InFollowErrorType {
-  BadPersona,
-  BadActor,
-  DuplicateFollow,
-}
-
-export class InFollowError extends Error {
-  constructor(public readonly type: InFollowErrorType, message: string) {
-    super(message);
-  }
+export interface InFollow {
+  readonly id: string;
+  readonly actor: string;
+  readonly persona: string;
+  readonly createdAt: Date;
+  readonly acceptedAt: Date | null;
 }
 
 @InjectableAbstract()
-export abstract class InFollowStore extends InFollowStoreReadOnly {
-  constructor(private readonly base: InFollowStoreReadOnly) {
-    super();
-  }
+export abstract class InFollowStore {
+  abstract listFollowers(persona: string): AsyncIterable<InFollow>;
 
-  listFollowers(persona: string) {
-    return this.base.listFollowers(persona);
-  }
+  abstract listRequests(persona: string): AsyncIterable<InFollow>;
 
-  listRequests(persona: string) {
-    return this.base.listRequests(persona);
-  }
+  abstract get(
+    params: { id: string } | { actor: string; persona: string },
+  ): Promise<InFollow | null>;
 
-  listFollowerInboxes(persona: string) {
-    return this.base.listFollowerInboxes(persona);
-  }
+  abstract countFollowers(persona: string): Promise<number>;
 
-  get(params: { id: string } | { actor: string; persona: string }) {
-    return this.base.get(params);
-  }
+  abstract countRequests(persona: string): Promise<number>;
 
-  countFollowers(persona: string) {
-    return this.base.countFollowers(persona);
-  }
+  abstract listFollowerInboxes(persona: string): Promise<URL[]>;
 
-  countRequests(persona: string) {
-    return this.base.countRequests(persona);
-  }
+  abstract onAccept(fn: (follow: InFollow) => void): void;
 
   abstract create(
     params: { id: string; actor: string; persona: string },
@@ -73,24 +49,96 @@ export abstract class InFollowStore extends InFollowStoreReadOnly {
   abstract delete(
     params: { id: string } | { actor: string; persona: string },
   ): Promise<void>;
+
+  abstract deleteAllForPersona(persona: string): Promise<void>;
+}
+
+export enum InFollowErrorType {
+  BadPersona,
+  BadActor,
+  DuplicateFollow,
+}
+
+export class InFollowError extends Error {
+  constructor(public readonly type: InFollowErrorType, message: string) {
+    super(message);
+  }
 }
 
 @Singleton(InFollowStore)
 export class InFollowStoreImpl extends InFollowStore {
-  readonly #serverConfig;
+  readonly #onAcceptListeners = new Set<(follow: InFollow) => void>();
+  #followerInboxSet: Promise<URL[]> | null = null;
 
   constructor(
     private readonly db: LocalDatabaseService,
-    private readonly knownServerStore: KnownServerStore,
-    private readonly localActivityStore: LocalActivityStore,
-    private readonly localPostStore: LocalPostStore,
+    private readonly apGen: ActivityPubGeneratorService,
+    private readonly knownServerStore: KnownServerStoreReadOnly,
+    private readonly knownActorStore: KnownActorStore,
+    private readonly activityDispatchStore: ActivityDispatchStore,
     private readonly personaStore: PersonaStoreReadOnly,
-    private readonly activityDispatcher: ActivityDispatcher,
-    serverConfigStore: ServerConfigStore,
-    private readonly _base: InFollowStoreReadOnlyImpl,
   ) {
-    super(_base);
-    this.#serverConfig = serverConfigStore.getServerConfig();
+    super();
+  }
+
+  listFollowers(persona: string): AsyncIterable<InFollow> {
+    return this.db.get("inFollow", {
+      where: { acceptedAt: Q.notNull(), persona },
+    });
+  }
+
+  listRequests(persona: string): AsyncIterable<InFollow> {
+    return this.db.get("inFollow", {
+      where: { acceptedAt: Q.null(), persona },
+    });
+  }
+
+  listFollowerInboxes(persona: string): Promise<URL[]> {
+    if (this.#followerInboxSet) return this.#followerInboxSet;
+    return this.#followerInboxSet = (async () => {
+      const inboxen = new Set<string>(), skipServers = new Set<string>();
+      for await (const { actor: url } of this.listFollowers(persona)) {
+        const actor = await this.knownActorStore.get(new URL(url));
+        if (!actor) {
+          log.warning(`No known actor with URL ${url}`);
+          continue;
+        }
+        const { server, inbox } = actor;
+        if (skipServers.has(server)) continue;
+        console.log(server);
+        const knownServer = await this.knownServerStore.get(new URL(server));
+        if (knownServer && knownServer.sharedInbox) {
+          inboxen.add(knownServer.sharedInbox);
+          skipServers.add(server);
+        } else {
+          inboxen.add(inbox);
+        }
+      }
+      return [...inboxen].map((s) => new URL(s));
+    })();
+  }
+
+  async get(
+    params: { id: string } | { actor: string; persona: string },
+  ): Promise<InFollow | null> {
+    for await (
+      const p of this.db.get("inFollow", { where: params, limit: 1 })
+    ) {
+      return p;
+    }
+    return null;
+  }
+
+  countFollowers(persona: string): Promise<number> {
+    return this.db.count("inFollow", { acceptedAt: Q.notNull(), persona });
+  }
+
+  countRequests(persona: string): Promise<number> {
+    return this.db.count("inFollow", { acceptedAt: Q.null(), persona });
+  }
+
+  expireFollowerInboxes() {
+    this.#followerInboxSet = null;
   }
 
   async create(
@@ -105,87 +153,65 @@ export class InFollowStoreImpl extends InFollowStore {
         }`,
       );
     }
-    let actorUrl: URL, actor: Actor;
+    let actorUrl: URL;
     try {
       actorUrl = new URL(params.actor);
-      actor = await this.activityDispatcher.request(
-        actorUrl,
-        params.persona,
-        Priority.Soon,
-      ) as Actor;
-    } catch (e) {
-      log.error(`Failed to fetch actor at ${params.actor}:`);
-      log.error(e);
+    } catch {
       throw new InFollowError(
         InFollowErrorType.BadActor,
-        `Failed to fetch actor at ${params.actor}: ${e?.message ?? e}`,
+        `Not a valid actor ID URL: ${params.actor}`,
       );
     }
-    if (!isActor(actor)) {
+    const actor = await this.knownActorStore.fetch(actorUrl, params.persona);
+    if (!actor) {
       throw new InFollowError(
         InFollowErrorType.BadActor,
-        `JSON at ${params.actor} was not a valid ActivityPub Actor`,
+        `Actor does not exist or is not valid: ${params.actor}`,
       );
     }
     log.info(`New follow from ${params.actor} to persona ${params.persona}`);
-    this.knownServerStore.seen(actorUrl, actor.endpoints?.sharedInbox);
-    const now = new Date();
-    await this.db.transaction(async (t) => {
-      for await (
-        const { createdAt } of t.get("inFollow", {
-          where: { actor: params.actor, persona: params.persona },
-          limit: 1,
-          returning: ["createdAt"],
-        })
-      ) {
-        throw new InFollowError(
-          InFollowErrorType.DuplicateFollow,
-          `Follow from ${params.actor} -> ${params.persona} already exists (at ${createdAt})`,
-        );
-      }
-      await t.insert("inFollow", [{
-        ...params,
-        name: actor.preferredUsername,
-        inbox: actor.inbox,
-        server: `${actorUrl.protocol}//${actorUrl.host}`,
-        createdAt: now,
-        acceptedAt: persona.requestToFollow ? null : now,
-      }]);
-    });
+    const now = new Date(),
+      follow = await this.db.transaction(async (t) => {
+        for await (
+          const { createdAt } of t.get("inFollow", {
+            where: { actor: params.actor, persona: params.persona },
+            limit: 1,
+            returning: ["createdAt"],
+          })
+        ) {
+          throw new InFollowError(
+            InFollowErrorType.DuplicateFollow,
+            `Follow from ${params.actor} -> ${params.persona} already exists (at ${createdAt})`,
+          );
+        }
+        const follow = {
+          ...params,
+          createdAt: now,
+          acceptedAt: persona.requestToFollow ? null : now,
+        };
+        await t.insert("inFollow", [follow]);
+        return follow;
+      });
     if (!persona.requestToFollow) {
-      this.#onAccept(params.id, params.persona, params.actor, actor.inbox, now);
+      this.#onAccept(new URL(actor.inbox), follow);
     }
   }
 
-  async #onAccept(
-    id: string,
-    persona: string,
-    actor: string,
-    inbox: string,
-    now: Date,
-  ) {
-    this.localActivityStore.create({
-      type: "Accept",
-      actor: urls.activityPubActor(persona, (await this.#serverConfig).url),
-      published: now.toJSON(),
-      to: actor,
-      object: id,
-    }, persona);
-    this._base.expireFollowerInboxes();
-    const activities: Activity[] = [];
-    for await (
-      const post of this.localPostStore.list({ persona, order: "ASC" })
-    ) {
-      // TODO: Handle posts with limited visibility
-      const activity = await this.localActivityStore.get(post.id);
-      if (activity) activities.push(activity.json);
-    }
-    await this.activityDispatcher.dispatchAllTo(
-      new URL(inbox),
-      activities,
-      persona,
-      Priority.Optional,
+  onAccept(listener: (follow: InFollow) => void): void {
+    this.#onAcceptListeners.add(listener);
+  }
+
+  #onAccept(inbox: URL, follow: InFollow) {
+    this.activityDispatchStore.createAndDispatch(
+      inbox,
+      this.apGen.directActivity(follow.persona, follow.actor, {
+        type: "Accept",
+        createdAt: follow.createdAt,
+        object: follow.id,
+      }),
     );
+    this.expireFollowerInboxes();
+    this.#onAcceptListeners.forEach((l) => l(follow));
   }
 
   async accept(
@@ -199,13 +225,9 @@ export class InFollowStoreImpl extends InFollowStore {
     }
     const now = new Date();
     await this.db.update("inFollow", { id: existing.id }, { acceptedAt: now });
-    this.#onAccept(
-      existing.id,
-      existing.persona,
-      existing.actor,
-      existing.inbox,
-      now,
-    );
+    const { inbox } =
+      (await this.knownActorStore.get(new URL(existing.actor)))!;
+    this.#onAccept(new URL(inbox), { ...existing, acceptedAt: now });
   }
 
   async reject(
@@ -218,16 +240,15 @@ export class InFollowStoreImpl extends InFollowStore {
       );
     }
     await this.db.delete("inFollow", params);
-    this.localActivityStore.create({
-      type: "Reject",
-      actor: urls.activityPubActor(
-        existing.persona,
-        (await this.#serverConfig).url,
-      ),
-      published: new Date().toJSON(),
-      to: existing.actor,
-      object: existing.id,
-    }, existing.persona);
+    const { inbox } =
+      (await this.knownActorStore.get(new URL(existing.actor)))!;
+    this.activityDispatchStore.createAndDispatch(
+      new URL(inbox),
+      this.apGen.directActivity(existing.persona, existing.actor, {
+        type: "Reject",
+        object: existing.id,
+      }),
+    );
   }
 
   async delete(
@@ -240,5 +261,9 @@ export class InFollowStoreImpl extends InFollowStore {
       );
     }
     await this.db.delete("inFollow", params);
+  }
+
+  async deleteAllForPersona(persona: string) {
+    await this.db.delete("inFollow", { persona });
   }
 }

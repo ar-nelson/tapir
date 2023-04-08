@@ -1,7 +1,8 @@
 import { LocalPostStore, PostType } from "$/models/LocalPost.ts";
-import { ServerConfigStore } from "$/models/ServerConfig.ts";
+import { InstanceConfigStore } from "$/models/InstanceConfig.ts";
 import { Persona, PersonaStore } from "$/models/Persona.ts";
 import { InFollow, InFollowStore } from "$/models/InFollow.ts";
+import { KnownActorStore } from "$/models/KnownActor.ts";
 import { LocalAttachmentStore } from "$/models/LocalAttachment.ts";
 import {
   FollowDetail,
@@ -11,7 +12,7 @@ import {
 import { Singleton } from "$/lib/inject.ts";
 import { asyncToArray } from "$/lib/utils.ts";
 import * as urls from "$/lib/urls.ts";
-import { FormDataBody, log } from "$/deps.ts";
+import { base64, FormDataBody, log } from "$/deps.ts";
 
 interface PersonaFollows {
   persona: Persona;
@@ -22,29 +23,39 @@ interface PersonaFollows {
 @Singleton()
 export class SettingsController {
   constructor(
-    private readonly serverConfigStore: ServerConfigStore,
+    private readonly instanceConfigStore: InstanceConfigStore,
     private readonly personaStore: PersonaStore,
     private readonly localPostStore: LocalPostStore,
     private readonly localAttachmentStore: LocalAttachmentStore,
     private readonly inFollowStore: InFollowStore,
+    private readonly knownActorStore: KnownActorStore,
   ) {}
 
   async #userDetail(): Promise<UserDetail> {
-    const serverConfig = await this.serverConfigStore.getServerConfig(),
+    const instanceConfig = await this.instanceConfigStore.get(),
       personas = await asyncToArray(this.personaStore.list());
     return {
-      serverName: serverConfig.displayName,
+      serverName: instanceConfig.displayName,
       personas,
     };
   }
 
-  async #followDetail(f: InFollow): Promise<FollowRequestDetail> {
+  async #followDetail(inFollow: InFollow): Promise<FollowRequestDetail> {
+    const actor = await this.knownActorStore.get(new URL(inFollow.actor)) ??
+      {
+        name: inFollow.actor,
+        server: new URL(inFollow.actor).host,
+        displayName: undefined,
+        smallAvatar: undefined,
+      };
     return {
-      id: f.id,
-      url: f.actor,
-      name: `${f.name}@${new URL(f.server).host}`,
-      displayName: f.name,
-      avatarUrl: "",
+      id: inFollow.id,
+      url: inFollow.actor,
+      name: `${actor.name}@${new URL(actor.server).host}`,
+      displayName: actor.displayName ?? actor.name,
+      avatarUrl: actor.smallAvatar
+        ? `data:image/webp;base64,${base64.encode(actor.smallAvatar)}`
+        : "",
     };
   }
 

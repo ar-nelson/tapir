@@ -1,6 +1,7 @@
 import { Router, Status } from "$/deps.ts";
 import { Injectable } from "$/lib/inject.ts";
 import * as urls from "$/lib/urls.ts";
+import { contentTypeIsJson } from "$/lib/urls.ts";
 
 @Injectable()
 export class LegacyRedirectsRouter extends Router {
@@ -38,11 +39,19 @@ export class LegacyRedirectsRouter extends Router {
 
     this.get("/@:name", (ctx) => {
       ctx.response.status = Status.MovedPermanently;
-      ctx.response.redirect(urls.localProfile(ctx.params.name, {}));
+      if (ctx.request.accepts()?.some(contentTypeIsJson)) {
+        ctx.response.redirect(urls.activityPubActor(ctx.params.name));
+      } else {
+        ctx.response.redirect(urls.localProfile(ctx.params.name, {}));
+      }
     });
     this.get("/toot/:id", (ctx) => {
       ctx.response.status = Status.MovedPermanently;
-      ctx.response.redirect(urls.localPost(ctx.params.id, {}));
+      if (ctx.request.accepts()?.some(contentTypeIsJson)) {
+        ctx.response.redirect(urls.activityPubActivity(ctx.params.id));
+      } else {
+        ctx.response.redirect(urls.localPost(ctx.params.id, {}));
+      }
     });
     this.get("/public/local", (ctx) => {
       ctx.response.status = Status.MovedPermanently;

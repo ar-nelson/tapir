@@ -187,6 +187,16 @@ export function activityPubActivity(id: string, prefix = "/"): string {
   return urlJoin(prefix, `ap/activity/${encodeURIComponent(id)}`);
 }
 
+export function isActivityPubActivity(
+  url: string,
+  prefix = "/",
+): string | null {
+  url = url.toLowerCase();
+  prefix = urlJoin(prefix, "ap/activity/");
+  if (!url.startsWith(prefix)) return null;
+  return url.slice(prefix.length);
+}
+
 export function activityPubFollowing(
   personaName: string,
   prefix = "/",

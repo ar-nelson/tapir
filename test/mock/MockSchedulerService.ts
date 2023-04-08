@@ -1,6 +1,6 @@
-import { Interval, SchedulerService } from "$/services/SchedulerService.ts";
+import { SchedulerService } from "$/services/SchedulerService.ts";
 import { PriorityQueue } from "$/lib/priorityQueue.ts";
-import { DateTime, datetime } from "$/lib/datetime/mod.ts";
+import { DateDiff, DateTime, datetime } from "$/lib/datetime/mod.ts";
 
 interface Timer {
   time: DateTime;
@@ -17,7 +17,7 @@ export class MockSchedulerService extends SchedulerService {
     return this.#clock;
   }
 
-  async fastforward(interval: Interval) {
+  async fastforward(interval: DateDiff) {
     await new Promise((resolve) => setTimeout(resolve, 5));
     const finalTime = this.#clock.add(interval);
     while (!(this.#timers.peek()?.time?.isAfter(finalTime) ?? true)) {

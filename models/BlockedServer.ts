@@ -1,6 +1,6 @@
 import { InjectableAbstract, Singleton } from "$/lib/inject.ts";
-import { LocalDatabaseService } from "$/services/LocalDatabaseService.ts";
 import { KnownServerStore } from "$/models/KnownServer.ts";
+import { LocalDatabaseService } from "$/services/LocalDatabaseService.ts";
 import {
   BlockedServerStoreReadOnly,
   BlockedServerStoreReadOnlyImpl,

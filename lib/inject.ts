@@ -158,39 +158,17 @@ export class Injector {
     );
   }
 
-  /**
-   * Creates or looks up an instance of the `@Injectable` class `Type`.
-   */
-  async resolve<T extends object>(
+  async #resolve<T extends object>(
+    isSingleton: boolean,
     Type: Constructor<T> | AbstractConstructor<T>,
-    history: (Constructor | AbstractConstructor)[] = [],
-  ): Promise<T> {
-    if (this.resolved.has(Type)) {
-      return this.resolved.get(Type)!() as Promise<T>;
-    }
-    if (history.includes(Type)) {
-      throw new Error("Recursion in dependency injection");
-    }
-    const optionsOrMissing = this.getInjectionOptions(Type).map((opt) =>
-        [opt, this.missingDependencies(opt.injected)] as const
-      ),
-      option = optionsOrMissing.find(([, missing]) => !missing.length)?.[0];
-    if (option == null) {
-      const missing = optionsOrMissing.filter(([, missing]) => missing.length)
-        .map((x) => x[1]);
-      throw new TypeError(
-        `Type ${Type.name} has no candidates available for dependency injection.
-Missing dependencies: ${
-          missing.map((x) => "(" + x.join(", ") + ")").join(" or ")
-        }`,
-      );
-    }
-    const deps = this.getDependencies(option.injected),
+    Injected: Constructor<T>,
+    history: (Constructor | AbstractConstructor)[],
+  ): Promise<{ instance: T; ctor: () => Promise<T> }> {
+    const deps = this.getDependencies(Injected),
       resolve = this.resolve.bind(this),
       newHistory = [...history, Type];
-    let isSingleton = option.isSingleton,
-      construct = async () =>
-        new option.injected(
+    let construct = async () =>
+        new Injected(
           ...await Promise.all(deps.map((d) => resolve(d, newHistory))),
         ),
       instance = await construct();
@@ -208,11 +186,54 @@ Missing dependencies: ${
         );
       instance = await construct();
     }
-    this.resolved.set(
-      Type,
-      isSingleton ? (() => Promise.resolve(instance)) : construct,
-    );
-    return instance;
+    return {
+      instance,
+      ctor: isSingleton ? () => Promise.resolve(instance) : construct,
+    };
+  }
+
+  /**
+   * Creates or looks up an instance of the `@Injectable` class `Type`.
+   */
+  resolve<T extends object>(
+    Type: Constructor<T> | AbstractConstructor<T>,
+    history: (Constructor | AbstractConstructor)[] = [],
+  ): Promise<T> {
+    if (this.resolved.has(Type)) {
+      return this.resolved.get(Type)!() as Promise<T>;
+    }
+    if (history.includes(Type)) {
+      throw new Error(`Recursion in dependency injection: ${Type.name}`);
+    }
+    const optionsOrMissing = this.getInjectionOptions(Type).map((opt) =>
+        [opt, this.missingDependencies(opt.injected)] as const
+      ),
+      option = optionsOrMissing.find(([, missing]) => !missing.length)?.[0];
+    if (option == null) {
+      const missing = optionsOrMissing.filter(([, missing]) => missing.length)
+        .map((x) => x[1]);
+      throw new TypeError(
+        `Type ${Type.name} has no candidates available for dependency injection.
+Missing dependencies: ${
+          missing.map((x) => "(" + x.join(", ") + ")").join(" or ")
+        }`,
+      );
+    }
+    return new Promise((resolveInstance, rejectInstance) => {
+      const ctor = new Promise<() => Promise<T>>((resolveCtor, rejectCtor) => {
+        this.resolved.set(Type, () => ctor.then((x) => x()));
+        this.#resolve(option.isSingleton, Type, option.injected, history).then(
+          ({ instance, ctor }) => {
+            resolveCtor(ctor);
+            resolveInstance(instance);
+          },
+          (e) => {
+            rejectCtor(e);
+            rejectInstance(e);
+          },
+        );
+      });
+    });
   }
 
   private getInjectionOptions<T extends object>(

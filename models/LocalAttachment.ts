@@ -1,13 +1,13 @@
-import { InjectableAbstract, Singleton } from "$/lib/inject.ts";
-import { LocalDatabaseService } from "$/services/LocalDatabaseService.ts";
-import { UlidService } from "$/services/UlidService.ts";
-import { LocalMediaStore } from "$/models/LocalMedia.ts";
 import {
   blurhashEncode,
   ImageMagick,
   IMagickImage,
   MagickFormat,
 } from "$/deps.ts";
+import { InjectableAbstract, Singleton } from "$/lib/inject.ts";
+import { LocalMediaStore } from "$/models/LocalMedia.ts";
+import { LocalDatabaseService } from "$/services/LocalDatabaseService.ts";
+import { UlidService } from "$/services/UlidService.ts";
 
 export enum AttachmentType {
   Download = 0,

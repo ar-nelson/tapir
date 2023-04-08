@@ -1,8 +1,13 @@
 import { InjectableAbstract, Singleton } from "$/lib/inject.ts";
+import { generateKeyPair } from "$/lib/signatures.ts";
+import * as urls from "$/lib/urls.ts";
 import { checkPersonaName } from "$/lib/utils.ts";
-import { LocalDatabaseService } from "$/services/LocalDatabaseService.ts";
+import { ActivityDispatchStore } from "$/models/ActivityDispatch.ts";
+import { InFollowStore } from "$/models/InFollow.ts";
 import { LocalPostStore } from "$/models/LocalPost.ts";
-import { ServerConfigStore } from "$/models/ServerConfig.ts";
+import { TapirConfig } from "$/models/TapirConfig.ts";
+import { ActivityPubGeneratorService } from "$/services/ActivityPubGeneratorService.ts";
+import { LocalDatabaseService } from "$/services/LocalDatabaseService.ts";
 import {
   Persona,
   PersonaStoreReadOnly,
@@ -32,13 +37,29 @@ export abstract class PersonaStore extends PersonaStoreReadOnly {
     return this.base.get(name);
   }
 
+  publicKey(name: string) {
+    return this.base.publicKey(name);
+  }
+
+  privateKey(name: string) {
+    return this.base.privateKey(name);
+  }
+
   abstract create(
-    persona: Omit<Persona, "createdAt" | "updatedAt">,
+    persona: Omit<
+      Persona,
+      "publicKey" | "privateKey" | "createdAt" | "updatedAt" | "main"
+    >,
   ): Promise<void>;
 
   abstract update(
     name: string,
-    update: Partial<Omit<Persona, "name" | "createdAt" | "updatedAt">>,
+    update: Partial<
+      Omit<
+        Persona,
+        "publicKey" | "privateKey" | "name" | "createdAt" | "updatedAt"
+      >
+    >,
   ): Promise<void>;
 
   abstract delete(name: string): Promise<void>;
@@ -46,84 +67,75 @@ export abstract class PersonaStore extends PersonaStoreReadOnly {
 
 @Singleton(PersonaStore)
 export class PersonaStoreImpl extends PersonaStore {
-  private readonly init;
-
   constructor(
     base: PersonaStoreReadOnlyImpl,
     private readonly db: LocalDatabaseService,
-    serverConfigStore: ServerConfigStore,
+    private readonly apGen: ActivityPubGeneratorService,
+    private readonly config: TapirConfig,
     private readonly localPostStore: LocalPostStore,
+    private readonly inFollowStore: InFollowStore,
+    private readonly activityDispatchStore: ActivityDispatchStore,
   ) {
     super(base);
-    const initFn = async () => {
-      for await (
-        const _main of this.db.get("persona", { where: { main: true } })
-      ) {
-        return;
-      }
-      const config = await serverConfigStore.getServerConfig(),
-        now = new Date();
-      await this.db.insert("persona", [{
-        name: config.loginName,
-        displayName: config.loginName,
-        summary: "tapir was here",
-        requestToFollow: true,
-        main: true,
-        createdAt: now,
-        updatedAt: now,
-      }]);
-    };
-    this.init = initFn();
   }
 
   async *list() {
-    await this.init;
     yield* super.list();
   }
 
-  async count() {
-    await this.init;
-    return super.count();
-  }
-
-  async getMain() {
-    await this.init;
-    return super.getMain();
-  }
-
-  async get(name: string) {
-    await this.init;
-    return super.get(name);
-  }
-
   async create(
-    persona: Omit<Persona, "createdAt" | "updatedAt">,
+    persona: Omit<
+      Persona,
+      "publicKey" | "privateKey" | "createdAt" | "updatedAt" | "main"
+    >,
   ): Promise<void> {
-    await this.init;
-    for await (
-      const existing of this.db.get("persona", {
-        where: { name: persona.name },
-      })
-    ) {
-      throw new Error(
-        `A persona named ${JSON.stringify(existing.name)} already exists`,
-      );
-    }
     checkPersonaName(persona.name);
-    const now = new Date();
-    await this.db.insert("persona", [{
-      ...persona,
-      main: false,
-      createdAt: now,
-      updatedAt: now,
-    }]);
+    await this.db.transaction(async (db) => {
+      for await (
+        const { name } of db.get("persona", {
+          where: { name: persona.name },
+          returning: ["name"],
+        })
+      ) {
+        throw new Error(
+          `A persona named ${JSON.stringify(name)} already exists`,
+        );
+      }
+      let main = true;
+      for await (
+        const _ of db.get("persona", {
+          where: { main: true },
+          limit: 1,
+          returning: ["name"],
+        })
+      ) {
+        main = false;
+      }
+      const keyPair = await generateKeyPair(), now = new Date();
+      await db.insert("persona", [{
+        ...persona,
+        main,
+        publicKey: new Uint8Array(
+          await crypto.subtle.exportKey("spki", keyPair.publicKey),
+        ),
+        privateKey: new Uint8Array(
+          await crypto.subtle.exportKey("pkcs8", keyPair.privateKey),
+        ),
+        createdAt: now,
+        updatedAt: now,
+      }]);
+    });
   }
 
   async update(
     name: string,
-    update: Partial<Omit<Persona, "name" | "createdAt" | "updatedAt">>,
+    update: Partial<
+      Omit<
+        Persona,
+        "publicKey" | "privateKey" | "name" | "createdAt" | "updatedAt"
+      >
+    >,
   ): Promise<void> {
-    await this.init;
     const existing = await this.get(name);
     if (existing == null) {
       throw new Error(
@@ -132,23 +144,61 @@ export class PersonaStoreImpl extends PersonaStore {
     }
     if (
       "name" in update || "main" in update || "createdAt" in update ||
-      "updatedAt" in update
+      "updatedAt" in update || "publicKey" in update || "privateKey" in update
     ) {
       throw new TypeError("illegal fields in persona update");
     }
-    await this.db.update("persona", { name }, {
-      ...update,
-      updatedAt: new Date(),
-    });
+    const updatedAt = new Date();
+    await this.db.update("persona", { name }, { ...update, updatedAt });
+    await this.activityDispatchStore.createAndDispatch(
+      await this.inFollowStore.listFollowerInboxes(name),
+      this.apGen.publicActivity(
+        name,
+        {
+          type: "Update",
+          object: await this.apGen.actor(
+            { ...existing, ...update, updatedAt },
+            await this.publicKey(name),
+          ),
+        },
+      ),
+    );
   }
 
   async delete(name: string): Promise<void> {
-    await this.init;
+    const persona = await this.get(name);
+    if (!persona) {
+      throw new Error(
+        `Cannot delete persona ${JSON.stringify(name)}: persona does not exist`,
+      );
+    }
+    if (persona.main) {
+      throw new Error(
+        `Cannot delete persona ${
+          JSON.stringify(name)
+        }: cannot delete main persona`,
+      );
+    }
     for await (
       const { id } of this.localPostStore.list({ persona: name })
     ) {
       await this.localPostStore.delete(id);
     }
+    const inboxes = await this.inFollowStore.listFollowerInboxes(name);
+    await this.inFollowStore.deleteAllForPersona(name);
     await this.db.delete("persona", { name });
+    await this.activityDispatchStore.createAndDispatch(
+      inboxes,
+      this.apGen.publicActivity(
+        name,
+        {
+          type: "Delete",
+          object: {
+            id: urls.activityPubActor(name, this.config.url),
+            type: "Person",
+          },
+        },
+      ),
+    );
   }
 }

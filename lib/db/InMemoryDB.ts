@@ -1,3 +1,6 @@
+import { DBFactory } from "$/lib/db/DBFactory.ts";
+import { Constructor, Singleton } from "$/lib/inject.ts";
+import Loki from "$/lib/loki.js";
 import {
   ColumnOf,
   Columns,
@@ -16,11 +19,8 @@ import {
   QueryOperator,
   TableOf,
 } from "$/lib/sql/mod.ts";
-import { DBFactory } from "$/lib/db/DBFactory.ts";
-import { UlidService } from "$/services/UlidService.ts";
-import { Constructor, Singleton } from "$/lib/inject.ts";
 import { mapObject } from "$/lib/utils.ts";
-import Loki from "$/lib/loki.js";
+import { UlidService } from "$/services/UlidService.ts";
 
 function escapeRegExp(s: string) {
   return s.replace(/[.*+?^${}()|[\]\\]/g, "\\$&"); // $& means the whole matched string
@@ -39,7 +39,9 @@ export abstract class InMemoryDB<Spec extends DatabaseSpec>
       adapter: new Loki.LokiMemoryAdapter(),
     });
     for (const [tableName, table] of Object.entries(spec.tables)) {
-      this.db.addCollection(tableName, { indices: [table.primaryKey] });
+      this.db.addCollection(tableName, {
+        indices: [table.primaryKey, ...table.indexes ?? []],
+      });
     }
   }
 
@@ -169,7 +171,19 @@ export abstract class InMemoryDB<Spec extends DatabaseSpec>
   insert<T extends TableOf<Spec>>(
     tableName: T,
     rows: InRow<ColumnsOf<Spec, T>>[],
-  ): Promise<void> {
+  ): Promise<void>;
+
+  insert<T extends TableOf<Spec>, Returned extends ColumnOf<Spec, T>>(
+    tableName: T,
+    rows: InRow<ColumnsOf<Spec, T>>[],
+    returning: Returned[],
+  ): Promise<Pick<OutRow<ColumnsOf<Spec, T>>, Returned>[]>;
+
+  insert<T extends TableOf<Spec>, Returned extends ColumnOf<Spec, T>>(
+    tableName: T,
+    rows: InRow<ColumnsOf<Spec, T>>[],
+    returning?: ColumnOf<Spec, T>[],
+  ): Promise<void | Pick<OutRow<ColumnsOf<Spec, T>>, Returned>[]> {
     const spec = this.spec.tables[tableName] as Spec["tables"][T],
       finalRows = rows.map((inRow) =>
         mapObject(
@@ -183,7 +197,16 @@ export abstract class InMemoryDB<Spec extends DatabaseSpec>
             ),
         )
       );
-    this.db.getCollection(tableName).insert(finalRows);
+    const inserted = this.db.getCollection(tableName).insert(finalRows);
+    if (returning) {
+      return Promise.resolve(
+        inserted.map((i: OutRow<ColumnsOf<Spec, T>>) =>
+          Object.fromEntries(
+            Object.entries(i).filter(([k]) => returning.includes(k)),
+          ) as Pick<OutRow<ColumnsOf<Spec, T>>, Returned>
+        ),
+      );
+    }
     return Promise.resolve();
   }
 

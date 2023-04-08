@@ -1,8 +1,8 @@
+import { log } from "$/deps.ts";
 import { InjectableAbstract, Singleton } from "$/lib/inject.ts";
-import { LocalDatabaseService } from "$/services/LocalDatabaseService.ts";
 import { Q } from "$/lib/sql/mod.ts";
 import { BlockedServerStoreReadOnly } from "$/models/BlockedServerStoreReadOnly.ts";
-import { log } from "$/deps.ts";
+import { LocalDatabaseService } from "$/services/LocalDatabaseService.ts";
 
 export interface KnownServer {
   readonly url: string;

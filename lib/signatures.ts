@@ -1,5 +1,5 @@
-import { datetime, diffInMin } from "$/lib/datetime/mod.ts";
 import { base64 } from "$/deps.ts";
+import { datetime, diffInMin } from "$/lib/datetime/mod.ts";
 
 export function generateKeyPair(): Promise<CryptoKeyPair> {
   return crypto.subtle.generateKey(

@@ -9,6 +9,11 @@ export class InvalidMigration extends Error {
   }
 }
 
+function canonicalizeIndex(index: string | readonly string[]): string {
+  if (typeof index === "string") return index;
+  return index.toSorted().join(":");
+}
+
 export function tableMigration(
   schema: Schema,
   tableName: string,
@@ -23,7 +28,8 @@ export function tableMigration(
     }
   }
   return schema.alter(tableName, (table) => {
-    const migratedColumns = new Set<string>();
+    const migratedColumns = new Set<string>(),
+      oldIndexes = new Set((from.indexes ?? []).map(canonicalizeIndex));
     for (const [toName, toCol] of Object.entries(to.columns)) {
       const fromName = toCol.renamedFrom ?? toName,
         fromCol = from.columns[fromName];
@@ -62,6 +68,12 @@ export function tableMigration(
         table.dropColumn(fromName);
       }
     }
+    for (const index of to.indexes ?? []) {
+      if (!oldIndexes.has(canonicalizeIndex(index))) {
+        table.index(typeof index === "string" ? [index] : index);
+      }
+    }
+    // TODO: Delete old indexes
   });
 }
 

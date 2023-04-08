@@ -6,6 +6,7 @@
   --color-text: #444;
   --color-text-dim: #666;
   --color-accent: #280;
+  --color-shadow: #0004;
 }
 
 @media (prefers-color-scheme: dark) {
@@ -14,6 +15,7 @@
     --color-bg-dim: #222;
     --color-text: #ddd;
     --color-text-dim: #999;
+    --color-shadow: #0008;
   }
 }
 
@@ -233,27 +235,98 @@ a:hover, a:active, a:focus {
   padding: 1rem;
 }
 
+.first-run-page main {
+  max-width: 720px;
+  background-color: var(--color-bg-dim);
+  padding: 0 1rem;
+}
+
+input, select, textarea {
+  background-color: var(--color-bg-dim);
+  padding: 0.5rem;
+  border: none;
+  border-bottom: 2px dotted var(--color-text-dim);
+  color: var(--color-text);
+}
+
+input::placeholder, textarea::placeholder {
+  color: var(--color-text-dim);
+}
+
+input[type=text], input[type=password], input[type=number], select, textarea {
+  min-width: 16rem;
+}
+
+select, input[type=submit], input[type=reset], button {
+  cursor: pointer;
+}
+
+select:hover, input:hover, textarea:hover, button:hover {
+  border-color: var(--color-text);
+}
+
+select:focus, input:focus, textarea:focus {
+  border-color: var(--color-accent);
+  border-bottom-style: solid;
+}
+
+input[type=submit], input[type=reset], button {
+  background-color: var(--color-text-dim);
+  padding: 0.5rem 1rem;
+  border-radius: 1rem;
+  border: none;
+  color: var(--color-bg);
+  font-weight: bold;
+}
+
+input[type=submit]:hover, input[type=reset]:hover, button:hover {
+  background-color: var(--color-text);
+  color: var(--color-bg);
+}
+
+input[type=submit]:focus, input[type=reset]:focus, button:focus {
+  background-color: var(--color-text);
+  color: var(--color-accent);
+}
+
+.settings-form fieldset {
+  border: none;
+  border-top: 4px solid var(--color-text-dim);
+  padding: 0;
+  margin: 2rem 0;
+}
+
+.settings-form legend {
+  font-weight: bold;
+  padding-right: 1rem;
+}
+
 .settings-form dl {
   display: table;
+  width: 100%;
+  border-collapse: collapse;
 }
 
 .settings-form dl > div {
   display: table-row;
   margin: 0;
+  background-color: var(--color-bg);
 }
 
 .settings-form dl > div > dt {
   display: table-cell;
   margin: 0;
-  padding: 0.5rem 1rem;
+  padding: 1rem;
   border: 1px solid var(--color-text-dim);
 }
 
 .settings-form dl > div > dd {
   display: table-cell;
   margin: 0;
-  padding: 0.5rem 1rem;
+  padding: 1rem;
   border: 1px solid var(--color-text-dim);
+  text-align: right;
+  vertical-align: middle;
 }
 
 .settings-form dl > div > dt > label, .settings-form dl > div > dt > p:first-child {

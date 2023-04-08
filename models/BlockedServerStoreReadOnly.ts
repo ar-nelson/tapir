@@ -1,7 +1,7 @@
 // in a separate file to break a dependency cycle
 import { InjectableAbstract, Singleton } from "$/lib/inject.ts";
-import { LocalDatabaseService } from "$/services/LocalDatabaseService.ts";
 import { Q, QueryOperator } from "$/lib/sql/mod.ts";
+import { LocalDatabaseService } from "$/services/LocalDatabaseService.ts";
 
 export interface BlockOptions {
   readonly blockActivity: boolean;

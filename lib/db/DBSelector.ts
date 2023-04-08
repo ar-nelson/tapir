@@ -1,8 +1,4 @@
-import {
-  DatabaseConfig,
-  ServerConfig,
-  ServerConfigStore,
-} from "$/models/ServerConfig.ts";
+import { DatabaseConfig, TapirConfig } from "$/models/TapirConfig.ts";
 import { DatabaseSpec } from "$/lib/sql/mod.ts";
 import { ConditionalResolver, Constructor, Singleton } from "$/lib/inject.ts";
 import { AbstractDatabaseService, DBFactory } from "$/lib/db/DBFactory.ts";
@@ -15,36 +11,31 @@ export function DBSelector<
   Spec extends DatabaseSpec,
   Service extends AbstractDatabaseService<Spec>,
 >(
-  getConfig: (serverConfig: ServerConfig) => DatabaseConfig,
+  getConfig: (config: TapirConfig) => Required<DatabaseConfig>,
   spec: Spec,
   specVersions: readonly DatabaseSpec[],
-  sqliteFilename: string,
 ): Constructor<ConditionalResolver<Service>> {
   @Singleton()
   class DBSelectorImpl extends ConditionalResolver<Service> {
     constructor(
-      private readonly serverConfigStore: ServerConfigStore,
+      private readonly config: TapirConfig,
     ) {
       super();
     }
 
     async resolve(): Promise<Constructor<Service>> {
-      const serverConfig = await this.serverConfigStore.getServerConfig(),
-        dbConfig = getConfig(serverConfig);
+      const dbConfig = getConfig(this.config);
       let factory: DBFactory;
       switch (dbConfig.type) {
         case "inmemory":
           factory = new InMemoryDBFactory();
           break;
         case "sqlite":
-          if (!await dirExists(serverConfig.dataDir)) {
-            await Deno.mkdir(serverConfig.dataDir, { recursive: true });
+          if (!await dirExists(this.config.dataDir)) {
+            await Deno.mkdir(this.config.dataDir, { recursive: true });
           }
           factory = new SqliteDBFactory(
-            path.join(
-              serverConfig.dataDir,
-              dbConfig.path ?? sqliteFilename,
-            ),
+            path.join(this.config.dataDir, dbConfig.path),
           );
           break;
       }

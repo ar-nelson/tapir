@@ -1,5 +1,5 @@
 import { InjectableAbstract, Singleton } from "$/lib/inject.ts";
-import { ServerConfigStore } from "$/models/ServerConfig.ts";
+import { InstanceConfigStore } from "$/models/InstanceConfig.ts";
 import { CrockfordBase32 } from "$/lib/base32.ts";
 
 @InjectableAbstract()
@@ -12,9 +12,9 @@ export abstract class BlobHashService {
 export class Sha256BlobHashService extends BlobHashService {
   readonly #salt;
 
-  constructor(serverConfigStore: ServerConfigStore) {
+  constructor(instanceConfigStore: InstanceConfigStore) {
     super();
-    this.#salt = serverConfigStore.getServerConfig().then((s) => s.mediaSalt);
+    this.#salt = instanceConfigStore.get().then((s) => s.mediaSalt);
   }
 
   isHash(maybeHash: string): boolean {

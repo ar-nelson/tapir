@@ -2,7 +2,7 @@ import defaultEnglishStrings from "$/resources/strings/en-US.json" assert {
   type: "json",
 };
 import { I18nState } from "$/lib/html.ts";
-import { ServerConfigStore } from "$/models/ServerConfig.ts";
+import { InstanceConfigStore } from "$/models/InstanceConfig.ts";
 import { InjectableAbstract, Singleton } from "$/lib/inject.ts";
 import { log } from "$/deps.ts";
 
@@ -44,7 +44,8 @@ export class I18nService {
 
 @Singleton(I18nService)
 export class I18nServiceImpl extends I18nService {
-  constructor(serverConfigStore: ServerConfigStore) {
-    super(serverConfigStore.getServerConfig().then((c) => c.locale));
+  constructor(instanceConfigStore: InstanceConfigStore) {
+    // TODO: Support changing locale while running
+    super(instanceConfigStore.get().then((c) => c.locale));
   }
 }

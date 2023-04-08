@@ -1,3 +1,4 @@
+import { ActivityPubController } from "$/controllers/ActivityPubController.ts";
 import {
   Context,
   isHttpError,
@@ -9,7 +10,6 @@ import {
 import { Injectable } from "$/lib/inject.ts";
 import { jsonOr404 } from "$/lib/utils.ts";
 import { BlockedServerStore } from "$/models/BlockedServer.ts";
-import { ActivityPubController } from "$/controllers/ActivityPubController.ts";
 import { CONTENT_TYPE, defaultContext } from "$/schemas/activitypub/mod.ts";
 
 @Injectable()

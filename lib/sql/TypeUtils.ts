@@ -149,7 +149,7 @@ export interface EnumColumn {
 export interface TableConstraints {
   unique: string[][];
   primary?: string[];
-  index: string[];
+  index: (readonly string[])[];
   enums: EnumColumn[];
   updatedAt: boolean;
   ifNotExists?: boolean;
@@ -162,7 +162,7 @@ export const typeMap: TypeMapType = {
   binary: { pg: "bytea", mysql: "longblob", sqlite3: "blob" },
   bit: { pg: "bit", mysql: "bit", sqlite3: "blob" },
   boolean: { pg: "boolean", mysql: "tinyint", sqlite3: "boolean" },
-  increments: { pg: "serial", mysql: "int", sqlite3: "int" },
+  increments: { pg: "serial", mysql: "int", sqlite3: "integer" },
   integer: { pg: "integer", mysql: "int", sqlite3: "int" },
   smallIncrements: {
     pg: "smallserial",

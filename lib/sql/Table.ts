@@ -166,15 +166,16 @@ export class Table {
   }
 
   /** Generates index query dependent on dialect. */
-  #indexHandler(index: string) {
+  #indexHandler(index: readonly string[]) {
+    index = index.toSorted()
     switch (this.dialect) {
       case "sqlite3":
-        return `CREATE INDEX ${this.tableName}_${index} ON ${this.tableName} (${index});`;
+        return `CREATE INDEX ${this.tableName}_${index.join("_")} ON ${this.tableName} (${index.join(", ")});`;
       case "mysql":
-        return `ALTER TABLE ${this.tableName} ADD INDEX ${index} (${index});`;
+        return `ALTER TABLE ${this.tableName} ADD INDEX ${index.join("_")} (${index.join(", ")});`;
       case "pg":
       default:
-        return `CREATE INDEX ON ${this.tableName} (${index});`;
+        return `CREATE INDEX ON ${this.tableName} (${index.join(", ")});`;
     }
   }
 
@@ -256,7 +257,7 @@ export class Table {
   }
 
   /** Adds index column(s) to the table. */
-  index(...col: string[]) {
+  index(...col: (readonly string[])[]) {
     this.#constraints.index
       ? this.#constraints.index.push(...col)
       : this.#constraints.index = col;

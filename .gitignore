@@ -1,2 +1,4 @@
-tapir.json
-data/
+/tapir.json
+/tapir.toml
+/data/
+/tapir/

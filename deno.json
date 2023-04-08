@@ -1,7 +1,7 @@
 {
   "tasks": {
-    "start": "deno run --allow-net --allow-read=tapir.json,static,data,/tmp --allow-write=data,/tmp tapir.ts",
-    "dev": "deno run --allow-read=resources/buildMeta.json --allow-write=resources/buildMeta.json updateBuildDate.ts && deno run --allow-net --allow-read=tapir.json,static,data,/tmp --allow-write=data,/tmp --watch tapir.ts",
+    "start": "deno run --allow-net --allow-read=tapir.json,tapir.toml,static,tapir,/tmp --allow-write=tapir,/tmp tapir.ts",
+    "dev": "deno run --allow-read=resources/buildMeta.json --allow-write=resources/buildMeta.json updateBuildDate.ts && deno run --allow-net --allow-read=tapir.json,tapir.toml,static,tapir,/tmp --allow-write=tapir,/tmp --watch tapir.ts",
     "test": "deno test --allow-read=/tmp --allow-write=/tmp --allow-net"
   },
   "importMap": "./import_map.json",

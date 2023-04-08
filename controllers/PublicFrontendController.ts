@@ -1,7 +1,8 @@
 import { LocalPost, LocalPostStore } from "$/models/LocalPost.ts";
-import { ServerConfigStore } from "$/models/ServerConfig.ts";
+import { InstanceConfigStore } from "$/models/InstanceConfig.ts";
 import { Persona, PersonaStore } from "$/models/Persona.ts";
 import { InFollowStore } from "$/models/InFollow.ts";
+import { KnownActorStore } from "$/models/KnownActor.ts";
 import { LocalAttachmentStore } from "$/models/LocalAttachment.ts";
 import {
   FollowDetail,
@@ -19,19 +20,20 @@ const PAGE_SIZE = 20;
 @Singleton()
 export class PublicFrontendController {
   constructor(
-    private readonly serverConfigStore: ServerConfigStore,
+    private readonly instanceConfigStore: InstanceConfigStore,
     private readonly personaStore: PersonaStore,
     private readonly localPostStore: LocalPostStore,
     private readonly inFollowStore: InFollowStore,
+    private readonly knownActorStore: KnownActorStore,
     private readonly localAttachmentStore: LocalAttachmentStore,
   ) {}
 
   async serverDetail(): Promise<ServerDetail> {
-    const serverConfig = await this.serverConfigStore.getServerConfig(),
+    const instanceConfig = await this.instanceConfigStore.get(),
       personas = await asyncToArray(this.personaStore.list());
     return {
-      name: serverConfig.displayName,
-      summary: serverConfig.summary,
+      name: instanceConfig.displayName,
+      summary: new View(() => instanceConfig.summary),
       links: personas.map((p) => ({
         name: p.linkTitle ?? p.displayName,
         url: urls.localProfile(p.name, {}),
@@ -159,18 +161,23 @@ export class PublicFrontendController {
   > {
     const persona = await this.personaStore.get(personaName);
     if (!persona) return null;
-    const followers = await asyncToArray(
+    const follows = await asyncToArray(
       this.inFollowStore.listFollowers(personaName),
+    );
+    const followers = await Promise.all(
+      follows.map(({ actor }) => this.knownActorStore.get(new URL(actor))),
     );
     return {
       server: await this.serverDetail(),
       profile: await this.#personaDetail(persona),
-      followers: followers.map((f) => ({
-        url: f.actor,
-        name: `${f.name}@${new URL(f.server).host}`,
-        displayName: f.name,
-        avatarUrl: "",
-      })),
+      followers: followers.map((f) =>
+        (f && {
+          url: f.url,
+          name: `${f.name}@${new URL(f.server).host}`,
+          displayName: f.displayName ?? f.name,
+          avatarUrl: "",
+        })!
+      ),
     };
   }
 

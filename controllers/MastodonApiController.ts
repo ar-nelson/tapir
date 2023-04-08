@@ -1,5 +1,6 @@
 import { Injector, Singleton } from "$/lib/inject.ts";
-import { ServerConfig, ServerConfigStore } from "$/models/ServerConfig.ts";
+import { InstanceConfigStore } from "$/models/InstanceConfig.ts";
+import { TapirConfig } from "$/models/TapirConfig.ts";
 import { Persona, PersonaStore } from "$/models/Persona.ts";
 import { LocalPost, LocalPostStore } from "$/models/LocalPost.ts";
 import { InFollowStore } from "$/models/InFollow.ts";
@@ -7,6 +8,7 @@ import { Account, Instance, Status } from "$/schemas/mastodon/mod.ts";
 import { asyncToArray } from "$/lib/utils.ts";
 import * as urls from "$/lib/urls.ts";
 import { log } from "$/deps.ts";
+import buildMeta from "$/resources/buildMeta.json" assert { type: "json" };
 
 export interface HandlerState {
   injector: Injector;
@@ -41,21 +43,22 @@ export interface AccountStatusesOptions extends StatusesOptions {
 @Singleton()
 export class MastodonApiController {
   constructor(
-    private readonly serverConfigStore: ServerConfigStore,
+    private readonly config: TapirConfig,
+    private readonly instanceConfigStore: InstanceConfigStore,
     private readonly personaStore: PersonaStore,
     private readonly localPostStore: LocalPostStore,
     private readonly inFollowStore: InFollowStore,
   ) {}
 
   async instance(): Promise<Instance> {
-    const serverConfig = await this.serverConfigStore.getServerConfig();
+    const instanceConfig = await this.instanceConfigStore.get();
 
     return {
-      uri: serverConfig.domain,
-      title: serverConfig.displayName,
-      short_description: "tapir",
-      description: "tapir tapir tapir",
-      email: "adam@nels.onl",
+      uri: this.config.domain,
+      title: instanceConfig.displayName,
+      short_description: `${buildMeta.name} v${buildMeta.version}`,
+      description: instanceConfig.summary,
+      email: instanceConfig.adminEmail,
       version: "3.5.3",
       urls: {},
       stats: {
@@ -63,7 +66,9 @@ export class MastodonApiController {
         status_count: await this.localPostStore.count(),
         domain_count: 1,
       },
-      thumbnail: null,
+      thumbnail: instanceConfig.logo
+        ? urls.localMedia(instanceConfig.logo, this.config.url)
+        : null,
       languages: [
         "en",
       ],
@@ -72,36 +77,39 @@ export class MastodonApiController {
       invites_enabled: false,
       configuration: {
         statuses: {
-          max_characters: 500,
-          max_media_attachments: 0,
+          max_characters: instanceConfig.maxCharacters,
+          max_media_attachments: instanceConfig.maxMediaAttachments,
           characters_reserved_per_url: 23,
         },
         media_attachments: {
-          supported_mime_types: [],
-          image_size_limit: 0,
-          image_matrix_limit: 0,
-          video_size_limit: 0,
-          video_frame_rate_limit: 0,
-          video_matrix_limit: 0,
+          supported_mime_types: [
+            "image/jpeg",
+            "image/png",
+            "image/gif",
+            "image/webp",
+          ],
+          image_size_limit: instanceConfig.maxImageBytes,
+          image_matrix_limit: instanceConfig.maxImagePixels,
+          video_size_limit: instanceConfig.maxVideoBytes,
+          video_matrix_limit: instanceConfig.maxVideoPixels,
+          video_frame_rate_limit: instanceConfig.maxVideoFramerate,
         },
         polls: {
-          max_options: 4,
-          max_characters_per_option: 50,
+          max_options: 16,
+          max_characters_per_option: 256,
           min_expiration: 300,
           max_expiration: 2629746,
         },
       },
       contact_account: await this.#personaToAccount(
         await this.personaStore.getMain(),
-        serverConfig,
       ),
       rules: [],
     };
   }
 
   async publicTimeline(options: TimelineOptions): Promise<Status[]> {
-    const serverConfig = await this.serverConfigStore.getServerConfig(),
-      posts = await asyncToArray(this.localPostStore.list({
+    const posts = await asyncToArray(this.localPostStore.list({
         limit: options.limit ?? 20,
       })),
       personas = new Map<string, Promise<Persona>>();
@@ -121,7 +129,7 @@ export class MastodonApiController {
         personas.set(p.persona, promise);
         persona = await promise;
       }
-      return (await this.#localPostToStatus(persona, serverConfig))(p);
+      return (await this.#localPostToStatus(persona))(p);
     }));
   }
 
@@ -130,10 +138,7 @@ export class MastodonApiController {
     if (!persona) {
       return undefined;
     }
-    return this.#personaToAccount(
-      persona,
-      await this.serverConfigStore.getServerConfig(),
-    );
+    return this.#personaToAccount(persona);
   }
 
   async accountStatuses(
@@ -144,12 +149,11 @@ export class MastodonApiController {
     if (!persona) {
       return undefined;
     }
-    const serverConfig = await this.serverConfigStore.getServerConfig(),
-      posts = await asyncToArray(this.localPostStore.list({
-        persona: persona.name,
-        limit: options.limit ?? 20,
-      }));
-    return posts.map(await this.#localPostToStatus(persona, serverConfig));
+    const posts = await asyncToArray(this.localPostStore.list({
+      persona: persona.name,
+      limit: options.limit ?? 20,
+    }));
+    return posts.map(await this.#localPostToStatus(persona));
   }
 
   async status(id: string): Promise<Status | undefined> {
@@ -157,18 +161,16 @@ export class MastodonApiController {
     if (!post) {
       return undefined;
     }
-    const serverConfig = await this.serverConfigStore.getServerConfig(),
-      persona = await this.personaStore.get(post.persona);
+    const persona = await this.personaStore.get(post.persona);
     if (!persona) {
       return undefined;
     }
-    return (await this.#localPostToStatus(persona, serverConfig))(post);
+    return (await this.#localPostToStatus(persona))(post);
   }
 
   async #lookupPersona(name: string): Promise<Persona | undefined> {
-    const serverConfig = await this.serverConfigStore.getServerConfig(),
-      nameMatch = /^[@]?([^@:]+)(?:[@]([^@:]+))?$/.exec(name);
-    if (!nameMatch || (nameMatch[2] && nameMatch[2] !== serverConfig.domain)) {
+    const nameMatch = /^[@]?([^@:]+)(?:[@]([^@:]+))?$/.exec(name);
+    if (!nameMatch || (nameMatch[2] && nameMatch[2] !== this.config.domain)) {
       log.warning(
         `not a valid account for this server: ${JSON.stringify(name)}`,
       );
@@ -182,10 +184,7 @@ export class MastodonApiController {
     return persona;
   }
 
-  async #personaToAccount(
-    persona: Persona,
-    serverConfig: ServerConfig,
-  ): Promise<Account> {
+  async #personaToAccount(persona: Persona): Promise<Account> {
     return {
       id: persona.name,
       username: persona.name,
@@ -197,22 +196,26 @@ export class MastodonApiController {
       group: false,
       created_at: persona.createdAt.toJSON(),
       note: "",
-      url: urls.localProfile(persona.name, {}, serverConfig.url),
-      avatar: urls.urlJoin(serverConfig.url, "tapir-avatar.jpg"),
-      avatar_static: urls.urlJoin(serverConfig.url, "tapir-avatar.jpg"),
+      url: urls.localProfile(persona.name, {}, this.config.url),
+      avatar: urls.urlJoin(this.config.url, "tapir-avatar.jpg"),
+      avatar_static: urls.urlJoin(this.config.url, "tapir-avatar.jpg"),
       header: "",
       header_static: "",
       followers_count: await this.inFollowStore.countFollowers(persona.name),
       following_count: 0,
       statuses_count: await this.localPostStore.count(persona.name),
-      last_status_at: persona.createdAt.toJSON(),
+      last_status_at: (await this.localPostStore.list({
+        persona: persona.name,
+        limit: 1,
+        order: "DESC",
+      })[Symbol.asyncIterator]().next()).value?.createdAt?.toJSON() ?? null,
       emojis: [],
       fields: [],
     };
   }
 
-  async #localPostToStatus(persona: Persona, serverConfig: ServerConfig) {
-    const account = await this.#personaToAccount(persona, serverConfig);
+  async #localPostToStatus(persona: Persona) {
+    const account = await this.#personaToAccount(persona);
     return (post: LocalPost): Status => ({
       id: post.id,
       created_at: post.createdAt.toJSON(),
@@ -222,17 +225,17 @@ export class MastodonApiController {
       spoiler_text: post.collapseSummary ?? "",
       visibility: "public",
       language: "en",
-      uri: urls.localPost(post.id, {}, serverConfig.url),
-      url: urls.localPost(post.id, {}, serverConfig.url),
+      uri: urls.localPost(post.id, {}, this.config.url),
+      url: urls.localPost(post.id, {}, this.config.url),
       replies_count: 0,
       reblogs_count: 0,
       favourites_count: 0,
-      edited_at: null,
+      edited_at: post.updatedAt?.toJSON() ?? null,
       content: post.content ?? "",
       reblog: null,
       application: {
-        name: "Tapir",
-        website: "https://tapir.social",
+        name: buildMeta.name,
+        website: buildMeta.homepageUrl,
       },
       account,
       media_attachments: [],

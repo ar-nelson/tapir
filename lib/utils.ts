@@ -78,7 +78,7 @@ export function checkPersonaName(name: string): void {
 export function hashPassword(password: string, salt: Uint8Array): Uint8Array {
   return crypto_argon2i(
     32,
-    100000,
+    32000,
     3,
     new TextEncoder().encode(password),
     salt,

@@ -1,34 +1,26 @@
 import { InjectableAbstract, Singleton } from "$/lib/inject.ts";
 import * as urls from "$/lib/urls.ts";
-import { Activity, Object } from "$/schemas/activitypub/mod.ts";
+import { TapirConfig } from "$/models/TapirConfig.ts";
+import { Activity, Actor, Object } from "$/schemas/activitypub/mod.ts";
 import { LocalDatabaseService } from "$/services/LocalDatabaseService.ts";
-import { ActivityDispatcher, Priority } from "$/services/ActivityDispatcher.ts";
-import { ServerConfigStore } from "$/models/ServerConfig.ts";
 import { UlidService } from "$/services/UlidService.ts";
-import { log } from "$/deps.ts";
 
 export interface LocalActivity {
   readonly id: string;
   readonly json: Activity;
   readonly persona: string;
-  readonly sent: boolean;
 }
 
 @InjectableAbstract()
 export abstract class LocalActivityStore {
-  abstract listUnsent(): AsyncIterable<LocalActivity>;
-
   abstract get(id: string): Promise<LocalActivity | null>;
 
   abstract getObject(id: string): Promise<Object | null>;
 
-  abstract markSent(id: string): Promise<void>;
-
   abstract create(
     json: Omit<Activity, "id">,
-    persona: string,
     ulid?: string,
-  ): Promise<string>;
+  ): Promise<LocalActivity>;
 
   abstract updateObject(
     id: string,
@@ -40,26 +32,12 @@ export abstract class LocalActivityStore {
 
 @Singleton(LocalActivityStore)
 export class LocalActivityStoreImpl extends LocalActivityStore {
-  private readonly baseUrl;
-
   constructor(
     private readonly db: LocalDatabaseService,
-    private readonly dispatcher: ActivityDispatcher,
-    serverConfigStore: ServerConfigStore,
+    private readonly config: TapirConfig,
     private readonly ulid: UlidService,
   ) {
     super();
-    this.baseUrl = serverConfigStore.getServerConfig().then((c) => c.url);
-    (async () => {
-      for await (const { id, json } of this.listUnsent()) {
-        log.info(`Redispatching pending ${json.type} message ${id}`);
-        this.dispatcher.dispatch(json, Priority.Soon, () => this.markSent(id));
-      }
-    })();
-  }
-
-  async *listUnsent(): AsyncIterable<LocalActivity> {
-    yield* this.db.get("activity", { where: { sent: false } });
   }
 
   async get(id: string): Promise<LocalActivity | null> {
@@ -76,17 +54,13 @@ export class LocalActivityStoreImpl extends LocalActivityStore {
     }
     const obj = activity.json.object;
     if (typeof obj === "string") {
-      const base = urls.activityPubObject("", await this.baseUrl);
+      const base = urls.activityPubObject("", this.config.url);
       if (obj.startsWith(base)) {
         return this.getObject(obj.slice(base.length));
       }
       return null;
     }
     return obj;
-  }
-
-  async markSent(id: string): Promise<void> {
-    await this.db.update("activity", { id }, { sent: true });
   }
 
   async updateObject(
@@ -115,11 +89,21 @@ export class LocalActivityStoreImpl extends LocalActivityStore {
 
   async create(
     json: Omit<Activity, "id">,
-    persona: string,
     ulid?: string,
-  ): Promise<string> {
+  ): Promise<LocalActivity> {
+    const persona = urls.isActivityPubActor(
+      typeof json.actor === "string" ? json.actor : (json.actor as Actor).id,
+      this.config.url,
+    );
+
+    if (persona == null) {
+      throw new Error(
+        `Cannot create activity with actor ${json.actor}: not a valid persona URL`,
+      );
+    }
+
     if (!ulid) ulid = this.ulid.next();
-    const idUrl = urls.activityPubActivity(ulid, await this.baseUrl),
+    const idUrl = urls.activityPubActivity(ulid, this.config.url),
       activity = { ...json, id: idUrl };
     delete (activity as Record<string, unknown>)["@context"];
     if (activity.type === "Create") {
@@ -129,25 +113,20 @@ export class LocalActivityStoreImpl extends LocalActivityStore {
       ) {
         activity.object = {
           ...obj,
-          id: urls.activityPubObject(ulid, await this.baseUrl),
+          id: urls.activityPubObject(ulid, this.config.url),
           ...(obj.type === "Note" || obj.type === "Question")
-            ? { url: urls.localPost(ulid, {}, await this.baseUrl) }
+            ? { url: urls.localPost(ulid, {}, this.config.url) }
             : {},
         };
       }
     }
-    await this.db.insert("activity", [{
+    const finalActivity = {
       id: ulid,
       json: activity,
-      sent: false,
       persona,
-    }]);
-    this.dispatcher.dispatch(
-      activity,
-      Priority.Soon,
-      () => this.markSent(ulid!),
-    );
-    return ulid;
+    };
+    await this.db.insert("activity", [finalActivity]);
+    return finalActivity;
   }
 
   async delete(id: string): Promise<void> {
