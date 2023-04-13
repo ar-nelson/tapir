@@ -1,0 +1,51 @@
+tapir.local {
+  tls /certs/tapir.local.crt /certs/tapir.local.key
+
+  reverse_proxy {
+    to http://host.docker.internal:9100
+  }
+}
+
+mastodon.local {
+  tls /certs/mastodon.local.crt /certs/mastodon.local.key
+
+  @streaming {
+    path /api/v1/streaming/*
+  }
+  @cache_control {
+    path_regexp ^/(emoji|packs|/system/accounts/avatars|/system/media_attachments/files)
+  }
+
+  log {
+    output file /var/log/caddy/mastodon.log
+  }
+
+  encode zstd gzip
+
+  header {
+    Strict-Transport-Security "max-age=31536000"
+  }
+  header /sw.js Cache-Control "public, max-age=0"
+  header @cache_control Cache-Control "public, max-age=31536000, immutable"
+
+  reverse_proxy @streaming {
+    to http://mastodon-streaming:4000
+
+    transport http {
+      keepalive 5s
+      keepalive_idle_conns 10
+    }
+  }
+
+  reverse_proxy  {
+    to http://mastodon:3000
+
+    header_up X-Forwarded-Port 443
+    header_up X-Forwarded-Proto https
+
+    transport http {
+      keepalive 5s
+      keepalive_idle_conns 10
+    }
+  }
+}

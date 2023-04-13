@@ -1,0 +1,122 @@
+version: '3.9'
+services:
+  mastodon-db:
+    image: postgres:14-alpine
+    restart: unless-stopped
+    shm_size: 256mb
+    networks:
+      - internal_network
+    healthcheck:
+      test: [ 'CMD', 'pg_isready', '-U', 'postgres' ]
+    volumes:
+      - ./mastodon/data/postgres:/var/lib/postgresql/data
+    environment:
+      - POSTGRES_HOST_AUTH_METHOD=trust
+      - POSTGRES_USER=postgres
+      - POSTGRES_PASSWORD=fhqwhgads
+      - POSTGRES_DB=mastodon
+
+  mastodon-redis:
+    image: redis:7-alpine
+    restart: unless-stopped
+    networks:
+      - internal_network
+    healthcheck:
+      test: [ 'CMD', 'redis-cli', 'ping' ]
+    volumes:
+      - ./mastodon/data/redis:/data
+
+  mastodon:
+    build:
+      context: ./
+      dockerfile: ./mastodon/Dockerfile
+    restart: unless-stopped
+    env_file: mastodon/env.test
+    command: bash -c "rm -f /mastodon/tmp/pids/server.pid; bundle exec rails s -p 3000"
+    networks:
+      - external_network
+      - internal_network
+    healthcheck:
+      test:
+        [
+          'CMD-SHELL',
+          'wget -q --spider --proxy=off localhost:3000/health || exit 1'
+        ]
+    depends_on:
+      - mastodon-db
+      - mastodon-redis
+      - mailhog
+    volumes:
+      - ./mastodon/data/public/system:/mastodon/public/system
+
+  mastodon-streaming:
+    build:
+      context: ./
+      dockerfile: ./mastodon/Dockerfile
+    restart: unless-stopped
+    env_file: mastodon/env.test
+    command: node ./streaming
+    networks:
+      - internal_network
+    healthcheck:
+      # prettier-ignore
+      test:
+        [
+          'CMD-SHELL',
+          'wget -q --spider --proxy=off localhost:4000/api/v1/streaming/health || exit 1'
+        ]
+    depends_on:
+      - mastodon-db
+      - mastodon-redis
+
+  mastodon-sidekiq:
+    build:
+      context: ./
+      dockerfile: ./mastodon/Dockerfile
+    restart: unless-stopped
+    env_file: mastodon/env.test
+    command: bundle exec sidekiq
+    depends_on:
+      - mastodon-db
+      - mastodon-redis
+    networks:
+      - external_network
+      - internal_network
+    volumes:
+      - ./mastodon/data/public/system:/mastodon/public/system
+    healthcheck:
+      test: [ 'CMD-SHELL', "ps aux | grep '[s]idekiq 6' || false" ]
+
+  mailhog:
+    image: mailhog/mailhog
+    restart: unless-stopped
+    networks:
+      - internal_network
+
+  caddy:
+    build:
+      context: ./
+      dockerfile: ./caddy/Dockerfile
+    restart: unless-stopped
+    ports:
+      - "80:80"
+      - "443:443"
+      - "443:443/udp"
+    volumes:
+      - ./certs:/certs
+    depends_on:
+      - mastodon
+      - mastodon-streaming
+    networks:
+      external_network:
+      internal_network:
+        aliases:
+          - mastodon.local
+          - tapir.local
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
+
+networks:
+  external_network:
+  internal_network:
+    internal: true
