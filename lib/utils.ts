@@ -107,3 +107,8 @@ export function jsonOr404(
   ctx.assert(json != null, Status.NotFound, message);
   ctx.response.body = json;
 }
+
+export type AssertFn<T> = (
+  value: unknown,
+  message?: string,
+) => asserts value is T;

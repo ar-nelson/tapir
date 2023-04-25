@@ -1,0 +1,1059 @@
+{
+	"@context": [
+		"https://www.w3.org/ns/activitystreams",
+		{
+			"ostatus": "http://ostatus.org#",
+			"atomUri": "ostatus:atomUri",
+			"inReplyToAtomUri": "ostatus:inReplyToAtomUri",
+			"conversation": "ostatus:conversation",
+			"sensitive": "as:sensitive",
+			"toot": "http://joinmastodon.org/ns#",
+			"votersCount": "toot:votersCount",
+			"Hashtag": "as:Hashtag",
+			"blurhash": "toot:blurhash",
+			"focalPoint": {
+				"@container": "@list",
+				"@id": "toot:focalPoint"
+			}
+		}
+	],
+	"id": "https://mstdn.social/users/feditips/outbox?page=true",
+	"type": "OrderedCollectionPage",
+	"next": "https://mstdn.social/users/feditips/outbox?max_id=110215816377136867&page=true",
+	"prev": "https://mstdn.social/users/feditips/outbox?min_id=110255988872240144&page=true",
+	"partOf": "https://mstdn.social/users/feditips/outbox",
+	"orderedItems": [
+		{
+			"id": "https://mstdn.social/users/feditips/statuses/110255988872240144/activity",
+			"type": "Create",
+			"actor": "https://mstdn.social/users/feditips",
+			"published": "2023-04-24T21:47:57Z",
+			"to": [
+				"https://www.w3.org/ns/activitystreams#Public"
+			],
+			"cc": [
+				"https://mstdn.social/users/feditips/followers",
+				"https://mastodon.social/users/spreadmastodon",
+				"https://floss.social/users/dimitrisk",
+				"https://mastodon.social/users/davidslifka"
+			],
+			"object": {
+				"id": "https://mstdn.social/users/feditips/statuses/110255988872240144",
+				"type": "Note",
+				"summary": null,
+				"inReplyTo": "https://mstdn.social/users/feditips/statuses/110255964229015188",
+				"published": "2023-04-24T21:47:57Z",
+				"url": "https://mstdn.social/@feditips/110255988872240144",
+				"attributedTo": "https://mstdn.social/users/feditips",
+				"to": [
+					"https://www.w3.org/ns/activitystreams#Public"
+				],
+				"cc": [
+					"https://mstdn.social/users/feditips/followers",
+					"https://mastodon.social/users/spreadmastodon",
+					"https://floss.social/users/dimitrisk",
+					"https://mastodon.social/users/davidslifka"
+				],
+				"sensitive": false,
+				"atomUri": "https://mstdn.social/users/feditips/statuses/110255988872240144",
+				"inReplyToAtomUri": "https://mstdn.social/users/feditips/statuses/110255964229015188",
+				"conversation": "tag:mstdn.social,2023-04-20:objectId=195282827:objectType=Conversation",
+				"content": "<p><span class=\"h-card\"><a href=\"https://mastodon.social/@davidslifka\" class=\"u-url mention\">@<span>davidslifka</span></a></span> <span class=\"h-card\"><a href=\"https://floss.social/@dimitrisk\" class=\"u-url mention\">@<span>dimitrisk</span></a></span> <span class=\"h-card\"><a href=\"https://mastodon.social/@spreadmastodon\" class=\"u-url mention\">@<span>spreadmastodon</span></a></span> </p><p>&quot;If we reach a point where undue centralization became an issue, or seemed even foreseeable to become an issue,&quot;</p><p>Undue centralisation is very foreseeable now.</p><p>Mastodon.social currently has about 14% of the Fediverse both by raw numbers and MAU.</p><p>If there is another wave on a similar scale to last November, that could push mastodon.social over 50%.</p><p>Why?</p><p>Because this time round the official app is telling everyone to just sign up on m.s</p>",
+				"contentMap": {
+					"en": "<p><span class=\"h-card\"><a href=\"https://mastodon.social/@davidslifka\" class=\"u-url mention\">@<span>davidslifka</span></a></span> <span class=\"h-card\"><a href=\"https://floss.social/@dimitrisk\" class=\"u-url mention\">@<span>dimitrisk</span></a></span> <span class=\"h-card\"><a href=\"https://mastodon.social/@spreadmastodon\" class=\"u-url mention\">@<span>spreadmastodon</span></a></span> </p><p>&quot;If we reach a point where undue centralization became an issue, or seemed even foreseeable to become an issue,&quot;</p><p>Undue centralisation is very foreseeable now.</p><p>Mastodon.social currently has about 14% of the Fediverse both by raw numbers and MAU.</p><p>If there is another wave on a similar scale to last November, that could push mastodon.social over 50%.</p><p>Why?</p><p>Because this time round the official app is telling everyone to just sign up on m.s</p>"
+				},
+				"updated": "2023-04-24T21:48:08Z",
+				"attachment": [],
+				"tag": [
+					{
+						"type": "Mention",
+						"href": "https://mastodon.social/users/davidslifka",
+						"name": "@davidslifka@mastodon.social"
+					},
+					{
+						"type": "Mention",
+						"href": "https://floss.social/users/dimitrisk",
+						"name": "@dimitrisk@floss.social"
+					},
+					{
+						"type": "Mention",
+						"href": "https://mastodon.social/users/spreadmastodon",
+						"name": "@spreadmastodon@mastodon.social"
+					}
+				],
+				"replies": {
+					"id": "https://mstdn.social/users/feditips/statuses/110255988872240144/replies",
+					"type": "Collection",
+					"first": {
+						"type": "CollectionPage",
+						"next": "https://mstdn.social/users/feditips/statuses/110255988872240144/replies?only_other_accounts=true&page=true",
+						"partOf": "https://mstdn.social/users/feditips/statuses/110255988872240144/replies",
+						"items": []
+					}
+				}
+			}
+		},
+		{
+			"id": "https://mstdn.social/users/feditips/statuses/110255964229015188/activity",
+			"type": "Create",
+			"actor": "https://mstdn.social/users/feditips",
+			"published": "2023-04-24T21:41:41Z",
+			"to": [
+				"https://www.w3.org/ns/activitystreams#Public"
+			],
+			"cc": [
+				"https://mstdn.social/users/feditips/followers",
+				"https://mastodon.social/users/spreadmastodon",
+				"https://floss.social/users/dimitrisk",
+				"https://mastodon.social/users/davidslifka"
+			],
+			"object": {
+				"id": "https://mstdn.social/users/feditips/statuses/110255964229015188",
+				"type": "Note",
+				"summary": null,
+				"inReplyTo": "https://mstdn.social/users/feditips/statuses/110255940633779747",
+				"published": "2023-04-24T21:41:41Z",
+				"url": "https://mstdn.social/@feditips/110255964229015188",
+				"attributedTo": "https://mstdn.social/users/feditips",
+				"to": [
+					"https://www.w3.org/ns/activitystreams#Public"
+				],
+				"cc": [
+					"https://mstdn.social/users/feditips/followers",
+					"https://mastodon.social/users/spreadmastodon",
+					"https://floss.social/users/dimitrisk",
+					"https://mastodon.social/users/davidslifka"
+				],
+				"sensitive": false,
+				"atomUri": "https://mstdn.social/users/feditips/statuses/110255964229015188",
+				"inReplyToAtomUri": "https://mstdn.social/users/feditips/statuses/110255940633779747",
+				"conversation": "tag:mstdn.social,2023-04-20:objectId=195282827:objectType=Conversation",
+				"content": "<p><span class=\"h-card\"><a href=\"https://mastodon.social/@davidslifka\" class=\"u-url mention\">@<span>davidslifka</span></a></span> <span class=\"h-card\"><a href=\"https://floss.social/@dimitrisk\" class=\"u-url mention\">@<span>dimitrisk</span></a></span> <span class=\"h-card\"><a href=\"https://mastodon.social/@spreadmastodon\" class=\"u-url mention\">@<span>spreadmastodon</span></a></span> </p><p>Yes some servers will let you down, but that&#39;s why it&#39;s important to use curated lists and not just choose something at random. (I&#39;ve tried to start my own at <a href=\"https://fedi.garden\" target=\"_blank\" rel=\"nofollow noopener noreferrer\"><span class=\"invisible\">https://</span><span class=\"\">fedi.garden</span><span class=\"invisible\"></span></a> and there&#39;s nothing to stop others doing the same.) Curated lists can demand reliability etc.</p><p>Your suggestion is like saying we should all eat at McDonalds because it has the most consistent standards, and independent restaurants might give you food poisoning.</p>",
+				"contentMap": {
+					"en": "<p><span class=\"h-card\"><a href=\"https://mastodon.social/@davidslifka\" class=\"u-url mention\">@<span>davidslifka</span></a></span> <span class=\"h-card\"><a href=\"https://floss.social/@dimitrisk\" class=\"u-url mention\">@<span>dimitrisk</span></a></span> <span class=\"h-card\"><a href=\"https://mastodon.social/@spreadmastodon\" class=\"u-url mention\">@<span>spreadmastodon</span></a></span> </p><p>Yes some servers will let you down, but that&#39;s why it&#39;s important to use curated lists and not just choose something at random. (I&#39;ve tried to start my own at <a href=\"https://fedi.garden\" target=\"_blank\" rel=\"nofollow noopener noreferrer\"><span class=\"invisible\">https://</span><span class=\"\">fedi.garden</span><span class=\"invisible\"></span></a> and there&#39;s nothing to stop others doing the same.) Curated lists can demand reliability etc.</p><p>Your suggestion is like saying we should all eat at McDonalds because it has the most consistent standards, and independent restaurants might give you food poisoning.</p>"
+				},
+				"updated": "2023-04-24T21:43:40Z",
+				"attachment": [],
+				"tag": [
+					{
+						"type": "Mention",
+						"href": "https://mastodon.social/users/davidslifka",
+						"name": "@davidslifka@mastodon.social"
+					},
+					{
+						"type": "Mention",
+						"href": "https://floss.social/users/dimitrisk",
+						"name": "@dimitrisk@floss.social"
+					},
+					{
+						"type": "Mention",
+						"href": "https://mastodon.social/users/spreadmastodon",
+						"name": "@spreadmastodon@mastodon.social"
+					}
+				],
+				"replies": {
+					"id": "https://mstdn.social/users/feditips/statuses/110255964229015188/replies",
+					"type": "Collection",
+					"first": {
+						"type": "CollectionPage",
+						"next": "https://mstdn.social/users/feditips/statuses/110255964229015188/replies?min_id=110255988872240144&page=true",
+						"partOf": "https://mstdn.social/users/feditips/statuses/110255964229015188/replies",
+						"items": [
+							"https://mstdn.social/users/feditips/statuses/110255988872240144"
+						]
+					}
+				}
+			}
+		},
+		{
+			"id": "https://mstdn.social/users/feditips/statuses/110255940633779747/activity",
+			"type": "Create",
+			"actor": "https://mstdn.social/users/feditips",
+			"published": "2023-04-24T21:35:41Z",
+			"to": [
+				"https://www.w3.org/ns/activitystreams#Public"
+			],
+			"cc": [
+				"https://mstdn.social/users/feditips/followers",
+				"https://mastodon.social/users/spreadmastodon",
+				"https://floss.social/users/dimitrisk",
+				"https://mastodon.social/users/davidslifka"
+			],
+			"object": {
+				"id": "https://mstdn.social/users/feditips/statuses/110255940633779747",
+				"type": "Note",
+				"summary": null,
+				"inReplyTo": "https://mstdn.social/users/feditips/statuses/110255936452084449",
+				"published": "2023-04-24T21:35:41Z",
+				"url": "https://mstdn.social/@feditips/110255940633779747",
+				"attributedTo": "https://mstdn.social/users/feditips",
+				"to": [
+					"https://www.w3.org/ns/activitystreams#Public"
+				],
+				"cc": [
+					"https://mstdn.social/users/feditips/followers",
+					"https://mastodon.social/users/spreadmastodon",
+					"https://floss.social/users/dimitrisk",
+					"https://mastodon.social/users/davidslifka"
+				],
+				"sensitive": false,
+				"atomUri": "https://mstdn.social/users/feditips/statuses/110255940633779747",
+				"inReplyToAtomUri": "https://mstdn.social/users/feditips/statuses/110255936452084449",
+				"conversation": "tag:mstdn.social,2023-04-20:objectId=195282827:objectType=Conversation",
+				"content": "<p><span class=\"h-card\"><a href=\"https://mastodon.social/@davidslifka\" class=\"u-url mention\">@<span>davidslifka</span></a></span> <span class=\"h-card\"><a href=\"https://floss.social/@dimitrisk\" class=\"u-url mention\">@<span>dimitrisk</span></a></span> <span class=\"h-card\"><a href=\"https://mastodon.social/@spreadmastodon\" class=\"u-url mention\">@<span>spreadmastodon</span></a></span> </p><p>It would be like an environmental group deciding that lifestyle changes are putting people off the environmental cause, so they drop the lifestyle changes and decide to just &quot;greenwash&quot; instead.</p><p>You&#39;re using the same &quot;let&#39;s get the supporter numbers up, damn the cause&quot; logic.</p>",
+				"contentMap": {
+					"en": "<p><span class=\"h-card\"><a href=\"https://mastodon.social/@davidslifka\" class=\"u-url mention\">@<span>davidslifka</span></a></span> <span class=\"h-card\"><a href=\"https://floss.social/@dimitrisk\" class=\"u-url mention\">@<span>dimitrisk</span></a></span> <span class=\"h-card\"><a href=\"https://mastodon.social/@spreadmastodon\" class=\"u-url mention\">@<span>spreadmastodon</span></a></span> </p><p>It would be like an environmental group deciding that lifestyle changes are putting people off the environmental cause, so they drop the lifestyle changes and decide to just &quot;greenwash&quot; instead.</p><p>You&#39;re using the same &quot;let&#39;s get the supporter numbers up, damn the cause&quot; logic.</p>"
+				},
+				"updated": "2023-04-24T21:36:23Z",
+				"attachment": [],
+				"tag": [
+					{
+						"type": "Mention",
+						"href": "https://mastodon.social/users/davidslifka",
+						"name": "@davidslifka@mastodon.social"
+					},
+					{
+						"type": "Mention",
+						"href": "https://floss.social/users/dimitrisk",
+						"name": "@dimitrisk@floss.social"
+					},
+					{
+						"type": "Mention",
+						"href": "https://mastodon.social/users/spreadmastodon",
+						"name": "@spreadmastodon@mastodon.social"
+					}
+				],
+				"replies": {
+					"id": "https://mstdn.social/users/feditips/statuses/110255940633779747/replies",
+					"type": "Collection",
+					"first": {
+						"type": "CollectionPage",
+						"next": "https://mstdn.social/users/feditips/statuses/110255940633779747/replies?min_id=110255964229015188&page=true",
+						"partOf": "https://mstdn.social/users/feditips/statuses/110255940633779747/replies",
+						"items": [
+							"https://mstdn.social/users/feditips/statuses/110255964229015188"
+						]
+					}
+				}
+			}
+		},
+		{
+			"id": "https://mstdn.social/users/feditips/statuses/110255936452084449/activity",
+			"type": "Create",
+			"actor": "https://mstdn.social/users/feditips",
+			"published": "2023-04-24T21:34:37Z",
+			"to": [
+				"https://www.w3.org/ns/activitystreams#Public"
+			],
+			"cc": [
+				"https://mstdn.social/users/feditips/followers",
+				"https://mastodon.social/users/spreadmastodon",
+				"https://floss.social/users/dimitrisk",
+				"https://mastodon.social/users/davidslifka"
+			],
+			"object": {
+				"id": "https://mstdn.social/users/feditips/statuses/110255936452084449",
+				"type": "Note",
+				"summary": null,
+				"inReplyTo": "https://mastodon.social/users/davidslifka/statuses/110255901903671224",
+				"published": "2023-04-24T21:34:37Z",
+				"url": "https://mstdn.social/@feditips/110255936452084449",
+				"attributedTo": "https://mstdn.social/users/feditips",
+				"to": [
+					"https://www.w3.org/ns/activitystreams#Public"
+				],
+				"cc": [
+					"https://mstdn.social/users/feditips/followers",
+					"https://mastodon.social/users/spreadmastodon",
+					"https://floss.social/users/dimitrisk",
+					"https://mastodon.social/users/davidslifka"
+				],
+				"sensitive": false,
+				"atomUri": "https://mstdn.social/users/feditips/statuses/110255936452084449",
+				"inReplyToAtomUri": "https://mastodon.social/users/davidslifka/statuses/110255901903671224",
+				"conversation": "tag:mstdn.social,2023-04-20:objectId=195282827:objectType=Conversation",
+				"content": "<p><span class=\"h-card\"><a href=\"https://mastodon.social/@davidslifka\" class=\"u-url mention\">@<span>davidslifka</span></a></span> <span class=\"h-card\"><a href=\"https://floss.social/@dimitrisk\" class=\"u-url mention\">@<span>dimitrisk</span></a></span> <span class=\"h-card\"><a href=\"https://mastodon.social/@spreadmastodon\" class=\"u-url mention\">@<span>spreadmastodon</span></a></span> </p><p>I&#39;m sorry, but with all due respect, that &quot;Growing the bars&quot; chart is incredibly misleading. I don&#39;t know whether you are doing this deliberately or accidentally, but it&#39;s a terrible approach.</p><p>Presenting promotion of mastodon.social as equivalent to promoting Mastodon is just &quot;fediwashing&quot;.</p><p>Asking people to choose a server is a goal in itself. It makes them aware of the issues involved. Skipping that step is missing the point completely.</p>",
+				"contentMap": {
+					"en": "<p><span class=\"h-card\"><a href=\"https://mastodon.social/@davidslifka\" class=\"u-url mention\">@<span>davidslifka</span></a></span> <span class=\"h-card\"><a href=\"https://floss.social/@dimitrisk\" class=\"u-url mention\">@<span>dimitrisk</span></a></span> <span class=\"h-card\"><a href=\"https://mastodon.social/@spreadmastodon\" class=\"u-url mention\">@<span>spreadmastodon</span></a></span> </p><p>I&#39;m sorry, but with all due respect, that &quot;Growing the bars&quot; chart is incredibly misleading. I don&#39;t know whether you are doing this deliberately or accidentally, but it&#39;s a terrible approach.</p><p>Presenting promotion of mastodon.social as equivalent to promoting Mastodon is just &quot;fediwashing&quot;.</p><p>Asking people to choose a server is a goal in itself. It makes them aware of the issues involved. Skipping that step is missing the point completely.</p>"
+				},
+				"attachment": [],
+				"tag": [
+					{
+						"type": "Mention",
+						"href": "https://mastodon.social/users/davidslifka",
+						"name": "@davidslifka@mastodon.social"
+					},
+					{
+						"type": "Mention",
+						"href": "https://floss.social/users/dimitrisk",
+						"name": "@dimitrisk@floss.social"
+					},
+					{
+						"type": "Mention",
+						"href": "https://mastodon.social/users/spreadmastodon",
+						"name": "@spreadmastodon@mastodon.social"
+					}
+				],
+				"replies": {
+					"id": "https://mstdn.social/users/feditips/statuses/110255936452084449/replies",
+					"type": "Collection",
+					"first": {
+						"type": "CollectionPage",
+						"next": "https://mstdn.social/users/feditips/statuses/110255936452084449/replies?min_id=110255940633779747&page=true",
+						"partOf": "https://mstdn.social/users/feditips/statuses/110255936452084449/replies",
+						"items": [
+							"https://mstdn.social/users/feditips/statuses/110255940633779747"
+						]
+					}
+				}
+			}
+		},
+		{
+			"id": "https://mstdn.social/users/feditips/statuses/110255697273731873/activity",
+			"type": "Create",
+			"actor": "https://mstdn.social/users/feditips",
+			"published": "2023-04-24T20:33:47Z",
+			"to": [
+				"https://www.w3.org/ns/activitystreams#Public"
+			],
+			"cc": [
+				"https://mstdn.social/users/feditips/followers",
+				"https://social.growyourown.services/users/FediFollows"
+			],
+			"object": {
+				"id": "https://mstdn.social/users/feditips/statuses/110255697273731873",
+				"type": "Note",
+				"summary": null,
+				"inReplyTo": null,
+				"published": "2023-04-24T20:33:47Z",
+				"url": "https://mstdn.social/@feditips/110255697273731873",
+				"attributedTo": "https://mstdn.social/users/feditips",
+				"to": [
+					"https://www.w3.org/ns/activitystreams#Public"
+				],
+				"cc": [
+					"https://mstdn.social/users/feditips/followers",
+					"https://social.growyourown.services/users/FediFollows"
+				],
+				"sensitive": false,
+				"atomUri": "https://mstdn.social/users/feditips/statuses/110255697273731873",
+				"inReplyToAtomUri": null,
+				"conversation": "tag:mstdn.social,2023-04-24:objectId=197085562:objectType=Conversation",
+				"content": "<p>If you&#39;re looking for accounts to follow on Mastodon and the Fediverse, there are lots of tips for how to do this here:</p><p>➡️ <a href=\"https://fedi.tips/how-do-i-find-accounts-to-follow-on-mastodon-and-the-fediverse-how-do-i-find-my-friends/\" target=\"_blank\" rel=\"nofollow noopener noreferrer\"><span class=\"invisible\">https://</span><span class=\"ellipsis\">fedi.tips/how-do-i-find-accoun</span><span class=\"invisible\">ts-to-follow-on-mastodon-and-the-fediverse-how-do-i-find-my-friends/</span></a></p><p>If you&#39;ve read the article previously, do take another look as it has several new methods added including Groups and StreetPass.</p><p>Also check out my other account which recommends interesting people to follow on particular topics:</p><p>➡️ <span class=\"h-card\"><a href=\"https://social.growyourown.services/@FediFollows\" class=\"u-url mention\">@<span>FediFollows</span></a></span> </p><p>...and it has a website with all the suggestions in categories:</p><p>➡️ <a href=\"https://fedi.directory\" target=\"_blank\" rel=\"nofollow noopener noreferrer\"><span class=\"invisible\">https://</span><span class=\"\">fedi.directory</span><span class=\"invisible\"></span></a></p><p><a href=\"https://mstdn.social/tags/FediTips\" class=\"mention hashtag\" rel=\"tag\">#<span>FediTips</span></a></p>",
+				"contentMap": {
+					"en": "<p>If you&#39;re looking for accounts to follow on Mastodon and the Fediverse, there are lots of tips for how to do this here:</p><p>➡️ <a href=\"https://fedi.tips/how-do-i-find-accounts-to-follow-on-mastodon-and-the-fediverse-how-do-i-find-my-friends/\" target=\"_blank\" rel=\"nofollow noopener noreferrer\"><span class=\"invisible\">https://</span><span class=\"ellipsis\">fedi.tips/how-do-i-find-accoun</span><span class=\"invisible\">ts-to-follow-on-mastodon-and-the-fediverse-how-do-i-find-my-friends/</span></a></p><p>If you&#39;ve read the article previously, do take another look as it has several new methods added including Groups and StreetPass.</p><p>Also check out my other account which recommends interesting people to follow on particular topics:</p><p>➡️ <span class=\"h-card\"><a href=\"https://social.growyourown.services/@FediFollows\" class=\"u-url mention\">@<span>FediFollows</span></a></span> </p><p>...and it has a website with all the suggestions in categories:</p><p>➡️ <a href=\"https://fedi.directory\" target=\"_blank\" rel=\"nofollow noopener noreferrer\"><span class=\"invisible\">https://</span><span class=\"\">fedi.directory</span><span class=\"invisible\"></span></a></p><p><a href=\"https://mstdn.social/tags/FediTips\" class=\"mention hashtag\" rel=\"tag\">#<span>FediTips</span></a></p>"
+				},
+				"attachment": [],
+				"tag": [
+					{
+						"type": "Mention",
+						"href": "https://social.growyourown.services/users/FediFollows",
+						"name": "@FediFollows@social.growyourown.services"
+					},
+					{
+						"type": "Hashtag",
+						"href": "https://mstdn.social/tags/FediTips",
+						"name": "#FediTips"
+					}
+				],
+				"replies": {
+					"id": "https://mstdn.social/users/feditips/statuses/110255697273731873/replies",
+					"type": "Collection",
+					"first": {
+						"type": "CollectionPage",
+						"next": "https://mstdn.social/users/feditips/statuses/110255697273731873/replies?only_other_accounts=true&page=true",
+						"partOf": "https://mstdn.social/users/feditips/statuses/110255697273731873/replies",
+						"items": []
+					}
+				}
+			}
+		},
+		{
+			"id": "https://mstdn.social/users/feditips/statuses/110250411712907832/activity",
+			"type": "Announce",
+			"actor": "https://mstdn.social/users/feditips",
+			"published": "2023-04-23T22:09:36Z",
+			"to": [
+				"https://www.w3.org/ns/activitystreams#Public"
+			],
+			"cc": [
+				"https://mastodon.gamedev.place/users/aeva",
+				"https://mstdn.social/users/feditips/followers"
+			],
+			"object": "https://mastodon.gamedev.place/users/aeva/statuses/110247221782348696"
+		},
+		{
+			"id": "https://mstdn.social/users/feditips/statuses/110248756106150825/activity",
+			"type": "Create",
+			"actor": "https://mstdn.social/users/feditips",
+			"published": "2023-04-23T15:08:33Z",
+			"to": [
+				"https://www.w3.org/ns/activitystreams#Public"
+			],
+			"cc": [
+				"https://mstdn.social/users/feditips/followers"
+			],
+			"object": {
+				"id": "https://mstdn.social/users/feditips/statuses/110248756106150825",
+				"type": "Note",
+				"summary": null,
+				"inReplyTo": null,
+				"published": "2023-04-23T15:08:33Z",
+				"url": "https://mstdn.social/@feditips/110248756106150825",
+				"attributedTo": "https://mstdn.social/users/feditips",
+				"to": [
+					"https://www.w3.org/ns/activitystreams#Public"
+				],
+				"cc": [
+					"https://mstdn.social/users/feditips/followers"
+				],
+				"sensitive": false,
+				"atomUri": "https://mstdn.social/users/feditips/statuses/110248756106150825",
+				"inReplyToAtomUri": null,
+				"conversation": "tag:mstdn.social,2023-04-23:objectId=196500489:objectType=Conversation",
+				"content": "<p>Do you have a website link on your profile or in your posts? Have you made sure it is clickable?</p><p>You have to have https:// at the beginning of a web link for it to be clickable on here. Without this, people cannot click on the link.</p><p>Without https:// <br />example.com</p><p>With https://<br /><a href=\"https://example.com\" target=\"_blank\" rel=\"nofollow noopener noreferrer\"><span class=\"invisible\">https://</span><span class=\"\">example.com</span><span class=\"invisible\"></span></a></p><p>(BONUS TIP: Advanced users might like to know that Mastodon supports many kinds of link including https://, http://, gemini://, dat://, dweb://, gopher://, ipfs:// and ssb://)</p>",
+				"contentMap": {
+					"en": "<p>Do you have a website link on your profile or in your posts? Have you made sure it is clickable?</p><p>You have to have https:// at the beginning of a web link for it to be clickable on here. Without this, people cannot click on the link.</p><p>Without https:// <br />example.com</p><p>With https://<br /><a href=\"https://example.com\" target=\"_blank\" rel=\"nofollow noopener noreferrer\"><span class=\"invisible\">https://</span><span class=\"\">example.com</span><span class=\"invisible\"></span></a></p><p>(BONUS TIP: Advanced users might like to know that Mastodon supports many kinds of link including https://, http://, gemini://, dat://, dweb://, gopher://, ipfs:// and ssb://)</p>"
+				},
+				"updated": "2023-04-23T17:53:23Z",
+				"attachment": [],
+				"tag": [],
+				"replies": {
+					"id": "https://mstdn.social/users/feditips/statuses/110248756106150825/replies",
+					"type": "Collection",
+					"first": {
+						"type": "CollectionPage",
+						"next": "https://mstdn.social/users/feditips/statuses/110248756106150825/replies?only_other_accounts=true&page=true",
+						"partOf": "https://mstdn.social/users/feditips/statuses/110248756106150825/replies",
+						"items": []
+					}
+				}
+			}
+		},
+		{
+			"id": "https://mstdn.social/users/feditips/statuses/110245020002719531/activity",
+			"type": "Announce",
+			"actor": "https://mstdn.social/users/feditips",
+			"published": "2023-04-22T23:18:25Z",
+			"to": [
+				"https://www.w3.org/ns/activitystreams#Public"
+			],
+			"cc": [
+				"https://mstdn.social/users/rysiek",
+				"https://mstdn.social/users/feditips/followers"
+			],
+			"object": "https://mstdn.social/users/rysiek/statuses/110244769502332109"
+		},
+		{
+			"id": "https://mstdn.social/users/feditips/statuses/110244197024134052/activity",
+			"type": "Create",
+			"actor": "https://mstdn.social/users/feditips",
+			"published": "2023-04-22T19:49:07Z",
+			"to": [
+				"https://www.w3.org/ns/activitystreams#Public"
+			],
+			"cc": [
+				"https://mstdn.social/users/feditips/followers"
+			],
+			"object": {
+				"id": "https://mstdn.social/users/feditips/statuses/110244197024134052",
+				"type": "Note",
+				"summary": null,
+				"inReplyTo": null,
+				"published": "2023-04-22T19:49:07Z",
+				"url": "https://mstdn.social/@feditips/110244197024134052",
+				"attributedTo": "https://mstdn.social/users/feditips",
+				"to": [
+					"https://www.w3.org/ns/activitystreams#Public"
+				],
+				"cc": [
+					"https://mstdn.social/users/feditips/followers"
+				],
+				"sensitive": false,
+				"atomUri": "https://mstdn.social/users/feditips/statuses/110244197024134052",
+				"inReplyToAtomUri": null,
+				"conversation": "tag:mstdn.social,2023-04-22:objectId=196176474:objectType=Conversation",
+				"content": "<p>To screen who follows you, there is an optional friend request feature on Mastodon:</p><p>1. Log in through your server&#39;s website<br />2. Go to Edit Profile &gt; Require Follow Requests, tick the box and click Save Changes</p><p>(If you change your mind, do this again but untick the box and save.)</p><p>A padlock 🔒 icon will now appear next to your name on your profile, and follows will require your approval.</p><p>NOTE: Don&#39;t screen out follow requests without profile pictures. Many blind users don&#39;t use profile pictures.</p>",
+				"contentMap": {
+					"en": "<p>To screen who follows you, there is an optional friend request feature on Mastodon:</p><p>1. Log in through your server&#39;s website<br />2. Go to Edit Profile &gt; Require Follow Requests, tick the box and click Save Changes</p><p>(If you change your mind, do this again but untick the box and save.)</p><p>A padlock 🔒 icon will now appear next to your name on your profile, and follows will require your approval.</p><p>NOTE: Don&#39;t screen out follow requests without profile pictures. Many blind users don&#39;t use profile pictures.</p>"
+				},
+				"attachment": [],
+				"tag": [],
+				"replies": {
+					"id": "https://mstdn.social/users/feditips/statuses/110244197024134052/replies",
+					"type": "Collection",
+					"first": {
+						"type": "CollectionPage",
+						"next": "https://mstdn.social/users/feditips/statuses/110244197024134052/replies?only_other_accounts=true&page=true",
+						"partOf": "https://mstdn.social/users/feditips/statuses/110244197024134052/replies",
+						"items": []
+					}
+				}
+			}
+		},
+		{
+			"id": "https://mstdn.social/users/feditips/statuses/110233289512157360/activity",
+			"type": "Create",
+			"actor": "https://mstdn.social/users/feditips",
+			"published": "2023-04-20T21:35:12Z",
+			"to": [
+				"https://mstdn.social/users/feditips/followers"
+			],
+			"cc": [
+				"https://www.w3.org/ns/activitystreams#Public"
+			],
+			"object": {
+				"id": "https://mstdn.social/users/feditips/statuses/110233289512157360",
+				"type": "Note",
+				"summary": null,
+				"inReplyTo": "https://mstdn.social/users/feditips/statuses/110233288313570737",
+				"published": "2023-04-20T21:35:12Z",
+				"url": "https://mstdn.social/@feditips/110233289512157360",
+				"attributedTo": "https://mstdn.social/users/feditips",
+				"to": [
+					"https://mstdn.social/users/feditips/followers"
+				],
+				"cc": [
+					"https://www.w3.org/ns/activitystreams#Public"
+				],
+				"sensitive": false,
+				"atomUri": "https://mstdn.social/users/feditips/statuses/110233289512157360",
+				"inReplyToAtomUri": "https://mstdn.social/users/feditips/statuses/110233288313570737",
+				"conversation": "tag:mstdn.social,2023-04-20:objectId=195282827:objectType=Conversation",
+				"content": "<p>So, what can be done?</p><p>1. Tell new people to use third party apps, they are better anyway and have more features. More info at <a href=\"https://fedi.tips/which-apps-can-i-use-should-i-use-the-official-app-or-a-third-party-app/\" target=\"_blank\" rel=\"nofollow noopener noreferrer\"><span class=\"invisible\">https://</span><span class=\"ellipsis\">fedi.tips/which-apps-can-i-use</span><span class=\"invisible\">-should-i-use-the-official-app-or-a-third-party-app/</span></a></p><p>2. Tell people to sign up on the website. Mastodon&#39;s official site at <a href=\"https://joinmastodon.org\" target=\"_blank\" rel=\"nofollow noopener noreferrer\"><span class=\"invisible\">https://</span><span class=\"\">joinmastodon.org</span><span class=\"invisible\"></span></a> is still asking people to choose a server, and is very professionally laid out. (I&#39;ve also got my own amateurish effort at <a href=\"https://fedi.garden\" target=\"_blank\" rel=\"nofollow noopener noreferrer\"><span class=\"invisible\">https://</span><span class=\"\">fedi.garden</span><span class=\"invisible\"></span></a>.)</p><p>3. If you&#39;re comfortable using github, give a thumbs up at <a href=\"https://github.com/mastodon/mastodon-ios/issues/1023\" target=\"_blank\" rel=\"nofollow noopener noreferrer\"><span class=\"invisible\">https://</span><span class=\"ellipsis\">github.com/mastodon/mastodon-i</span><span class=\"invisible\">os/issues/1023</span></a></p><p>(6/6)</p>",
+				"contentMap": {
+					"en": "<p>So, what can be done?</p><p>1. Tell new people to use third party apps, they are better anyway and have more features. More info at <a href=\"https://fedi.tips/which-apps-can-i-use-should-i-use-the-official-app-or-a-third-party-app/\" target=\"_blank\" rel=\"nofollow noopener noreferrer\"><span class=\"invisible\">https://</span><span class=\"ellipsis\">fedi.tips/which-apps-can-i-use</span><span class=\"invisible\">-should-i-use-the-official-app-or-a-third-party-app/</span></a></p><p>2. Tell people to sign up on the website. Mastodon&#39;s official site at <a href=\"https://joinmastodon.org\" target=\"_blank\" rel=\"nofollow noopener noreferrer\"><span class=\"invisible\">https://</span><span class=\"\">joinmastodon.org</span><span class=\"invisible\"></span></a> is still asking people to choose a server, and is very professionally laid out. (I&#39;ve also got my own amateurish effort at <a href=\"https://fedi.garden\" target=\"_blank\" rel=\"nofollow noopener noreferrer\"><span class=\"invisible\">https://</span><span class=\"\">fedi.garden</span><span class=\"invisible\"></span></a>.)</p><p>3. If you&#39;re comfortable using github, give a thumbs up at <a href=\"https://github.com/mastodon/mastodon-ios/issues/1023\" target=\"_blank\" rel=\"nofollow noopener noreferrer\"><span class=\"invisible\">https://</span><span class=\"ellipsis\">github.com/mastodon/mastodon-i</span><span class=\"invisible\">os/issues/1023</span></a></p><p>(6/6)</p>"
+				},
+				"attachment": [],
+				"tag": [],
+				"replies": {
+					"id": "https://mstdn.social/users/feditips/statuses/110233289512157360/replies",
+					"type": "Collection",
+					"first": {
+						"type": "CollectionPage",
+						"next": "https://mstdn.social/users/feditips/statuses/110233289512157360/replies?only_other_accounts=true&page=true",
+						"partOf": "https://mstdn.social/users/feditips/statuses/110233289512157360/replies",
+						"items": []
+					}
+				}
+			}
+		},
+		{
+			"id": "https://mstdn.social/users/feditips/statuses/110233288313570737/activity",
+			"type": "Create",
+			"actor": "https://mstdn.social/users/feditips",
+			"published": "2023-04-20T21:34:54Z",
+			"to": [
+				"https://mstdn.social/users/feditips/followers"
+			],
+			"cc": [
+				"https://www.w3.org/ns/activitystreams#Public",
+				"https://mastodon.social/users/Gargron"
+			],
+			"object": {
+				"id": "https://mstdn.social/users/feditips/statuses/110233288313570737",
+				"type": "Note",
+				"summary": null,
+				"inReplyTo": "https://mstdn.social/users/feditips/statuses/110233285078232525",
+				"published": "2023-04-20T21:34:54Z",
+				"url": "https://mstdn.social/@feditips/110233288313570737",
+				"attributedTo": "https://mstdn.social/users/feditips",
+				"to": [
+					"https://mstdn.social/users/feditips/followers"
+				],
+				"cc": [
+					"https://www.w3.org/ns/activitystreams#Public",
+					"https://mastodon.social/users/Gargron"
+				],
+				"sensitive": false,
+				"atomUri": "https://mstdn.social/users/feditips/statuses/110233288313570737",
+				"inReplyToAtomUri": "https://mstdn.social/users/feditips/statuses/110233285078232525",
+				"conversation": "tag:mstdn.social,2023-04-20:objectId=195282827:objectType=Conversation",
+				"content": "<p>This is not an attack on Eugen, I don&#39;t do those. Most of what <span class=\"h-card\"><a href=\"https://mastodon.social/@Gargron\" class=\"u-url mention\">@<span>Gargron</span></a></span> does is amazing, the Fedi owes him a great deal, and the fact he turned down large sums of VC money recently shows great integrity.</p><p>But eventually most people in that position will crack. Ever larger sums of money can make even the nicest people sell out.</p><p>If most of the Fediverse is on mastodon.social, it WILL receive more takeover bids. If it grows even further, these bids will become even higher.</p><p>(5/6)</p>",
+				"contentMap": {
+					"en": "<p>This is not an attack on Eugen, I don&#39;t do those. Most of what <span class=\"h-card\"><a href=\"https://mastodon.social/@Gargron\" class=\"u-url mention\">@<span>Gargron</span></a></span> does is amazing, the Fedi owes him a great deal, and the fact he turned down large sums of VC money recently shows great integrity.</p><p>But eventually most people in that position will crack. Ever larger sums of money can make even the nicest people sell out.</p><p>If most of the Fediverse is on mastodon.social, it WILL receive more takeover bids. If it grows even further, these bids will become even higher.</p><p>(5/6)</p>"
+				},
+				"attachment": [],
+				"tag": [
+					{
+						"type": "Mention",
+						"href": "https://mastodon.social/users/Gargron",
+						"name": "@Gargron@mastodon.social"
+					}
+				],
+				"replies": {
+					"id": "https://mstdn.social/users/feditips/statuses/110233288313570737/replies",
+					"type": "Collection",
+					"first": {
+						"type": "CollectionPage",
+						"next": "https://mstdn.social/users/feditips/statuses/110233288313570737/replies?min_id=110233289512157360&page=true",
+						"partOf": "https://mstdn.social/users/feditips/statuses/110233288313570737/replies",
+						"items": [
+							"https://mstdn.social/users/feditips/statuses/110233289512157360"
+						]
+					}
+				}
+			}
+		},
+		{
+			"id": "https://mstdn.social/users/feditips/statuses/110233285078232525/activity",
+			"type": "Create",
+			"actor": "https://mstdn.social/users/feditips",
+			"published": "2023-04-20T21:34:04Z",
+			"to": [
+				"https://mstdn.social/users/feditips/followers"
+			],
+			"cc": [
+				"https://www.w3.org/ns/activitystreams#Public"
+			],
+			"object": {
+				"id": "https://mstdn.social/users/feditips/statuses/110233285078232525",
+				"type": "Note",
+				"summary": null,
+				"inReplyTo": "https://mstdn.social/users/feditips/statuses/110233284427845088",
+				"published": "2023-04-20T21:34:04Z",
+				"url": "https://mstdn.social/@feditips/110233285078232525",
+				"attributedTo": "https://mstdn.social/users/feditips",
+				"to": [
+					"https://mstdn.social/users/feditips/followers"
+				],
+				"cc": [
+					"https://www.w3.org/ns/activitystreams#Public"
+				],
+				"sensitive": false,
+				"atomUri": "https://mstdn.social/users/feditips/statuses/110233285078232525",
+				"inReplyToAtomUri": "https://mstdn.social/users/feditips/statuses/110233284427845088",
+				"conversation": "tag:mstdn.social,2023-04-20:objectId=195282827:objectType=Conversation",
+				"content": "<p>Yes, signing up on one server is much easier for people who are used to centralised services like Twitter, Facebook etc.</p><p>But as we have seen from Twitter, such a setup leaves you at the mercy of Musk-type takeovers. For-profit social networks do not like federation, they hate it as they see it as competition. It is very likely that a commercial takeover of a majority server would defederate it, to prevent people leaving and simplify its maintenance.</p><p>(4/6)</p>",
+				"contentMap": {
+					"en": "<p>Yes, signing up on one server is much easier for people who are used to centralised services like Twitter, Facebook etc.</p><p>But as we have seen from Twitter, such a setup leaves you at the mercy of Musk-type takeovers. For-profit social networks do not like federation, they hate it as they see it as competition. It is very likely that a commercial takeover of a majority server would defederate it, to prevent people leaving and simplify its maintenance.</p><p>(4/6)</p>"
+				},
+				"attachment": [],
+				"tag": [],
+				"replies": {
+					"id": "https://mstdn.social/users/feditips/statuses/110233285078232525/replies",
+					"type": "Collection",
+					"first": {
+						"type": "CollectionPage",
+						"next": "https://mstdn.social/users/feditips/statuses/110233285078232525/replies?min_id=110233288313570737&page=true",
+						"partOf": "https://mstdn.social/users/feditips/statuses/110233285078232525/replies",
+						"items": [
+							"https://mstdn.social/users/feditips/statuses/110233288313570737"
+						]
+					}
+				}
+			}
+		},
+		{
+			"id": "https://mstdn.social/users/feditips/statuses/110233284427845088/activity",
+			"type": "Create",
+			"actor": "https://mstdn.social/users/feditips",
+			"published": "2023-04-20T21:33:54Z",
+			"to": [
+				"https://mstdn.social/users/feditips/followers"
+			],
+			"cc": [
+				"https://www.w3.org/ns/activitystreams#Public"
+			],
+			"object": {
+				"id": "https://mstdn.social/users/feditips/statuses/110233284427845088",
+				"type": "Note",
+				"summary": null,
+				"inReplyTo": "https://mstdn.social/users/feditips/statuses/110233283587561178",
+				"published": "2023-04-20T21:33:54Z",
+				"url": "https://mstdn.social/@feditips/110233284427845088",
+				"attributedTo": "https://mstdn.social/users/feditips",
+				"to": [
+					"https://mstdn.social/users/feditips/followers"
+				],
+				"cc": [
+					"https://www.w3.org/ns/activitystreams#Public"
+				],
+				"sensitive": false,
+				"atomUri": "https://mstdn.social/users/feditips/statuses/110233284427845088",
+				"inReplyToAtomUri": "https://mstdn.social/users/feditips/statuses/110233283587561178",
+				"conversation": "tag:mstdn.social,2023-04-20:objectId=195282827:objectType=Conversation",
+				"content": "<p>For the first time ever, the most common way to sign up on the Fediverse is now directing people to sign up on one specific server, rather than making them choose.</p><p>This will make mastodon.social grow even more quickly than it has before, and future waves of new Mastodon users may end up mostly there. It&#39;s very plausible this one server could become the majority of the Fediverse in the near future.</p><p>If that happens, the Fediverse would no longer be protected from buyouts by nasty people.</p><p>(3/6)</p>",
+				"contentMap": {
+					"en": "<p>For the first time ever, the most common way to sign up on the Fediverse is now directing people to sign up on one specific server, rather than making them choose.</p><p>This will make mastodon.social grow even more quickly than it has before, and future waves of new Mastodon users may end up mostly there. It&#39;s very plausible this one server could become the majority of the Fediverse in the near future.</p><p>If that happens, the Fediverse would no longer be protected from buyouts by nasty people.</p><p>(3/6)</p>"
+				},
+				"updated": "2023-04-20T21:42:58Z",
+				"attachment": [],
+				"tag": [],
+				"replies": {
+					"id": "https://mstdn.social/users/feditips/statuses/110233284427845088/replies",
+					"type": "Collection",
+					"first": {
+						"type": "CollectionPage",
+						"next": "https://mstdn.social/users/feditips/statuses/110233284427845088/replies?min_id=110233285078232525&page=true",
+						"partOf": "https://mstdn.social/users/feditips/statuses/110233284427845088/replies",
+						"items": [
+							"https://mstdn.social/users/feditips/statuses/110233285078232525"
+						]
+					}
+				}
+			}
+		},
+		{
+			"id": "https://mstdn.social/users/feditips/statuses/110233283587561178/activity",
+			"type": "Create",
+			"actor": "https://mstdn.social/users/feditips",
+			"published": "2023-04-20T21:33:41Z",
+			"to": [
+				"https://mstdn.social/users/feditips/followers"
+			],
+			"cc": [
+				"https://www.w3.org/ns/activitystreams#Public"
+			],
+			"object": {
+				"id": "https://mstdn.social/users/feditips/statuses/110233283587561178",
+				"type": "Note",
+				"summary": null,
+				"inReplyTo": "https://mstdn.social/users/feditips/statuses/110233282251253677",
+				"published": "2023-04-20T21:33:41Z",
+				"url": "https://mstdn.social/@feditips/110233283587561178",
+				"attributedTo": "https://mstdn.social/users/feditips",
+				"to": [
+					"https://mstdn.social/users/feditips/followers"
+				],
+				"cc": [
+					"https://www.w3.org/ns/activitystreams#Public"
+				],
+				"sensitive": false,
+				"atomUri": "https://mstdn.social/users/feditips/statuses/110233283587561178",
+				"inReplyToAtomUri": "https://mstdn.social/users/feditips/statuses/110233282251253677",
+				"conversation": "tag:mstdn.social,2023-04-20:objectId=195282827:objectType=Conversation",
+				"content": "<p>There is technically still an option on the official app to &quot;pick my own server&quot;, but it&#39;s much harder to read or notice, and new users will probably click the mastodon.social button without even understanding the other button.</p><p>Mastodon.social just passed 1 million registered users about a week ago, out of a total network of approx 7 to 11 million users (dependiing on how you count them).</p><p>Most of these users probably signed up via the official app.</p><p>(2/6)</p>",
+				"contentMap": {
+					"en": "<p>There is technically still an option on the official app to &quot;pick my own server&quot;, but it&#39;s much harder to read or notice, and new users will probably click the mastodon.social button without even understanding the other button.</p><p>Mastodon.social just passed 1 million registered users about a week ago, out of a total network of approx 7 to 11 million users (dependiing on how you count them).</p><p>Most of these users probably signed up via the official app.</p><p>(2/6)</p>"
+				},
+				"updated": "2023-04-20T21:57:59Z",
+				"attachment": [],
+				"tag": [],
+				"replies": {
+					"id": "https://mstdn.social/users/feditips/statuses/110233283587561178/replies",
+					"type": "Collection",
+					"first": {
+						"type": "CollectionPage",
+						"next": "https://mstdn.social/users/feditips/statuses/110233283587561178/replies?min_id=110233284427845088&page=true",
+						"partOf": "https://mstdn.social/users/feditips/statuses/110233283587561178/replies",
+						"items": [
+							"https://mstdn.social/users/feditips/statuses/110233284427845088"
+						]
+					}
+				}
+			}
+		},
+		{
+			"id": "https://mstdn.social/users/feditips/statuses/110233282251253677/activity",
+			"type": "Create",
+			"actor": "https://mstdn.social/users/feditips",
+			"published": "2023-04-20T21:33:21Z",
+			"to": [
+				"https://www.w3.org/ns/activitystreams#Public"
+			],
+			"cc": [
+				"https://mstdn.social/users/feditips/followers"
+			],
+			"object": {
+				"id": "https://mstdn.social/users/feditips/statuses/110233282251253677",
+				"type": "Note",
+				"summary": null,
+				"inReplyTo": null,
+				"published": "2023-04-20T21:33:21Z",
+				"url": "https://mstdn.social/@feditips/110233282251253677",
+				"attributedTo": "https://mstdn.social/users/feditips",
+				"to": [
+					"https://www.w3.org/ns/activitystreams#Public"
+				],
+				"cc": [
+					"https://mstdn.social/users/feditips/followers"
+				],
+				"sensitive": false,
+				"atomUri": "https://mstdn.social/users/feditips/statuses/110233282251253677",
+				"inReplyToAtomUri": null,
+				"conversation": "tag:mstdn.social,2023-04-20:objectId=195282827:objectType=Conversation",
+				"content": "<p>The official Mastodon app is doing something new which is potentially very dangerous to the existence of Mastodon and the Fediverse.</p><p>The official Mastodon app now prompts users to join mastodon.social by default, when previously it prompted them to pick a server. If you&#39;re new this may sound harmless, but let me explain.</p><p>The entire point of this place is to be a social network spread out on as many servers as possible (the reasons are here: <a href=\"https://fedi.tips/why-is-the-fediverse-on-so-many-separate-servers/\" target=\"_blank\" rel=\"nofollow noopener noreferrer\"><span class=\"invisible\">https://</span><span class=\"ellipsis\">fedi.tips/why-is-the-fediverse</span><span class=\"invisible\">-on-so-many-separate-servers/</span></a>).</p><p>(1/6)</p>",
+				"contentMap": {
+					"en": "<p>The official Mastodon app is doing something new which is potentially very dangerous to the existence of Mastodon and the Fediverse.</p><p>The official Mastodon app now prompts users to join mastodon.social by default, when previously it prompted them to pick a server. If you&#39;re new this may sound harmless, but let me explain.</p><p>The entire point of this place is to be a social network spread out on as many servers as possible (the reasons are here: <a href=\"https://fedi.tips/why-is-the-fediverse-on-so-many-separate-servers/\" target=\"_blank\" rel=\"nofollow noopener noreferrer\"><span class=\"invisible\">https://</span><span class=\"ellipsis\">fedi.tips/why-is-the-fediverse</span><span class=\"invisible\">-on-so-many-separate-servers/</span></a>).</p><p>(1/6)</p>"
+				},
+				"attachment": [
+					{
+						"type": "Document",
+						"mediaType": "image/png",
+						"url": "https://media.mstdn.social/media_attachments/files/110/233/274/499/969/402/original/a7bc3c58e6e1e0a0.png",
+						"name": "Screenshot of the official Mastodon app's splash screen which is shown when new users first install it. The current version now has a main button that prompts them to \"join mastodon.social\", with a more difficult to see button below it saying \"pick my own server\".",
+						"blurhash": "UqG0|Qr=RmkCuPWEkCkBE+Shs+jsrZs,jGae",
+						"focalPoint": [
+							-0.01,
+							-0.84
+						],
+						"width": 828,
+						"height": 1792
+					}
+				],
+				"tag": [],
+				"replies": {
+					"id": "https://mstdn.social/users/feditips/statuses/110233282251253677/replies",
+					"type": "Collection",
+					"first": {
+						"type": "CollectionPage",
+						"next": "https://mstdn.social/users/feditips/statuses/110233282251253677/replies?min_id=110233283587561178&page=true",
+						"partOf": "https://mstdn.social/users/feditips/statuses/110233282251253677/replies",
+						"items": [
+							"https://mstdn.social/users/feditips/statuses/110233283587561178"
+						]
+					}
+				}
+			}
+		},
+		{
+			"id": "https://mstdn.social/users/feditips/statuses/110226195352289709/activity",
+			"type": "Create",
+			"actor": "https://mstdn.social/users/feditips",
+			"published": "2023-04-19T15:31:04Z",
+			"to": [
+				"https://mstdn.social/users/feditips/followers"
+			],
+			"cc": [
+				"https://www.w3.org/ns/activitystreams#Public",
+				"https://mastodon.green/users/vattuvarg"
+			],
+			"object": {
+				"id": "https://mstdn.social/users/feditips/statuses/110226195352289709",
+				"type": "Note",
+				"summary": null,
+				"inReplyTo": "https://mastodon.green/users/vattuvarg/statuses/110226189783222631",
+				"published": "2023-04-19T15:31:04Z",
+				"url": "https://mstdn.social/@feditips/110226195352289709",
+				"attributedTo": "https://mstdn.social/users/feditips",
+				"to": [
+					"https://mstdn.social/users/feditips/followers"
+				],
+				"cc": [
+					"https://www.w3.org/ns/activitystreams#Public",
+					"https://mastodon.green/users/vattuvarg"
+				],
+				"sensitive": false,
+				"atomUri": "https://mstdn.social/users/feditips/statuses/110226195352289709",
+				"inReplyToAtomUri": "https://mastodon.green/users/vattuvarg/statuses/110226189783222631",
+				"conversation": "tag:mstdn.social,2023-04-19:objectId=194623157:objectType=Conversation",
+				"content": "<p><span class=\"h-card\"><a href=\"https://mastodon.green/@vattuvarg\" class=\"u-url mention\">@<span>vattuvarg</span></a></span> </p><p>There&#39;s more info at the link. Chirp allows moderation because its groups are created by registered users.</p>",
+				"contentMap": {
+					"en": "<p><span class=\"h-card\"><a href=\"https://mastodon.green/@vattuvarg\" class=\"u-url mention\">@<span>vattuvarg</span></a></span> </p><p>There&#39;s more info at the link. Chirp allows moderation because its groups are created by registered users.</p>"
+				},
+				"attachment": [],
+				"tag": [
+					{
+						"type": "Mention",
+						"href": "https://mastodon.green/users/vattuvarg",
+						"name": "@vattuvarg@mastodon.green"
+					}
+				],
+				"replies": {
+					"id": "https://mstdn.social/users/feditips/statuses/110226195352289709/replies",
+					"type": "Collection",
+					"first": {
+						"type": "CollectionPage",
+						"next": "https://mstdn.social/users/feditips/statuses/110226195352289709/replies?only_other_accounts=true&page=true",
+						"partOf": "https://mstdn.social/users/feditips/statuses/110226195352289709/replies",
+						"items": []
+					}
+				}
+			}
+		},
+		{
+			"id": "https://mstdn.social/users/feditips/statuses/110225968785827873/activity",
+			"type": "Create",
+			"actor": "https://mstdn.social/users/feditips",
+			"published": "2023-04-19T14:33:26Z",
+			"to": [
+				"https://www.w3.org/ns/activitystreams#Public"
+			],
+			"cc": [
+				"https://mstdn.social/users/feditips/followers"
+			],
+			"object": {
+				"id": "https://mstdn.social/users/feditips/statuses/110225968785827873",
+				"type": "Note",
+				"summary": null,
+				"inReplyTo": null,
+				"published": "2023-04-19T14:33:26Z",
+				"url": "https://mstdn.social/@feditips/110225968785827873",
+				"attributedTo": "https://mstdn.social/users/feditips",
+				"to": [
+					"https://www.w3.org/ns/activitystreams#Public"
+				],
+				"cc": [
+					"https://mstdn.social/users/feditips/followers"
+				],
+				"sensitive": false,
+				"atomUri": "https://mstdn.social/users/feditips/statuses/110225968785827873",
+				"inReplyToAtomUri": null,
+				"conversation": "tag:mstdn.social,2023-04-19:objectId=194623157:objectType=Conversation",
+				"content": "<p>If you&#39;re interested in particular topics, you can join Fediverse groups. They work like this:</p><p>1. Join a group by following its account, leave by unfollowing<br />2. Posts from that group will start appearing in your timeline<br />3. Post to a group by mentioning it in a public post</p><p>The groups work via third party services, the most popular ones at the moment are <a href=\"https://chirp.social\" target=\"_blank\" rel=\"nofollow noopener noreferrer\"><span class=\"invisible\">https://</span><span class=\"\">chirp.social</span><span class=\"invisible\"></span></a> and <a href=\"https://a.gup.pe\" target=\"_blank\" rel=\"nofollow noopener noreferrer\"><span class=\"invisible\">https://</span><span class=\"\">a.gup.pe</span><span class=\"invisible\"></span></a>.</p><p>More info on discovering and creating groups at <a href=\"https://fedi.tips/how-to-use-groups-on-the-fediverse\" target=\"_blank\" rel=\"nofollow noopener noreferrer\"><span class=\"invisible\">https://</span><span class=\"ellipsis\">fedi.tips/how-to-use-groups-on</span><span class=\"invisible\">-the-fediverse</span></a></p>",
+				"contentMap": {
+					"en": "<p>If you&#39;re interested in particular topics, you can join Fediverse groups. They work like this:</p><p>1. Join a group by following its account, leave by unfollowing<br />2. Posts from that group will start appearing in your timeline<br />3. Post to a group by mentioning it in a public post</p><p>The groups work via third party services, the most popular ones at the moment are <a href=\"https://chirp.social\" target=\"_blank\" rel=\"nofollow noopener noreferrer\"><span class=\"invisible\">https://</span><span class=\"\">chirp.social</span><span class=\"invisible\"></span></a> and <a href=\"https://a.gup.pe\" target=\"_blank\" rel=\"nofollow noopener noreferrer\"><span class=\"invisible\">https://</span><span class=\"\">a.gup.pe</span><span class=\"invisible\"></span></a>.</p><p>More info on discovering and creating groups at <a href=\"https://fedi.tips/how-to-use-groups-on-the-fediverse\" target=\"_blank\" rel=\"nofollow noopener noreferrer\"><span class=\"invisible\">https://</span><span class=\"ellipsis\">fedi.tips/how-to-use-groups-on</span><span class=\"invisible\">-the-fediverse</span></a></p>"
+				},
+				"updated": "2023-04-19T14:34:19Z",
+				"attachment": [],
+				"tag": [],
+				"replies": {
+					"id": "https://mstdn.social/users/feditips/statuses/110225968785827873/replies",
+					"type": "Collection",
+					"first": {
+						"type": "CollectionPage",
+						"next": "https://mstdn.social/users/feditips/statuses/110225968785827873/replies?only_other_accounts=true&page=true",
+						"partOf": "https://mstdn.social/users/feditips/statuses/110225968785827873/replies",
+						"items": []
+					}
+				}
+			}
+		},
+		{
+			"id": "https://mstdn.social/users/feditips/statuses/110221189826502093/activity",
+			"type": "Create",
+			"actor": "https://mstdn.social/users/feditips",
+			"published": "2023-04-18T18:18:05Z",
+			"to": [
+				"https://www.w3.org/ns/activitystreams#Public"
+			],
+			"cc": [
+				"https://mstdn.social/users/feditips/followers"
+			],
+			"object": {
+				"id": "https://mstdn.social/users/feditips/statuses/110221189826502093",
+				"type": "Note",
+				"summary": null,
+				"inReplyTo": null,
+				"published": "2023-04-18T18:18:05Z",
+				"url": "https://mstdn.social/@feditips/110221189826502093",
+				"attributedTo": "https://mstdn.social/users/feditips",
+				"to": [
+					"https://www.w3.org/ns/activitystreams#Public"
+				],
+				"cc": [
+					"https://mstdn.social/users/feditips/followers"
+				],
+				"sensitive": false,
+				"atomUri": "https://mstdn.social/users/feditips/statuses/110221189826502093",
+				"inReplyToAtomUri": null,
+				"conversation": "tag:mstdn.social,2023-04-18:objectId=194241024:objectType=Conversation",
+				"content": "<p>You can ask search engines such as Google not to index your account by doing this:</p><p>1. Log in through your server&#39;s website<br />2. Go to Preferences &gt; Other &gt; Opt Out Of Search Engine Indexing<br />3. Tick the box and click &quot;Save Changes&quot;</p><p>(If you&#39;re on mobile you will need to click ☰ to see preferences)</p><p>Bear in mind this method relies on search engines obeying your request. If you want to be absolutely sure a post isn&#39;t indexed, use a non-public visibility.</p><p>More info at <a href=\"https://fedi.tips/hiding-your-posts-from-search-engines-on-mastodon-and-the-fediverse\" target=\"_blank\" rel=\"nofollow noopener noreferrer\"><span class=\"invisible\">https://</span><span class=\"ellipsis\">fedi.tips/hiding-your-posts-fr</span><span class=\"invisible\">om-search-engines-on-mastodon-and-the-fediverse</span></a></p>",
+				"contentMap": {
+					"en": "<p>You can ask search engines such as Google not to index your account by doing this:</p><p>1. Log in through your server&#39;s website<br />2. Go to Preferences &gt; Other &gt; Opt Out Of Search Engine Indexing<br />3. Tick the box and click &quot;Save Changes&quot;</p><p>(If you&#39;re on mobile you will need to click ☰ to see preferences)</p><p>Bear in mind this method relies on search engines obeying your request. If you want to be absolutely sure a post isn&#39;t indexed, use a non-public visibility.</p><p>More info at <a href=\"https://fedi.tips/hiding-your-posts-from-search-engines-on-mastodon-and-the-fediverse\" target=\"_blank\" rel=\"nofollow noopener noreferrer\"><span class=\"invisible\">https://</span><span class=\"ellipsis\">fedi.tips/hiding-your-posts-fr</span><span class=\"invisible\">om-search-engines-on-mastodon-and-the-fediverse</span></a></p>"
+				},
+				"attachment": [],
+				"tag": [],
+				"replies": {
+					"id": "https://mstdn.social/users/feditips/statuses/110221189826502093/replies",
+					"type": "Collection",
+					"first": {
+						"type": "CollectionPage",
+						"next": "https://mstdn.social/users/feditips/statuses/110221189826502093/replies?only_other_accounts=true&page=true",
+						"partOf": "https://mstdn.social/users/feditips/statuses/110221189826502093/replies",
+						"items": []
+					}
+				}
+			}
+		},
+		{
+			"id": "https://mstdn.social/users/feditips/statuses/110215973868061829/activity",
+			"type": "Create",
+			"actor": "https://mstdn.social/users/feditips",
+			"published": "2023-04-17T20:11:36Z",
+			"to": [
+				"https://mstdn.social/users/feditips/followers"
+			],
+			"cc": [
+				"https://www.w3.org/ns/activitystreams#Public"
+			],
+			"object": {
+				"id": "https://mstdn.social/users/feditips/statuses/110215973868061829",
+				"type": "Note",
+				"summary": null,
+				"inReplyTo": "https://mstdn.social/users/feditips/statuses/110215816377136867",
+				"published": "2023-04-17T20:11:36Z",
+				"url": "https://mstdn.social/@feditips/110215973868061829",
+				"attributedTo": "https://mstdn.social/users/feditips",
+				"to": [
+					"https://mstdn.social/users/feditips/followers"
+				],
+				"cc": [
+					"https://www.w3.org/ns/activitystreams#Public"
+				],
+				"sensitive": false,
+				"atomUri": "https://mstdn.social/users/feditips/statuses/110215973868061829",
+				"inReplyToAtomUri": "https://mstdn.social/users/feditips/statuses/110215816377136867",
+				"conversation": "tag:mstdn.social,2023-04-17:objectId=193798839:objectType=Conversation",
+				"content": "<p>p.p.s. Okay, thank you to everyone who replied about this. Just did a few more tests and Unlisted seems to work like this in Home:</p><p>Unlisted posts and replies from people you follow will appear in your Home timeline unless they are a reply to someone you don&#39;t follow.</p><p>...so... yeah... this is not the most intuitive setup, but seems to be how Unlisted works on Home!</p>",
+				"contentMap": {
+					"en": "<p>p.p.s. Okay, thank you to everyone who replied about this. Just did a few more tests and Unlisted seems to work like this in Home:</p><p>Unlisted posts and replies from people you follow will appear in your Home timeline unless they are a reply to someone you don&#39;t follow.</p><p>...so... yeah... this is not the most intuitive setup, but seems to be how Unlisted works on Home!</p>"
+				},
+				"updated": "2023-04-17T20:48:21Z",
+				"attachment": [],
+				"tag": [],
+				"replies": {
+					"id": "https://mstdn.social/users/feditips/statuses/110215973868061829/replies",
+					"type": "Collection",
+					"first": {
+						"type": "CollectionPage",
+						"next": "https://mstdn.social/users/feditips/statuses/110215973868061829/replies?only_other_accounts=true&page=true",
+						"partOf": "https://mstdn.social/users/feditips/statuses/110215973868061829/replies",
+						"items": []
+					}
+				}
+			}
+		},
+		{
+			"id": "https://mstdn.social/users/feditips/statuses/110215816377136867/activity",
+			"type": "Create",
+			"actor": "https://mstdn.social/users/feditips",
+			"published": "2023-04-17T19:31:33Z",
+			"to": [
+				"https://mstdn.social/users/feditips/followers"
+			],
+			"cc": [
+				"https://www.w3.org/ns/activitystreams#Public"
+			],
+			"object": {
+				"id": "https://mstdn.social/users/feditips/statuses/110215816377136867",
+				"type": "Note",
+				"summary": null,
+				"inReplyTo": "https://mstdn.social/users/feditips/statuses/110215794175444477",
+				"published": "2023-04-17T19:31:33Z",
+				"url": "https://mstdn.social/@feditips/110215816377136867",
+				"attributedTo": "https://mstdn.social/users/feditips",
+				"to": [
+					"https://mstdn.social/users/feditips/followers"
+				],
+				"cc": [
+					"https://www.w3.org/ns/activitystreams#Public"
+				],
+				"sensitive": false,
+				"atomUri": "https://mstdn.social/users/feditips/statuses/110215816377136867",
+				"inReplyToAtomUri": "https://mstdn.social/users/feditips/statuses/110215794175444477",
+				"conversation": "tag:mstdn.social,2023-04-17:objectId=193798839:objectType=Conversation",
+				"content": "<p>p.s. To be honest I am still having trouble nailing down how Unlisted is supposed to work. It isn&#39;t documented fully.</p><p>Unlisted is public but not visible in Federated or Local or Search.</p><p>BUT... what about Home?</p><p>I assumed it would never show up in Home unless it was boosted, but I&#39;ve seen unboosted Unlisted replies to conversations I wasn&#39;t taking part in.</p><p>If someone can point to proper full documentation for Unlisted including its behaviour in Home timelines, that would be fantastic.</p>",
+				"contentMap": {
+					"en": "<p>p.s. To be honest I am still having trouble nailing down how Unlisted is supposed to work. It isn&#39;t documented fully.</p><p>Unlisted is public but not visible in Federated or Local or Search.</p><p>BUT... what about Home?</p><p>I assumed it would never show up in Home unless it was boosted, but I&#39;ve seen unboosted Unlisted replies to conversations I wasn&#39;t taking part in.</p><p>If someone can point to proper full documentation for Unlisted including its behaviour in Home timelines, that would be fantastic.</p>"
+				},
+				"updated": "2023-04-17T19:37:55Z",
+				"attachment": [],
+				"tag": [],
+				"replies": {
+					"id": "https://mstdn.social/users/feditips/statuses/110215816377136867/replies",
+					"type": "Collection",
+					"first": {
+						"type": "CollectionPage",
+						"next": "https://mstdn.social/users/feditips/statuses/110215816377136867/replies?min_id=110215973868061829&page=true",
+						"partOf": "https://mstdn.social/users/feditips/statuses/110215816377136867/replies",
+						"items": [
+							"https://mstdn.social/users/feditips/statuses/110215973868061829"
+						]
+					}
+				}
+			}
+		}
+	]
+}

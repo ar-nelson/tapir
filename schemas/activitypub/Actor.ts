@@ -1,4 +1,5 @@
 import { assertMatchesSchema, MatchesSchema, matchesSchema } from "$/deps.ts";
+import { AssertFn } from "$/lib/utils.ts";
 import { commonDefs, ObjectCommon } from "$/schemas/activitypub/Object.ts";
 
 export const schema = {
@@ -50,4 +51,4 @@ export const schema = {
 export type Actor = MatchesSchema<typeof schema>;
 
 export const isActor = matchesSchema(schema);
-export const assertIsActor = assertMatchesSchema(schema);
+export const assertIsActor: AssertFn<Actor> = assertMatchesSchema(schema);

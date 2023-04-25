@@ -51,4 +51,7 @@ export const schema = {
 export type Activity = MatchesSchema<typeof schema>;
 
 export const isActivity = matchesSchema(schema);
-export const assertIsActivity = assertMatchesSchema(schema);
+export const assertIsActivity: (
+  value: unknown,
+  message?: string,
+) => asserts value is Activity = assertMatchesSchema(schema);

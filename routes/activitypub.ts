@@ -8,19 +8,31 @@ import {
   Status,
 } from "$/deps.ts";
 import { Injectable } from "$/lib/inject.ts";
+import * as urls from "$/lib/urls.ts";
 import { jsonOr404 } from "$/lib/utils.ts";
 import { BlockedServerStore } from "$/models/BlockedServer.ts";
-import { CONTENT_TYPE, defaultContext } from "$/schemas/activitypub/mod.ts";
+import {
+  Activity,
+  CONTENT_TYPE,
+  defaultContextJson,
+} from "$/schemas/activitypub/mod.ts";
+import { TapirConfig } from "../models/TapirConfig.ts";
 
 @Injectable()
 export class ActivityPubRouter extends Router {
   constructor(
     private readonly controller: ActivityPubController,
     private readonly blockedServerStore: BlockedServerStore,
+    private readonly config: TapirConfig,
   ) {
     super();
 
-    this.use("/", (ctx, next) => this.#middleware(ctx, next))
+    this.get("/context", (ctx) => {
+      ctx.response.type = "json";
+      ctx.response.headers.set("content-type", "application/ld+json");
+      ctx.response.body = defaultContextJson;
+    })
+      .use("/", (ctx, next) => this.#middleware(ctx, next))
       .get(
         "/activity/:id",
         async (ctx) =>
@@ -59,8 +71,20 @@ export class ActivityPubRouter extends Router {
     const json = await ctx.request.body({ type: "json" }).value,
       { id, actor } = json,
       idUrl = typeof id === "string" && new URL(id),
-      actorUrl = typeof actor === "string" && new URL(actor),
+      actorUrl = typeof actor === "string" && new URL(actor);
+
+    let activity: Activity;
+    try {
       activity = await this.controller.canonicalizeIncomingActivity(json);
+    } catch (e) {
+      log.error(e);
+      log.error(
+        `Request body was not a valid Activity:\n${
+          JSON.stringify(json, null, 2)
+        }`,
+      );
+      ctx.throw(Status.BadRequest, "Request body was not a valid Activity");
+    }
 
     if (idUrl) {
       ctx.assert(
@@ -75,15 +99,6 @@ export class ActivityPubRouter extends Router {
         Status.Forbidden,
         `Rejected ActivityPub POST from blocked domain ${actorUrl.hostname}`,
       );
-    }
-
-    if (!activity) {
-      log.error(
-        `Request body was not a valid Activity:\n${
-          JSON.stringify(json, null, 2)
-        }`,
-      );
-      ctx.throw(Status.BadRequest, "Request body was not a valid Activity");
     }
 
     await this.controller.onInboxPost(ctx.params.name, activity);
@@ -109,7 +124,7 @@ export class ActivityPubRouter extends Router {
       typeof ctx.response.body === "object"
     ) {
       ctx.response.body = {
-        "@context": defaultContext,
+        "@context": urls.activityPubContext(this.config.url),
         ...ctx.response.body,
       };
     }

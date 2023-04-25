@@ -3,7 +3,7 @@ import { DateDiff, datetime } from "$/lib/datetime/mod.ts";
 import { InjectableAbstract, Singleton } from "$/lib/inject.ts";
 import { publicKeyFromPem } from "$/lib/signatures.ts";
 import { KnownServerStore } from "$/models/KnownServer.ts";
-import { Actor, isActor } from "$/schemas/activitypub/mod.ts";
+import { Actor, assertIsActor } from "$/schemas/activitypub/mod.ts";
 import {
   ActivityPubClientService,
   Priority,
@@ -81,19 +81,26 @@ export class KnownActorStoreImpl extends KnownActorStore {
     ) {
       let newActor: Actor | null = null;
       try {
-        newActor = await this.apClient.getObject(
+        newActor = await this.apClient.getObject<Actor>(
           url,
           asPersona,
           Priority.Soon,
-          isActor,
+          assertIsActor as any, // I think I broke typescript, whoops
         );
-      } catch { /* do nothing */ }
+      } catch (e) {
+        log.error(
+          `Failed to ${
+            existing ? "re-fetch existing" : "fetch new"
+          } actor ${url}`,
+        );
+        log.error(e);
+      }
       if (newActor) {
         this.knownServerStore.seen(url, newActor.endpoints?.sharedInbox);
         const fields = {
           name: newActor.name,
           displayName: newActor.preferredUsername,
-          profileUrl: this.apGen.getOneLink(newActor.url) ?? url.toString(),
+          profileUrl: this.apClient.getOneLink(newActor.url) ?? url.toString(),
           inbox: newActor.inbox,
           outbox: newActor.outbox,
           server: `${url.protocol}//${url.host}`,
@@ -110,9 +117,6 @@ export class KnownActorStoreImpl extends KnownActorStore {
           return this.create({ url: url.toString(), ...fields });
         }
       }
-      log.error(
-        `Failed to fetch ${existing ? "existing" : "new"} actor ${url}`,
-      );
     }
     return existing;
   }

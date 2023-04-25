@@ -1,4 +1,5 @@
 import { assertMatchesSchema, MatchesSchema, matchesSchema } from "$/deps.ts";
+import { AssertFn } from "$/lib/utils.ts";
 
 export const ObjectCommon = {
   id: ["optional", "string"],
@@ -33,12 +34,12 @@ export const ObjectCommon = {
 
 export const CollectionCommon = {
   ...ObjectCommon,
-  "totalItems": "integer",
-  "current": ["optional", ["ref", "CollectionPageOrLinkRef"]],
-  "first": ["optional", ["ref", "CollectionPageOrLinkRef"]],
-  "last": ["optional", ["ref", "CollectionPageOrLinkRef"]],
-  "items": ["optional", ["ref", "ObjectOrLinkRefs"]],
-  "orderedItems": ["optional", ["ref", "ObjectOrLinkRefs"]],
+  totalItems: ["optional", "integer"],
+  current: ["optional", ["ref", "CollectionPageOrLinkRef"]],
+  first: ["optional", ["ref", "CollectionPageOrLinkRef"]],
+  last: ["optional", ["ref", "CollectionPageOrLinkRef"]],
+  items: ["optional", ["ref", "ObjectOrLinkRefs"]],
+  orderedItems: ["optional", ["ref", "ObjectOrLinkRefs"]],
 } as const;
 
 export const commonDefs = {
@@ -114,7 +115,12 @@ export const isLink = matchesSchema(LinkSchema);
 export const isCollection = matchesSchema(CollectionSchema);
 export const isCollectionPage = matchesSchema(CollectionPageSchema);
 
-export const assertIsObject = assertMatchesSchema(ObjectSchema);
-export const assertIsLink = assertMatchesSchema(LinkSchema);
-export const assertIsCollection = assertMatchesSchema(CollectionSchema);
-export const assertIsCollectionPage = assertMatchesSchema(CollectionPageSchema);
+export const assertIsObject: AssertFn<Object> = assertMatchesSchema(
+  ObjectSchema,
+);
+export const assertIsLink: AssertFn<Link> = assertMatchesSchema(LinkSchema);
+export const assertIsCollection: AssertFn<Collection> = assertMatchesSchema(
+  CollectionSchema,
+);
+export const assertIsCollectionPage: AssertFn<CollectionPage> =
+  assertMatchesSchema(CollectionPageSchema);

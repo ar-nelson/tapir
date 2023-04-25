@@ -187,6 +187,10 @@ export function activityPubActivity(id: string, prefix = "/"): string {
   return urlJoin(prefix, `ap/activity/${encodeURIComponent(id)}`);
 }
 
+export function activityPubContext(prefix = "/"): string {
+  return urlJoin(prefix, "ap/context");
+}
+
 export function isActivityPubActivity(
   url: string,
   prefix = "/",

@@ -9,21 +9,12 @@ import {
   Collection,
   CollectionPage,
   key,
-  Link,
-  LinkRefs,
   Object,
 } from "$/schemas/activitypub/mod.ts";
 
 @Singleton()
 export class ActivityPubGeneratorService {
   constructor(private readonly config: TapirConfig) {}
-
-  getOneLink(link: null | undefined | LinkRefs): string | undefined {
-    if (!link) return undefined;
-    else if (Array.isArray(link)) return this.getOneLink(link[0]);
-    else if (typeof link === "string") return link;
-    else return (link as Link).href;
-  }
 
   publicActivity(
     persona: string,

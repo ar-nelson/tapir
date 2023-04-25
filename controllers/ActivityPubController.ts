@@ -1,27 +1,26 @@
+import { log, Status } from "$/deps.ts";
 import { Injector, Singleton } from "$/lib/inject.ts";
-import { TapirConfig } from "$/models/TapirConfig.ts";
-import { PersonaStore } from "$/models/Persona.ts";
-import { LocalPostStore } from "$/models/LocalPost.ts";
-import { LocalActivityStore } from "$/models/LocalActivity.ts";
+import { compact, Document } from "$/lib/json-ld/mod.ts";
+import * as urls from "$/lib/urls.ts";
+import { asyncToArray } from "$/lib/utils.ts";
 import {
   InFollowError,
   InFollowErrorType,
   InFollowStore,
 } from "$/models/InFollow.ts";
+import { LocalActivityStore } from "$/models/LocalActivity.ts";
+import { LocalPostStore } from "$/models/LocalPost.ts";
+import { PersonaStore } from "$/models/Persona.ts";
+import { TapirConfig } from "$/models/TapirConfig.ts";
 import {
   Activity,
   Actor,
+  assertIsActivity,
   Collection,
-  defaultContext,
-  isActivity,
   Object,
 } from "$/schemas/activitypub/mod.ts";
 import { ActivityPubGeneratorService } from "$/services/ActivityPubGeneratorService.ts";
-import { JsonLdService } from "$/services/JsonLdService.ts";
-import { JsonLdDocument } from "$/lib/jsonld.ts";
-import { asyncToArray } from "$/lib/utils.ts";
-import * as urls from "$/lib/urls.ts";
-import { log, Status } from "$/deps.ts";
+import { JsonLdContextService } from "$/services/JsonLdContextService.ts";
 
 export interface HandlerState {
   injector: Injector;
@@ -37,17 +36,17 @@ export class ActivityPubController {
     private readonly localActivityStore: LocalActivityStore,
     private readonly inFollowStore: InFollowStore,
     private readonly apGen: ActivityPubGeneratorService,
-    private readonly jsonLd: JsonLdService,
+    private readonly jsonLd: JsonLdContextService,
   ) {}
 
-  async canonicalizeIncomingActivity(
-    json: JsonLdDocument,
-  ): Promise<Activity | null> {
-    const compacted = await this.jsonLd.processDocument({
-      ...await this.jsonLd.processDocument(json),
-      "@context": defaultContext,
-    }, { expandTerms: false });
-    return isActivity(compacted) ? compacted : null;
+  async canonicalizeIncomingActivity(json: Document): Promise<Activity> {
+    const compacted = await compact(
+      json,
+      this.jsonLd.resolver,
+      await this.jsonLd.defaultContext,
+    );
+    assertIsActivity(compacted);
+    return compacted;
   }
 
   async getPersona(name: string): Promise<Actor | undefined> {
