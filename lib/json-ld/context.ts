@@ -309,10 +309,11 @@ export class LiteralContext implements Context {
   }
 
   toJson(): ContextSrc {
+    if (this.url) return this.url;
     const parentJson = this.parent.toJson(),
       arr = [
         ...Array.isArray(parentJson) ? parentJson : [parentJson],
-        this.url ?? this.src,
+        this.src,
       ];
     return arr.length === 1 ? arr[0] : arr;
   }

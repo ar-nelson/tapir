@@ -13,6 +13,7 @@ import {
   assertIsCollectionPage,
   assertIsObject,
   CONTENT_TYPE,
+  defaultContextJson,
   isCollectionPage,
   Link,
   LinkRefs,
@@ -188,7 +189,7 @@ export class ActivityPubClientServiceImpl extends ActivityPubClientService {
             "POST",
             fromPersona,
             JSON.stringify({
-              "@context": urls.activityPubContext(this.config.url),
+              "@context": defaultContextJson["@context"],
               ...activity,
             }),
           );
@@ -227,7 +228,7 @@ export class ActivityPubClientServiceImpl extends ActivityPubClientService {
           "POST",
           fromPersona,
           JSON.stringify({
-            "@context": urls.activityPubContext(this.config.url),
+            "@context": defaultContextJson["@context"],
             ...activity,
           }),
         )
