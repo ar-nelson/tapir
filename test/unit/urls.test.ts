@@ -1,5 +1,5 @@
-import { assertEquals } from "$/deps.ts";
 import * as urls from "$/lib/urls.ts";
+import { assertEquals } from "asserts";
 
 const base = "http://example.com";
 

@@ -1,6 +1,6 @@
-import { assertEquals } from "$/deps.ts";
 import { parseDateStr, parseISO } from "$/lib/datetime/parse_date.ts";
 import { INVALID_DATE } from "$/lib/datetime/utils.ts";
+import { assertEquals } from "asserts";
 
 Deno.test("parseDateStr valid", () => {
   const tests = [

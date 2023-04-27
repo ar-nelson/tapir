@@ -1,6 +1,24 @@
 {
   "imports": {
     "$/": "./",
-    "$jsx/jsx-runtime": "./lib/html.ts"
+    "$jsx/jsx-runtime": "./lib/html.ts",
+
+    "crypto": "https://deno.land/std@0.183.0/crypto/mod.ts",
+    "datetime": "https://deno.land/std@0.183.0/datetime/mod.ts",
+    "base58": "https://deno.land/std@0.183.0/encoding/base58.ts",
+    "base64": "https://deno.land/std@0.183.0/encoding/base64.ts",
+    "toml": "https://deno.land/std@0.183.0/toml/mod.ts",
+    "printf": "https://deno.land/std@0.183.0/fmt/printf.ts",
+    "log": "https://deno.land/std@0.183.0/log/mod.ts",
+    "path": "https://deno.land/std@0.183.0/path/mod.ts",
+    "asserts": "https://deno.land/std@0.183.0/testing/asserts.ts",
+    "blurhash": "https://deno.land/x/blurhash@v1.0/mod.ts",
+    "imagemagick": "https://deno.land/x/imagemagick_deno@0.0.19/mod.ts",
+    "monocypher": "https://deno.land/x/monocypher@v3.1.3-0/mod.ts",
+    "oak": "https://deno.land/x/oak@v12.3.0/mod.ts",
+    "oak/": "https://deno.land/x/oak@v12.3.0/",
+    "reflect": "https://deno.land/x/reflect_metadata@v0.1.12/mod.ts",
+    "spartan-schema": "https://deno.land/x/spartanschema@v1.1.1/mod.ts",
+    "sqlite": "https://deno.land/x/sqlite@v3.7.2/mod.ts"
   }
 }

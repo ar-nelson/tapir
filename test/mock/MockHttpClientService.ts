@@ -1,6 +1,6 @@
 import { Request as OakRequest, Router, testing } from "$/deps.ts";
 import { HttpClientService } from "$/services/HttpClientService.ts";
-import { RequestBody } from "https://deno.land/x/oak@v12.0.1/body.ts";
+import { RequestBody } from "oak/body.ts";
 
 export class MockHttpClientService extends HttpClientService {
   #routers = new Map<string, Router>();

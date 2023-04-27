@@ -1,5 +1,3 @@
-//import { assertEquals } from "$/deps.ts";
-
 /** Circular doubly-linked list, with `FreqListRoot` as the marker element */
 type FreqList<K, V> = FreqNode<K, V> | FreqListRoot<K, V>;
 
@@ -141,7 +139,6 @@ export class LfuCache<K, V> implements Iterable<[K, V]> {
             prevfn: fn.prevfn,
           };
     } else {
-      //assertEquals(fn.priority, cn.priority);
       // Insert cache node at the end of an existing freq node
       cn.fn = cn.nextcn = fn;
       cn.prevcn = fn.prevcn;

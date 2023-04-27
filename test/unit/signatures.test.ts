@@ -1,9 +1,9 @@
-import { assertEquals } from "$/deps.ts";
 import {
   generateKeyPair,
   signRequest,
   verifyRequest,
 } from "$/lib/signatures.ts";
+import { assertEquals } from "asserts";
 
 Deno.test("sign and verify a POST request", async () => {
   const keys = await generateKeyPair(),

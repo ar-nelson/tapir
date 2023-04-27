@@ -1,4 +1,3 @@
-import { assertEquals } from "$/deps.ts";
 import {
   DateTime,
   datetime,
@@ -11,6 +10,7 @@ import {
   oldestDateTime,
 } from "$/lib/datetime/datetime.ts";
 import { Timezone } from "$/lib/datetime/types.ts";
+import { assertEquals } from "asserts";
 
 Deno.test("parseISO", () => {
   const tests = [

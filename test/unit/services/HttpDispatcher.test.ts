@@ -2,8 +2,9 @@ import { MockBlockedServerStore } from "$/test/mock/MockBlockedServerStore.ts";
 import { MockHttpClientService } from "$/test/mock/MockHttpClientService.ts";
 import { MockSchedulerService } from "$/test/mock/MockSchedulerService.ts";
 
-import { assertEquals, Context, Router, Status } from "$/deps.ts";
 import { HttpDispatcherImpl, Priority } from "$/services/HttpDispatcher.ts";
+import { assertEquals } from "asserts";
+import { Context, Router, Status } from "oak";
 
 function makeDispatcher() {
   const http = new MockHttpClientService();

@@ -1,5 +1,5 @@
-import { assertEquals } from "$/deps.ts";
 import { Locale } from "$/lib/datetime/locale.ts";
+import { assertEquals } from "asserts";
 
 Deno.test("meridiems", () => {
   const tests = [

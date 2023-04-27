@@ -1,5 +1,5 @@
 // deno-lint-ignore-file no-explicit-any
-import { log, Sqlite } from "$/deps.ts";
+import { log } from "$/deps.ts";
 import { DBFactory } from "$/lib/db/DBFactory.ts";
 import { Constructor, Singleton } from "$/lib/inject.ts";
 import {
@@ -30,6 +30,7 @@ import {
 } from "$/lib/sql/mod.ts";
 import { fileExists, mapObject } from "$/lib/utils.ts";
 import { UlidService } from "$/services/UlidService.ts";
+import { DB as Sqlite } from "sqlite";
 
 function rowConverter<C extends Columns>(
   spec: TableSpec<C>,

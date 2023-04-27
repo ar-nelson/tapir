@@ -1,4 +1,5 @@
 // Adapted from https://github.com/devbanana/crockford-base32
+// Original code is MIT licensed, (c) 2021 Brandon Olivares
 
 const characters = "0123456789ABCDEFGHJKMNPQRSTVWXYZ";
 

@@ -1,4 +1,3 @@
-import { assertEquals, Router } from "$/deps.ts";
 import { assertIsActor, CONTENT_TYPE } from "$/schemas/activitypub/mod.ts";
 import {
   ActivityPubClientServiceImpl,
@@ -11,6 +10,8 @@ import mastodonUserJson from "$/test/data/json-ld/mastodon-user.json" assert {
 import { MockHttpDispatcher } from "$/test/mock/MockHttpDispatcher.ts";
 import { MockPersonaStore } from "$/test/mock/MockPersonaStore.ts";
 import { MockTapirConfig } from "$/test/mock/MockTapirConfig.ts";
+import { assertEquals } from "asserts";
+import { Router } from "oak";
 
 function makeClient() {
   const dispatcher = new MockHttpDispatcher(),

@@ -1,6 +1,6 @@
 // Based on oak_logger: https://deno.land/x/oak_logger
-import { format } from "https://deno.land/std/datetime/mod.ts";
 import { Context, log } from "$/deps.ts";
+import { format } from "datetime";
 
 const X_RESPONSE_TIME = "X-Response-Time";
 const User_Agent = "User-Agent";

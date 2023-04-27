@@ -1,7 +1,7 @@
 import { Singleton } from "$/lib/inject.ts";
-import { ulidx } from "$/deps.ts";
+import { monotonicFactory } from "$/lib/ulid.ts";
 
 @Singleton()
 export class UlidService {
-  readonly next = ulidx.monotonicFactory();
+  readonly next = monotonicFactory();
 }

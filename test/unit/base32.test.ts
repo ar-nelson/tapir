@@ -1,8 +1,8 @@
 // Adapted from https://github.com/devbanana/crockford-base32
 
-import { assertEquals, assertThrows } from "$/deps.ts";
 import { CrockfordBase32 } from "$/lib/base32.ts";
 import { toHex } from "$/lib/utils.ts";
+import { assertEquals, assertThrows } from "asserts";
 
 Deno.test("can encode a multiple of 5 bits", () => {
   // noinspection SpellCheckingInspection

@@ -1,3 +1,5 @@
+import { DBFactory } from "$/lib/db/DBFactory.ts";
+import { AbstractConstructor, Constructor, Injector } from "$/lib/inject.ts";
 import {
   columnCompare,
   ColumnType,
@@ -5,11 +7,9 @@ import {
   Q,
   QueryOperator,
 } from "$/lib/sql/mod.ts";
-import { DBFactory } from "$/lib/db/DBFactory.ts";
-import { UlidService } from "$/services/UlidService.ts";
-import { AbstractConstructor, Constructor, Injector } from "$/lib/inject.ts";
 import { asyncToArray as collect } from "$/lib/utils.ts";
-import { assertArrayIncludes, assertEquals } from "$/deps.ts";
+import { UlidService } from "$/services/UlidService.ts";
+import { assertArrayIncludes, assertEquals } from "asserts";
 
 const COLUMNS = {
   id: { type: ColumnType.Ulid },

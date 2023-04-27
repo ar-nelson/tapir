@@ -1,5 +1,5 @@
-import { assertEquals } from "$/deps.ts";
 import { PriorityQueue } from "$/lib/priorityQueue.ts";
+import { assertEquals } from "asserts";
 
 Deno.test("priority queue", () => {
   const queue = new PriorityQueue<number>();

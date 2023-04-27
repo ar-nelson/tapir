@@ -1,5 +1,5 @@
-import { assertEquals } from "$/deps.ts";
 import { LfuCache } from "$/lib/cache.ts";
+import { assertEquals } from "asserts";
 
 Deno.test("can insert and get items", () => {
   const cache = new LfuCache<string, string>();

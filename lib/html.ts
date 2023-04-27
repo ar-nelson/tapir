@@ -1,4 +1,4 @@
-import { htm } from "$/deps.ts";
+import htm from "$/lib/htm.js";
 import defaultEnglishStrings from "$/resources/strings/en-US.json" assert {
   type: "json",
 };

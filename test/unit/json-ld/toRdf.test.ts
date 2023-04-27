@@ -1,6 +1,6 @@
-import { assertEquals } from "$/deps.ts";
 import { rdfToString, toRdf } from "$/lib/json-ld/mod.ts";
 import { MockContextResolver } from "$/test/mock/MockContextResolver.ts";
+import { assertEquals } from "asserts";
 
 import createWithImageJson from "$/test/data/json-ld/create-with-image.json" assert {
   type: "json",

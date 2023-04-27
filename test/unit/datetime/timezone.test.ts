@@ -1,7 +1,7 @@
-import { assertEquals } from "$/deps.ts";
 import { MILLISECONDS_IN_HOUR } from "$/lib/datetime/constants.ts";
 import { tzOffset } from "$/lib/datetime/timezone.ts";
 import { Timezone } from "$/lib/datetime/types.ts";
+import { assertEquals } from "asserts";
 
 Deno.test("tzOffset", () => {
   type Test = {

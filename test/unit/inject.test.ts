@@ -1,4 +1,3 @@
-import { assertEquals } from "$/deps.ts";
 import {
   ConditionalResolver,
   Injectable,
@@ -6,6 +5,7 @@ import {
   Injector,
   Singleton,
 } from "$/lib/inject.ts";
+import { assertEquals } from "asserts";
 
 @InjectableAbstract()
 abstract class Increment {

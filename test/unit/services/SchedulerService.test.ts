@@ -1,8 +1,8 @@
-import { assertEquals } from "$/deps.ts";
 import {
   Reschedule,
   SchedulerServiceImpl,
 } from "$/services/SchedulerService.ts";
+import { assertEquals } from "asserts";
 
 const sleep = (ms: number): Promise<void> =>
   new Promise((resolve) => setTimeout(resolve, ms));
