@@ -234,4 +234,4 @@ export function contentTypeIsJson(contentType: string) {
 
 export const webfinger = "/.well-known/webfinger" as const;
 export const nodeInfoDirectory = "/.well-known/nodeinfo" as const;
-export const nodeInfoV2_0 = "/ndoeinfo/2.0" as const;
+export const nodeInfoV2_0 = "/nodeinfo/2.0" as const;
