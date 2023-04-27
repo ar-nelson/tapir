@@ -1,7 +1,7 @@
-import { InjectableAbstract, Singleton } from "$/lib/inject.ts";
-import { assertTapirConfig } from "$/schemas/tapir/TapirConfig.ts";
-import type { TapirConfig as TapirConfigSchema } from "$/schemas/tapir/TapirConfig.ts";
 import { log, path, toml } from "$/deps.ts";
+import { InjectableAbstract, Singleton } from "$/lib/inject.ts";
+import type { TapirConfig as TapirConfigSchema } from "$/schemas/tapir/TapirConfig.ts";
+import { assertTapirConfig } from "$/schemas/tapir/TapirConfig.ts";
 
 export type DatabaseConfig = { readonly type: "inmemory" } | {
   readonly type: "sqlite";
@@ -154,18 +154,13 @@ export abstract class TapirConfig {
   }
 }
 
-@Singleton(TapirConfig)
 export class TapirConfigFile extends TapirConfig {
-  constructor() {
+  constructor(...filenames: string[]) {
     let json: unknown = undefined;
-    for (
-      const [filename, parser] of [
-        [DEFAULT_CONFIG_FILE_TOML, toml.parse],
-        [DEFAULT_CONFIG_FILE_JSON, JSON.parse],
-        [path.join(DEFAULT_DATA_DIR, DEFAULT_CONFIG_FILE_TOML), toml.parse],
-        [path.join(DEFAULT_DATA_DIR, DEFAULT_CONFIG_FILE_JSON), JSON.parse],
-      ] as const
-    ) {
+    for (const filename of filenames) {
+      const parser = filename.toLowerCase().endsWith(".json")
+        ? JSON.parse
+        : toml.parse;
       let file;
       try {
         file = Deno.readTextFileSync(filename);
@@ -178,11 +173,25 @@ export class TapirConfigFile extends TapirConfig {
     }
     if (json == null) {
       console.warn(
-        `Did not find ${DEFAULT_CONFIG_FILE_TOML} or another Tapir config file, using default ${DEFAULT_DOMAIN}:${DEFAULT_PORT} config`,
+        `Did not find a Tapir config file (tried ${
+          filenames.join(", ")
+        }). Using default ${DEFAULT_DOMAIN}:${DEFAULT_PORT} config.`,
       );
       json = {};
     }
     assertTapirConfig(json, "Tapir config file is not valid");
     super(json);
+  }
+}
+
+@Singleton(TapirConfig)
+export class DefaultTapirConfigFile extends TapirConfigFile {
+  constructor() {
+    super(
+      DEFAULT_CONFIG_FILE_TOML,
+      DEFAULT_CONFIG_FILE_JSON,
+      path.join(DEFAULT_DATA_DIR, DEFAULT_CONFIG_FILE_TOML),
+      path.join(DEFAULT_DATA_DIR, DEFAULT_CONFIG_FILE_JSON),
+    );
   }
 }

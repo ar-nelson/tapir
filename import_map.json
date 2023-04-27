@@ -12,7 +12,9 @@
     "log": "https://deno.land/std@0.183.0/log/mod.ts",
     "path": "https://deno.land/std@0.183.0/path/mod.ts",
     "asserts": "https://deno.land/std@0.183.0/testing/asserts.ts",
+
     "blurhash": "https://deno.land/x/blurhash@v1.0/mod.ts",
+    "cliffy/": "https://deno.land/x/cliffy@v0.25.7/",
     "imagemagick": "https://deno.land/x/imagemagick_deno@0.0.19/mod.ts",
     "monocypher": "https://deno.land/x/monocypher@v3.1.3-0/mod.ts",
     "oak": "https://deno.land/x/oak@v12.3.0/mod.ts",

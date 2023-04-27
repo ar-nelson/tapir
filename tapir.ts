@@ -7,7 +7,8 @@ import { logger, responseTime } from "$/lib/oakLogger.ts";
 import { RepoSelector } from "$/lib/repo/RepoSelector.ts";
 import { InstanceConfigStore } from "$/models/InstanceConfig.ts";
 import { PersonaStoreReadOnly } from "$/models/PersonaStoreReadOnly.ts";
-import { TapirConfig } from "$/models/TapirConfig.ts";
+import { TapirConfig, TapirConfigFile } from "$/models/TapirConfig.ts";
+import buildMeta from "$/resources/buildMeta.json" assert { type: "json" };
 import { FirstRunRouter } from "$/routes/firstRun.ts";
 import { TapirRouter } from "$/routes/main.ts";
 import {
@@ -23,8 +24,67 @@ import { LocalDatabaseService } from "$/services/LocalDatabaseService.ts";
 import { LocalRepoService } from "$/services/LocalRepoService.ts";
 import { RemoteDatabaseService } from "$/services/RemoteDatabaseService.ts";
 import { RemoteRepoService } from "$/services/RemoteRepoService.ts";
+import { Command } from "cliffy/command/mod.ts";
+import { Secret } from "cliffy/prompt/mod.ts";
 
-console.log(`
+await new Command()
+  .name("tapir")
+  .version(buildMeta.version)
+  .description(
+    "Single-user Fediverse server supporting ActivityPub, Mastodon API, and more",
+  )
+  .helpOption("--help", "Show this help.", { global: true })
+  .option(
+    "-c, --config <filename:string>",
+    "Config file, in JSON or TOML format. If not specified, tries tapir.toml, tapir.json. tapir/tapir.toml, and tapir/tapir.json, in that order.",
+    { global: true },
+  )
+  .action(tapirServer)
+  .command("password-reset", "Reset password interactively")
+  .action(passwordReset)
+  .parse(Deno.args);
+
+function defaultInjector(options: { config?: string }): Injector {
+  return new Injector(
+    [
+      LocalDatabaseService,
+      DBSelector(
+        (sc) => sc.localDatabase,
+        localDatabaseSpec,
+        localDatabaseSpecVersions,
+      ),
+    ],
+    [
+      LocalRepoService,
+      RepoSelector((sc) => sc.localMedia),
+    ],
+    [
+      RemoteDatabaseService,
+      DBSelector(
+        (sc) => sc.remoteDatabase,
+        remoteDatabaseSpec,
+        remoteDatabaseSpecVersions,
+      ),
+    ],
+    [
+      RemoteRepoService,
+      RepoSelector((sc) => sc.remoteMedia),
+    ],
+    ...options.config
+      ? [[
+        TapirConfig,
+        class SpecificTapirConfigFile extends TapirConfigFile {
+          constructor() {
+            super(options.config!);
+          }
+        },
+      ]] as const
+      : [],
+  );
+}
+
+async function tapirServer(options: { config?: string }) {
+  console.log(`
                                88
   ,d                           ""
   88
@@ -33,9 +93,52 @@ MM88MMM ,adPPYYba, 8b,dPPYba,  88 8b,dPPYba,
   88    ,adPPPPP88 88       d8 88 88
   88,   88,    ,88 88b,   ,a8" 88 88
   "Y888 \`"8bbdP"Y8 88\`YbbdP"'  88 88
-                   88
-                   88
+                  88
+                  88
 `);
+
+  let injector: Injector;
+  do {
+    injector = defaultInjector(options);
+    const tapirConfig = await injector.resolve(TapirConfig);
+    let directoryExists = false;
+    try {
+      directoryExists = (await Deno.stat(tapirConfig.dataDir)).isDirectory;
+    } catch {
+      /* do nothing - directory does not exist */
+    }
+    if (!directoryExists) {
+      await onFirstRun(tapirConfig);
+      continue;
+    }
+    const instanceConfigStore = await injector.resolve(InstanceConfigStore),
+      instanceConfig = await instanceConfigStore.get();
+    if (!instanceConfig.initialized) {
+      await onFirstRun(tapirConfig);
+      continue;
+    }
+    const personaStore = await injector.resolve(PersonaStoreReadOnly);
+    if (!(await personaStore.count())) {
+      await onFirstRun(tapirConfig);
+      continue;
+    }
+    break;
+  } while (true);
+
+  const router = await injector.resolve(TapirRouter),
+    app = new Application(),
+    tapirConfig = await injector.resolve(TapirConfig);
+
+  app.use(logger);
+  app.use(responseTime);
+  app.use(router.routes());
+  app.use(router.allowedMethods());
+
+  log.info(
+    `Now serving: http://localhost:${tapirConfig.port} (public URL ${tapirConfig.url})`,
+  );
+  await app.listen({ port: tapirConfig.port });
+}
 
 async function onFirstRun(config: TapirConfig) {
   const totalConfig: TapirConfigSchema = {
@@ -68,11 +171,11 @@ async function onFirstRun(config: TapirConfig) {
   console.log(`
 ============================================================
 
-    It looks like this is your first time running Tapir!
+  It looks like this is your first time running Tapir!
 
-    To configure your new server, open this URL:
+  To configure your new server, open this URL:
 
-    http://localhost:${config.port}/${key}/firstRun
+  http://localhost:${config.port}/${key}/firstRun
 
 ============================================================
 `);
@@ -84,69 +187,27 @@ async function onFirstRun(config: TapirConfig) {
 `);
 }
 
-let injector: Injector;
-do {
-  injector = new Injector(
-    [
-      LocalDatabaseService,
-      DBSelector(
-        (sc) => sc.localDatabase,
-        localDatabaseSpec,
-        localDatabaseSpecVersions,
-      ),
-    ],
-    [
-      LocalRepoService,
-      RepoSelector((sc) => sc.localMedia),
-    ],
-    [
-      RemoteDatabaseService,
-      DBSelector(
-        (sc) => sc.remoteDatabase,
-        remoteDatabaseSpec,
-        remoteDatabaseSpecVersions,
-      ),
-    ],
-    [
-      RemoteRepoService,
-      RepoSelector((sc) => sc.remoteMedia),
-    ],
-  );
-  const tapirConfig = await injector.resolve(TapirConfig);
-  let directoryExists = false;
-  try {
-    directoryExists = (await Deno.stat(tapirConfig.dataDir)).isDirectory;
-  } catch {
-    /* do nothing - directory does not exist */
-  }
-  if (!directoryExists) {
-    await onFirstRun(tapirConfig);
-    continue;
-  }
-  const instanceConfigStore = await injector.resolve(InstanceConfigStore),
-    instanceConfig = await instanceConfigStore.get();
-  if (!instanceConfig.initialized) {
-    await onFirstRun(tapirConfig);
-    continue;
-  }
-  const personaStore = await injector.resolve(PersonaStoreReadOnly);
-  if (!(await personaStore.count())) {
-    await onFirstRun(tapirConfig);
-    continue;
-  }
-  break;
-} while (true);
+async function passwordReset(options: { config?: string }) {
+  const injector = defaultInjector(options);
+  console.log(`
+=================== TAPIR PASSWORD RESET ===================
 
-const router = await injector.resolve(TapirRouter),
-  app = new Application(),
-  tapirConfig = await injector.resolve(TapirConfig);
+This will reset the admin password of the Tapir instance in:
 
-app.use(logger);
-app.use(responseTime);
-app.use(router.routes());
-app.use(router.allowedMethods());
+${(await injector.resolve(TapirConfig)).dataDir}
+`);
+  let password = "", confirm = "";
+  do {
+    password = await Secret.prompt("New password");
+    confirm = await Secret.prompt("Confirm new password");
+    if (password.length < 8) {
+      console.error("Password must be at least 8 characters.");
+    }
+    if (password !== confirm) console.error("Passwords do not match.");
+  } while (password.length < 8 || password !== confirm);
 
-log.info(
-  `Now serving: http://localhost:${tapirConfig.port} (public URL ${tapirConfig.url})`,
-);
-await app.listen({ port: tapirConfig.port });
+  console.log("Setting new password...");
+  const instanceConfig = await injector.resolve(InstanceConfigStore);
+  await instanceConfig.setPassword(password);
+  console.log("Password updated!");
+}

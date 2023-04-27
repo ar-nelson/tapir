@@ -123,7 +123,8 @@ export class Injector {
   >([[Injector, () => Promise.resolve(this)]]);
 
   constructor(
-    ...overrides: [Constructor | AbstractConstructor, Constructor][]
+    ...overrides:
+      readonly (readonly [Constructor | AbstractConstructor, Constructor])[]
   ) {
     for (const [Dep, Ctor] of overrides) {
       const injected: InjectedMetadata<object> | undefined = Reflect
