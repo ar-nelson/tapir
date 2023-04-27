@@ -1,6 +1,6 @@
 import { log, Status } from "$/deps.ts";
 import { Injector, Singleton } from "$/lib/inject.ts";
-import { compact, Document } from "$/lib/json-ld/mod.ts";
+import { compact, ContextSrc, Document } from "$/lib/json-ld/mod.ts";
 import * as urls from "$/lib/urls.ts";
 import { asyncToArray } from "$/lib/utils.ts";
 import {
@@ -108,7 +108,9 @@ export class ActivityPubController {
 
   async onInboxPost(
     personaName: string,
-    activity: Activity,
+    { "@context": _context, ...activity }: Activity & {
+      "@context"?: ContextSrc;
+    },
   ): Promise<{ error: string; status?: number } | null> {
     log.info(JSON.stringify(activity, null, 2));
     const actor = activity.actor;
