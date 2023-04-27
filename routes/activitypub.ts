@@ -8,7 +8,6 @@ import {
   Status,
 } from "$/deps.ts";
 import { Injectable } from "$/lib/inject.ts";
-import * as urls from "$/lib/urls.ts";
 import { jsonOr404 } from "$/lib/utils.ts";
 import { BlockedServerStore } from "$/models/BlockedServer.ts";
 import {
@@ -124,7 +123,7 @@ export class ActivityPubRouter extends Router {
       typeof ctx.response.body === "object"
     ) {
       ctx.response.body = {
-        "@context": urls.activityPubContext(this.config.url),
+        "@context": defaultContextJson["@context"],
         ...ctx.response.body,
       };
     }
