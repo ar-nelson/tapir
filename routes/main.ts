@@ -1,20 +1,26 @@
-import { Injectable } from "$/lib/inject.ts";
-import { Context, isHttpError, log, Status } from "$/deps.ts";
-import { ViewRouter } from "$/services/ViewRouter.ts";
-import { I18nService } from "$/services/I18nService.ts";
 import { PublicFrontendController } from "$/controllers/PublicFrontendController.ts";
+import { Context, isHttpError, Status } from "$/deps.ts";
+import { logError, Tag } from "$/lib/error.ts";
+import { Injectable } from "$/lib/inject.ts";
+import { I18nService } from "$/services/I18nService.ts";
+import { ViewRouter } from "$/services/ViewRouter.ts";
 
 import { IndexPage } from "$/views/pages/pub/Index.tsx";
 import { NotFoundPage } from "$/views/pages/pub/NotFound.tsx";
 import { ServerErrorPage } from "$/views/pages/pub/ServerError.tsx";
 
-import { PublicRouter } from "$/routes/public.ts";
-import { PrivateRouter } from "$/routes/private.ts";
-import { MastodonApiRouter } from "$/routes/mastodonApi.ts";
 import { ActivityPubRouter } from "$/routes/activitypub.ts";
-import { NodeInfoRouter } from "$/routes/nodeinfo.ts";
-import { WebFingerRouter } from "$/routes/webfinger.ts";
 import { LegacyRedirectsRouter } from "$/routes/legacyRedirects.ts";
+import { MastodonApiRouter } from "$/routes/mastodonApi.ts";
+import { NodeInfoRouter } from "$/routes/nodeinfo.ts";
+import { PrivateRouter } from "$/routes/private.ts";
+import { PublicRouter } from "$/routes/public.ts";
+import { WebFingerRouter } from "$/routes/webfinger.ts";
+
+export interface RouterState {
+  isJson?: boolean;
+  isAuthenticated?: boolean;
+}
 
 @Injectable()
 export class TapirRouter extends ViewRouter {
@@ -71,23 +77,50 @@ export class TapirRouter extends ViewRouter {
     });
   }
 
-  async #errorPageMiddleware(ctx: Context, next: () => Promise<unknown>) {
+  async #errorPageMiddleware(
+    ctx: Context<RouterState>,
+    next: () => Promise<unknown>,
+  ) {
     try {
       await next();
     } catch (err) {
-      log.error(`Error occurred at URL ${ctx.request.url}:`);
-      log.error(err);
-      if (isHttpError(err)) {
+      logError(`Error occurred at URL ${ctx.request.url}`, err);
+      let errorType: string | undefined, errorMessage: string | undefined;
+      if (Tag.is(err)) {
+        ctx.response.status = err.tag.httpStatus;
+        if (ctx.state.isAuthenticated || !err.tag.internal) {
+          errorType = err.tag.name;
+          errorMessage = err.message;
+        }
+      } else if (isHttpError(err)) {
         ctx.response.status = err.status;
       } else {
         ctx.response.status = Status.InternalServerError;
+        if (ctx.state.isAuthenticated && err instanceof Error) {
+          errorType = err.constructor.name, errorMessage = err.message;
+        }
       }
-      const view = ctx.response.status === Status.NotFound
-        ? NotFoundPage
-        : ServerErrorPage;
-      ctx.response.type = "html";
-      ctx.response.body = view({ server: await this.controller.serverDetail() })
-        .render(await this.i18n.state);
+      if (ctx.state.isJson) {
+        ctx.response.type = "json";
+        ctx.response.body = {
+          error: errorMessage ??
+            (ctx.response.status === Status.NotFound
+              ? "Not found"
+              : "Internal error"),
+          errorType,
+        };
+      } else {
+        ctx.response.type = "html";
+        const view = ctx.response.status === Status.NotFound
+          ? NotFoundPage({ server: await this.controller.serverDetail() })
+          : ServerErrorPage({
+            server: await this.controller.serverDetail(),
+            status: ctx.response.status,
+            errorType,
+            errorMessage,
+          });
+        ctx.response.body = view.render(await this.i18n.state);
+      }
     }
   }
 }

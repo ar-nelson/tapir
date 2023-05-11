@@ -6,7 +6,7 @@ import { Injector } from "$/lib/inject.ts";
 import { logger, responseTime } from "$/lib/oakLogger.ts";
 import { RepoSelector } from "$/lib/repo/RepoSelector.ts";
 import { InstanceConfigStore } from "$/models/InstanceConfig.ts";
-import { PersonaStoreReadOnly } from "$/models/PersonaStoreReadOnly.ts";
+import { PersonaStore } from "$/models/Persona.ts";
 import { TapirConfig, TapirConfigFile } from "$/models/TapirConfig.ts";
 import buildMeta from "$/resources/buildMeta.json" assert { type: "json" };
 import { FirstRunRouter } from "$/routes/firstRun.ts";
@@ -20,6 +20,10 @@ import { RemoteDatabaseService } from "$/services/RemoteDatabaseService.ts";
 import { RemoteRepoService } from "$/services/RemoteRepoService.ts";
 import { Command } from "cliffy/command/mod.ts";
 import { Secret } from "cliffy/prompt/mod.ts";
+
+// Add some missing injectables
+import "$/services/protocol-fetchers/ActivityPubFetcherImpl.ts";
+import "$/services/protocol-fetchers/LocalFetcherImpl.ts";
 
 await new Command()
   .name("tapir")
@@ -109,7 +113,7 @@ MM88MMM ,adPPYYba, 8b,dPPYba,  88 8b,dPPYba,
       await onFirstRun(tapirConfig);
       continue;
     }
-    const personaStore = await injector.resolve(PersonaStoreReadOnly);
+    const personaStore = await injector.resolve(PersonaStore);
     if (!(await personaStore.count())) {
       await onFirstRun(tapirConfig);
       continue;

@@ -1,4 +1,5 @@
-import { MatchesSchema } from "$/deps.ts";
+import { assertMatchesSchema, MatchesSchema } from "$/deps.ts";
+import { AssertFn } from "$/lib/utils.ts";
 import * as Account from "$/schemas/mastodon/Account.ts";
 
 export const schema = {
@@ -50,3 +51,5 @@ export const schema = {
 } as const;
 
 export type Instance = MatchesSchema<typeof schema>;
+
+export const assertIsInstance: AssertFn<Instance> = assertMatchesSchema(schema);

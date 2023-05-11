@@ -1,20 +1,19 @@
-import { log } from "$/deps.ts";
+import { log, Status } from "$/deps.ts";
+import { LogLevels, Tag } from "$/lib/error.ts";
 import { InjectableAbstract, Singleton } from "$/lib/inject.ts";
-import { Q } from "$/lib/sql/mod.ts";
-import { ActivityDispatchStore } from "$/models/ActivityDispatch.ts";
-import { KnownActorStore } from "$/models/KnownActor.ts";
-import { KnownServerStoreReadOnly } from "$/models/KnownServer.ts";
-import { PersonaStoreReadOnly } from "$/models/PersonaStoreReadOnly.ts";
-import { ActivityPubGeneratorService } from "$/services/ActivityPubGeneratorService.ts";
+import { ColumnsOf, OutRow, Q, Query } from "$/lib/sql/mod.ts";
+import { chainFrom } from "$/lib/transducers.ts";
+import { mapAsyncIterable } from "$/lib/utils.ts";
+import { PersonaStore } from "$/models/Persona.ts";
+import {
+  InFollow,
+  parseProtoAddr,
+  ProtoAddr,
+  protoAddrToString,
+} from "$/models/types.ts";
+import { LocalDatabaseTables } from "$/schemas/tapir/db/local/mod.ts";
 import { LocalDatabaseService } from "$/services/LocalDatabaseService.ts";
-
-export interface InFollow {
-  readonly id: string;
-  readonly actor: string;
-  readonly persona: string;
-  readonly createdAt: Date;
-  readonly acceptedAt: Date | null;
-}
+import { PublisherService } from "$/services/PublisherService.ts";
 
 @InjectableAbstract()
 export abstract class InFollowStore {
@@ -23,110 +22,142 @@ export abstract class InFollowStore {
   abstract listRequests(persona: string): AsyncIterable<InFollow>;
 
   abstract get(
-    params: { id: string } | { actor: string; persona: string },
-  ): Promise<InFollow | null>;
+    params: { id: number } | { remoteActivity: string } | {
+      remoteProfile: ProtoAddr;
+      persona: string;
+    },
+  ): Promise<InFollow>;
 
   abstract countFollowers(persona: string): Promise<number>;
 
   abstract countRequests(persona: string): Promise<number>;
 
-  abstract listFollowerInboxes(persona: string): Promise<URL[]>;
-
-  abstract onAccept(fn: (follow: InFollow) => void): void;
-
   abstract create(
-    params: { id: string; actor: string; persona: string },
+    params: {
+      remoteActivity?: string;
+      remoteProfile: ProtoAddr;
+      persona: string;
+      public?: boolean;
+    },
   ): Promise<void>;
 
   abstract accept(
-    params: { id: string } | { actor: string; persona: string },
+    params: { id: number } | { remoteActivity: string } | {
+      remoteProfile: ProtoAddr;
+      persona: string;
+    },
   ): Promise<void>;
 
   abstract reject(
-    params: { id: string } | { actor: string; persona: string },
+    params: { id: number } | { remoteActivity: string } | {
+      remoteProfile: ProtoAddr;
+      persona: string;
+    },
   ): Promise<void>;
 
   abstract delete(
-    params: { id: string } | { actor: string; persona: string },
+    params: { id: number } | { remoteActivity: string } | {
+      remoteProfile: ProtoAddr;
+      persona: string;
+    },
   ): Promise<void>;
 
   abstract deleteAllForPersona(persona: string): Promise<void>;
+
+  abstract onChange(listener: () => void): void;
 }
 
-export enum InFollowErrorType {
-  BadPersona,
-  BadActor,
-  DuplicateFollow,
-}
+export const InFollowNotFound = new Tag("Follower Not Found");
+export const DuplicateFollow = new Tag("Duplicate Follow", {
+  level: LogLevels.WARNING,
+  internal: false,
+  httpStatus: Status.Conflict,
+});
+export const CreateInFollowFailed = new Tag("Create In-Follow Failed");
+export const UpdateInFollowFailed = new Tag("Update In-Follow Failed");
+export const DeleteInFollowFailed = new Tag("Delete In-Follow Failed");
 
-export class InFollowError extends Error {
-  constructor(public readonly type: InFollowErrorType, message: string) {
-    super(message);
-  }
+function dbToTs(
+  row: OutRow<ColumnsOf<LocalDatabaseTables, "inFollow">>,
+): InFollow {
+  return {
+    ...row,
+    remoteProfile: parseProtoAddr(row.remoteProfile),
+    remoteActivity: row.remoteActivity ?? undefined,
+    acceptedAt: row.acceptedAt ?? undefined,
+  };
 }
 
 @Singleton(InFollowStore)
 export class InFollowStoreImpl extends InFollowStore {
-  readonly #onAcceptListeners = new Set<(follow: InFollow) => void>();
-  #followerInboxSet: Promise<URL[]> | null = null;
+  #changeListeners = new Set<() => void>();
 
   constructor(
     private readonly db: LocalDatabaseService,
-    private readonly apGen: ActivityPubGeneratorService,
-    private readonly knownServerStore: KnownServerStoreReadOnly,
-    private readonly knownActorStore: KnownActorStore,
-    private readonly activityDispatchStore: ActivityDispatchStore,
-    private readonly personaStore: PersonaStoreReadOnly,
+    private readonly personaStore: PersonaStore,
+    private readonly publisherService: PublisherService,
   ) {
     super();
   }
 
-  listFollowers(persona: string): AsyncIterable<InFollow> {
-    return this.db.get("inFollow", {
-      where: { acceptedAt: Q.notNull(), persona },
-    });
+  #query(
+    params: { id: number } | { remoteActivity: string } | {
+      remoteProfile: ProtoAddr;
+      persona: string;
+    },
+  ): Query<ColumnsOf<LocalDatabaseTables, "inFollow">> {
+    if ("remoteProfile" in params) {
+      return {
+        ...params,
+        remoteProfile: protoAddrToString(params.remoteProfile),
+      };
+    }
+    return params;
   }
 
-  listRequests(persona: string): AsyncIterable<InFollow> {
-    return this.db.get("inFollow", {
-      where: { acceptedAt: Q.null(), persona },
-    });
+  listFollowers(persona: string) {
+    return mapAsyncIterable(
+      this.db.get("inFollow", {
+        where: { acceptedAt: Q.notNull(), persona },
+      }),
+      dbToTs,
+    );
   }
 
-  listFollowerInboxes(persona: string): Promise<URL[]> {
-    if (this.#followerInboxSet) return this.#followerInboxSet;
-    return this.#followerInboxSet = (async () => {
-      const inboxen = new Set<string>(), skipServers = new Set<string>();
-      for await (const { actor: url } of this.listFollowers(persona)) {
-        const actor = await this.knownActorStore.get(new URL(url));
-        if (!actor) {
-          log.warning(`No known actor with URL ${url}`);
-          continue;
-        }
-        const { server, inbox } = actor;
-        if (skipServers.has(server)) continue;
-        console.log(server);
-        const knownServer = await this.knownServerStore.get(new URL(server));
-        if (knownServer && knownServer.sharedInbox) {
-          inboxen.add(knownServer.sharedInbox);
-          skipServers.add(server);
-        } else {
-          inboxen.add(inbox);
-        }
-      }
-      return [...inboxen].map((s) => new URL(s));
-    })();
+  listRequests(persona: string) {
+    return mapAsyncIterable(
+      this.db.get("inFollow", {
+        where: { acceptedAt: Q.null(), persona },
+      }),
+      dbToTs,
+    );
   }
 
   async get(
-    params: { id: string } | { actor: string; persona: string },
-  ): Promise<InFollow | null> {
+    params: { id: number } | { remoteActivity: string } | {
+      remoteProfile: ProtoAddr;
+      persona: string;
+    },
+  ) {
     for await (
-      const p of this.db.get("inFollow", { where: params, limit: 1 })
+      const p of this.db.get("inFollow", {
+        where: this.#query(params),
+        limit: 1,
+      })
     ) {
-      return p;
+      return dbToTs(p);
     }
-    return null;
+    throw InFollowNotFound.error(
+      `No follow ${
+        "id" in params
+          ? `with ID ${params.id}`
+          : "remoteActivity" in params
+          ? `with activity ID ${JSON.stringify(params.remoteActivity)}`
+          : `from profile ${
+            JSON.stringify(protoAddrToString(params.remoteProfile))
+          } to persona ${JSON.stringify(params.persona)}`
+      }`,
+    );
   }
 
   countFollowers(persona: string): Promise<number> {
@@ -137,133 +168,138 @@ export class InFollowStoreImpl extends InFollowStore {
     return this.db.count("inFollow", { acceptedAt: Q.null(), persona });
   }
 
-  expireFollowerInboxes() {
-    this.#followerInboxSet = null;
-  }
-
   async create(
-    params: { id: string; actor: string; persona: string },
+    params: {
+      remoteActivity?: string;
+      remoteProfile: ProtoAddr;
+      persona: string;
+      public?: boolean;
+    },
   ): Promise<void> {
-    const persona = await this.personaStore.get(params.persona);
-    if (persona == null) {
-      throw new InFollowError(
-        InFollowErrorType.BadPersona,
-        `Cannot add follow for nonexistent persona ${
-          JSON.stringify(params.persona)
-        }`,
-      );
-    }
-    let actorUrl: URL;
     try {
-      actorUrl = new URL(params.actor);
-    } catch {
-      throw new InFollowError(
-        InFollowErrorType.BadActor,
-        `Not a valid actor ID URL: ${params.actor}`,
-      );
-    }
-    const actor = await this.knownActorStore.fetch(actorUrl, params.persona);
-    if (!actor) {
-      throw new InFollowError(
-        InFollowErrorType.BadActor,
-        `Actor does not exist or is not valid: ${params.actor}`,
-      );
-    }
-    log.info(`New follow from ${params.actor} to persona ${params.persona}`);
-    const now = new Date(),
-      follow = await this.db.transaction(async (t) => {
-        for await (
-          const { createdAt } of t.get("inFollow", {
-            where: { actor: params.actor, persona: params.persona },
-            limit: 1,
-            returning: ["createdAt"],
-          })
-        ) {
-          throw new InFollowError(
-            InFollowErrorType.DuplicateFollow,
-            `Follow from ${params.actor} -> ${params.persona} already exists (at ${createdAt})`,
-          );
-        }
-        const follow = {
-          ...params,
-          createdAt: now,
-          acceptedAt: persona.requestToFollow ? null : now,
-        };
-        await t.insert("inFollow", [follow]);
-        return follow;
-      });
-    if (!persona.requestToFollow) {
-      this.#onAccept(new URL(actor.inbox), follow);
+      const { requestToFollow } = await this.personaStore.get(params.persona),
+        addrString = protoAddrToString(params.remoteProfile);
+      log.info(`New follow from ${addrString} to persona ${params.persona}`);
+      const now = new Date(),
+        follow = await this.db.transaction(async (t) => {
+          for await (
+            const { createdAt } of t.get("inFollow", {
+              where: { remoteProfile: addrString, persona: params.persona },
+              limit: 1,
+              returning: ["createdAt"],
+            })
+          ) {
+            throw DuplicateFollow.error(
+              `Follow from ${addrString} -> ${params.persona} already exists (at ${createdAt})`,
+            );
+          }
+          const follow = {
+            ...params,
+            public: !!params.public,
+            createdAt: now,
+            acceptedAt: requestToFollow ? undefined : now,
+          };
+          await t.insert("inFollow", [{
+            ...follow,
+            remoteProfile: addrString,
+          }]);
+          return follow;
+        });
+      if (!requestToFollow) {
+        await this.#onAccept(follow);
+      }
+    } catch (e) {
+      throw CreateInFollowFailed.wrap(e);
     }
   }
 
-  onAccept(listener: (follow: InFollow) => void): void {
-    this.#onAcceptListeners.add(listener);
-  }
-
-  #onAccept(inbox: URL, follow: InFollow) {
-    this.activityDispatchStore.createAndDispatch(
-      inbox,
-      this.apGen.directActivity(follow.persona, follow.actor, {
-        type: "Accept",
-        createdAt: follow.createdAt,
-        object: follow.id,
-      }),
+  async #onAccept(follow: Omit<InFollow, "id">) {
+    await this.publisherService.acceptInFollow(follow);
+    this.#changeListeners.forEach((f) => f());
+    await this.publisherService.publishPostHistory(
+      follow.persona,
+      follow.remoteProfile,
     );
-    this.expireFollowerInboxes();
-    this.#onAcceptListeners.forEach((l) => l(follow));
   }
 
   async accept(
-    params: { id: string } | { actor: string; persona: string },
+    params: { id: number } | { remoteActivity: string } | {
+      remoteProfile: ProtoAddr;
+      persona: string;
+    },
   ): Promise<void> {
-    const existing = await this.get(params);
-    if (existing == null || existing.acceptedAt) {
-      throw new Error(
-        `No existing follow request matches ${JSON.stringify(params)}`,
-      );
-    }
-    const now = new Date();
-    await this.db.update("inFollow", { id: existing.id }, { acceptedAt: now });
-    const { inbox } =
-      (await this.knownActorStore.get(new URL(existing.actor)))!;
-    this.#onAccept(new URL(inbox), { ...existing, acceptedAt: now });
+    const updated = await this.db.transaction(async (txn) => {
+      const [existing] = await chainFrom(
+        txn.get("inFollow", {
+          where: { ...this.#query(params), acceptedAt: Q.null() },
+          limit: 1,
+        }),
+      ).toArray();
+      if (existing == null) {
+        throw InFollowNotFound.error(
+          `No existing follow request matches ${JSON.stringify(params)}`,
+        );
+      }
+      const now = new Date();
+      await txn.update("inFollow", { id: existing.id }, { acceptedAt: now });
+      return { ...existing, acceptedAt: now };
+    });
+    await this.#onAccept(dbToTs(updated));
   }
 
   async reject(
-    params: { id: string } | { actor: string; persona: string },
+    params: { id: number } | { remoteActivity: string } | {
+      remoteProfile: ProtoAddr;
+      persona: string;
+    },
   ): Promise<void> {
-    const existing = await this.get(params);
-    if (existing == null) {
-      throw new Error(
-        `No existing follow request matches ${JSON.stringify(params)}`,
-      );
-    }
-    await this.db.delete("inFollow", params);
-    const { inbox } =
-      (await this.knownActorStore.get(new URL(existing.actor)))!;
-    this.activityDispatchStore.createAndDispatch(
-      new URL(inbox),
-      this.apGen.directActivity(existing.persona, existing.actor, {
-        type: "Reject",
-        object: existing.id,
-      }),
-    );
+    const updated = await this.db.transaction(async (txn) => {
+      const [existing] = await chainFrom(
+        txn.get("inFollow", {
+          where: { ...this.#query(params), acceptedAt: Q.null() },
+          limit: 1,
+        }),
+      ).toArray();
+      if (existing == null) {
+        throw InFollowNotFound.error(
+          `No existing follow request matches ${JSON.stringify(params)}`,
+        );
+      }
+      await txn.delete("inFollow", this.#query(params));
+      return existing;
+    });
+    await this.publisherService.rejectInFollow(dbToTs(updated));
+    this.#changeListeners.forEach((f) => f());
   }
 
   async delete(
-    params: { id: string } | { actor: string; persona: string },
+    params: { id: number } | { remoteActivity: string } | {
+      remoteProfile: ProtoAddr;
+      persona: string;
+    },
   ): Promise<void> {
-    const existing = await this.get(params);
-    if (existing == null) {
-      throw new Error(
-        `No existing follow request matches ${JSON.stringify(params)}`,
-      );
-    }
-    await this.db.delete("inFollow", params);
+    await this.db.transaction(async (txn) => {
+      const [existing] = await chainFrom(
+        txn.get("inFollow", {
+          where: { ...this.#query(params), acceptedAt: Q.null() },
+          limit: 1,
+        }),
+      ).toArray();
+      if (existing == null) {
+        throw InFollowNotFound.error(
+          `No existing follow request matches ${JSON.stringify(params)}`,
+        );
+      }
+      await txn.delete("inFollow", this.#query(params));
+    });
+    this.#changeListeners.forEach((f) => f());
   }
 
   async deleteAllForPersona(persona: string) {
     await this.db.delete("inFollow", { persona });
+  }
+
+  onChange(listener: () => void) {
+    this.#changeListeners.add(listener);
   }
 }

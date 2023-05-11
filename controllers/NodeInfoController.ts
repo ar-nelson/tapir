@@ -1,67 +1,60 @@
 import { InjectableAbstract, Singleton } from "$/lib/inject.ts";
-import { PersonaStore } from "$/models/Persona.ts";
-import { LocalPostStore } from "$/models/LocalPost.ts";
-import buildMeta from "$/resources/buildMeta.json" assert { type: "json" };
 import * as urls from "$/lib/urls.ts";
-
-export interface NodeInfoDirectory {
-  links: {
-    rel: string;
-    href: string;
-  }[];
-}
-
-export interface NodeInfoV2_0 {
-  version: "2.0";
-  software: {
-    name: string;
-    version: string;
-  };
-  protocols: string[];
-  services: { outbound: string[]; inbound: string[] };
-  usage: {
-    users: {
-      total: number;
-      activeMonth: number;
-      activeHalfyear: number;
-    };
-    localPosts: number;
-  };
-  openRegistrations: boolean;
-  metadata: Record<string, unknown>;
-}
+import { LocalPostStore } from "$/models/LocalPost.ts";
+import { PersonaStore } from "$/models/Persona.ts";
+import buildMeta from "$/resources/buildMeta.json" assert { type: "json" };
+import { NodeInfoDirectory, NodeInfoV2 } from "$/schemas/nodeinfo/mod.ts";
+import { TapirConfig } from "../models/TapirConfig.ts";
 
 @InjectableAbstract()
 export abstract class NodeInfoController {
-  nodeInfoDirectory(): NodeInfoDirectory {
+  abstract nodeInfoDirectory(): NodeInfoDirectory;
+
+  abstract nodeInfoV2_1(): Promise<NodeInfoV2>;
+
+  async nodeInfoV2_0(): Promise<NodeInfoV2> {
+    const { version: _, software: { name, version }, ...v21 } = await this
+      .nodeInfoV2_1();
     return {
-      links: [{
-        rel: "http://nodeinfo.diaspora.software/ns/schema/2.0",
-        href: urls.nodeInfoV2_0,
-      }],
+      version: "2.0",
+      software: { name, version },
+      ...v21,
     };
   }
-
-  abstract nodeInfoV2_0(): Promise<NodeInfoV2_0>;
 }
 
 @Singleton(NodeInfoController)
 export class NodeInfoControllerImpl extends NodeInfoController {
   constructor(
+    private readonly config: TapirConfig,
     private readonly personaStore: PersonaStore,
     private readonly localPostStore: LocalPostStore,
   ) {
     super();
   }
 
-  async nodeInfoV2_0(): Promise<NodeInfoV2_0> {
+  nodeInfoDirectory(): NodeInfoDirectory {
+    return {
+      links: [{
+        rel: "http://nodeinfo.diaspora.software/ns/schema/2.1",
+        href: urls.urlJoin(this.config.url, urls.nodeInfoV2_1),
+      }, {
+        rel: "http://nodeinfo.diaspora.software/ns/schema/2.0",
+        href: urls.urlJoin(this.config.url, urls.nodeInfoV2_0),
+      }],
+    };
+  }
+
+  async nodeInfoV2_1(): Promise<NodeInfoV2> {
     const userCount = await this.personaStore.count(),
       postCount = await this.localPostStore.count();
     return {
-      version: "2.0",
+      version: "2.1",
       software: {
         name: buildMeta.name,
         version: buildMeta.version,
+        homepage: buildMeta.homepageUrl,
+        repository: buildMeta.githubUrl,
       },
       protocols: ["activitypub"],
       services: { outbound: [], inbound: [] },

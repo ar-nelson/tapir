@@ -1,4 +1,5 @@
-import { LocalPost, LocalPostStore, PostType } from "$/models/LocalPost.ts";
+import { LocalPostStore, PostNotFound } from "$/models/LocalPost.ts";
+import { LocalPost, PostType } from "$/models/types.ts";
 
 const MOCK_POSTS: readonly LocalPost[] = [{
   id: "01GS3EACBSFYB8C1FMHTSEWJZY",
@@ -72,8 +73,11 @@ export class MockLocalPostStore extends LocalPostStore {
     );
   }
 
-  get(id: string): Promise<LocalPost | null> {
-    return Promise.resolve(MOCK_POSTS.find((it) => it.id === id) ?? null);
+  get(id: string): Promise<LocalPost> {
+    const post = MOCK_POSTS.find((it) => it.id === id);
+    return post
+      ? Promise.resolve(post)
+      : Promise.reject(PostNotFound.error(`No post with ID ${id}`));
   }
 
   create(): Promise<string> {

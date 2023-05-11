@@ -1,7 +1,7 @@
-import { Context, isHttpError, log, Router, Status } from "$/deps.ts";
-import { Injectable } from "$/lib/inject.ts";
-import { jsonOr404 } from "$/lib/utils.ts";
 import { MastodonApiController } from "$/controllers/MastodonApiController.ts";
+import { Context, Router, Status } from "$/deps.ts";
+import { Injectable } from "$/lib/inject.ts";
+import { RouterState } from "./main.ts";
 
 @Injectable()
 export class MastodonApiRouter extends Router {
@@ -20,8 +20,7 @@ export class MastodonApiRouter extends Router {
       .get("/accounts/lookup", (ctx) => this.#lookupAccount(ctx))
       .get(
         "/accounts/:name",
-        async (ctx) =>
-          jsonOr404(ctx, await controller.account(ctx.params.name)),
+        (ctx) => controller.account(ctx.params.name),
       )
       .get(
         "/accounts/:name/statuses",
@@ -33,7 +32,7 @@ export class MastodonApiRouter extends Router {
       )
       .get(
         "/statuses/:id",
-        async (ctx) => jsonOr404(ctx, await controller.status(ctx.params.id)),
+        (ctx) => controller.status(ctx.params.id),
       )
       .get("/(.*)", (ctx) => {
         ctx.response.status = Status.NotFound;
@@ -43,29 +42,19 @@ export class MastodonApiRouter extends Router {
       });
   }
 
-  async #lookupAccount(ctx: Context) {
+  #lookupAccount(ctx: Context) {
     const acct = ctx.request.url.searchParams.get("acct");
     ctx.assert(
       acct != null,
       Status.BadRequest,
       "Query parameter 'acct' is required",
     );
-    jsonOr404(ctx, await this.controller.account(acct));
+    return this.controller.account(acct);
   }
 
-  async #middleware(ctx: Context, next: () => Promise<unknown>) {
+  async #middleware(ctx: Context<RouterState>, next: () => Promise<unknown>) {
+    ctx.state.isJson = true;
     ctx.response.type = "json";
-    try {
-      await next();
-    } catch (err) {
-      log.error(`Error occurred at URL ${ctx.request.url}:`);
-      log.error(err);
-      if (isHttpError(err)) {
-        ctx.response.status = err.status;
-      } else {
-        ctx.response.status = Status.InternalServerError;
-      }
-      ctx.response.body = { error: `${err.message ?? err}` };
-    }
+    await next();
   }
 }

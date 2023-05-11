@@ -1,21 +1,17 @@
-import {
-  Persona,
-  PersonaStoreReadOnly,
-} from "$/models/PersonaStoreReadOnly.ts";
-import { generateKeyPair } from "$/lib/signatures.ts";
+import { PersonaNotFound, PersonaStore } from "$/models/Persona.ts";
+import { Persona, ProfileType } from "$/models/types.ts";
 
 const MOCK_PERSONA: Persona = {
   name: "tapir",
   displayName: "tapir",
+  type: ProfileType.Person,
   summary: "look at me. i'm the fediverse now.",
   requestToFollow: true,
   createdAt: new Date("2023-02-03T19:35:27-0500"),
   main: true,
 };
 
-export class MockPersonaStore extends PersonaStoreReadOnly {
-  #keyPair = generateKeyPair();
-
+export class MockPersonaStore extends PersonaStore {
   async *list() {
     yield MOCK_PERSONA;
   }
@@ -29,14 +25,21 @@ export class MockPersonaStore extends PersonaStoreReadOnly {
   }
 
   get(name: string) {
-    return Promise.resolve(name === "tapir" ? MOCK_PERSONA : null);
+    if (name !== "tapir") {
+      throw PersonaNotFound.error(`No persona named ${JSON.stringify(name)}`);
+    }
+    return Promise.resolve(MOCK_PERSONA);
   }
 
-  async publicKey() {
-    return (await this.#keyPair).publicKey;
+  create(): Promise<void> {
+    throw new Error("Method not implemented.");
   }
 
-  async privateKey() {
-    return (await this.#keyPair).privateKey;
+  update(): Promise<void> {
+    throw new Error("Method not implemented.");
+  }
+
+  delete(): Promise<void> {
+    throw new Error("Method not implemented.");
   }
 }

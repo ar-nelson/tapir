@@ -1,40 +1,25 @@
+import { Status } from "$/deps.ts";
+import { logError, LogLevels, Tag } from "$/lib/error.ts";
 import { InjectableAbstract, Singleton } from "$/lib/inject.ts";
 import { OrderDirection, Q } from "$/lib/sql/mod.ts";
-import * as urls from "$/lib/urls.ts";
-import { ActivityDispatchStore } from "$/models/ActivityDispatch.ts";
-import { InFollowStore } from "$/models/InFollow.ts";
-import { LocalActivityStore } from "$/models/LocalActivity.ts";
-import { LocalAttachment } from "$/models/LocalAttachment.ts";
-import { LocalMediaStore } from "$/models/LocalMedia.ts";
-import { TapirConfig } from "$/models/TapirConfig.ts";
-import { ActivityPubGeneratorService } from "$/services/ActivityPubGeneratorService.ts";
+import { LocalAttachment, LocalPost } from "$/models/types.ts";
 import { LocalDatabaseService } from "$/services/LocalDatabaseService.ts";
+import { PublisherService } from "$/services/PublisherService.ts";
 import { UlidService } from "$/services/UlidService.ts";
-
-export enum PostType {
-  Note = 0,
-  Reply = 1,
-  Boost = 2,
-  Poll = 3,
-  Article = 4,
-  Link = 5,
-}
-
-export interface LocalPost {
-  readonly id: string;
-  readonly type: PostType;
-  readonly persona: string;
-  readonly createdAt: Date;
-  readonly updatedAt?: Date;
-  readonly content?: string;
-  readonly collapseSummary?: string;
-  readonly replyTo?: string;
-}
 
 export interface PostUpdate {
   readonly content: string;
   readonly collapseSummary?: string;
 }
+
+export const PostNotFound = new Tag("Local Post Not Found", {
+  level: LogLevels.WARNING,
+  internal: false,
+  httpStatus: Status.NotFound,
+});
+export const CreatePostFailed = new Tag("Create Post Failed");
+export const UpdatePostFailed = new Tag("Update Post Failed");
+export const DeletePostFailed = new Tag("Delete Post Failed");
 
 @InjectableAbstract()
 export abstract class LocalPostStore {
@@ -47,7 +32,7 @@ export abstract class LocalPostStore {
 
   abstract count(persona?: string): Promise<number>;
 
-  abstract get(id: string): Promise<LocalPost | null>;
+  abstract get(id: string): Promise<LocalPost>;
 
   abstract create(
     post: Omit<LocalPost, "id" | "createdAt" | "updatedAt">,
@@ -63,13 +48,8 @@ export abstract class LocalPostStore {
 export class LocalPostStoreImpl extends LocalPostStore {
   constructor(
     private readonly db: LocalDatabaseService,
-    private readonly apGen: ActivityPubGeneratorService,
-    private readonly activityDispatchStore: ActivityDispatchStore,
-    private readonly localMediaStore: LocalMediaStore,
-    private readonly localActivityStore: LocalActivityStore,
-    private readonly inFollowStore: InFollowStore,
+    private readonly publisherService: PublisherService,
     private readonly ulid: UlidService,
-    private readonly config: TapirConfig,
   ) {
     super();
   }
@@ -106,7 +86,7 @@ export class LocalPostStoreImpl extends LocalPostStore {
     );
   }
 
-  async get(id: string): Promise<LocalPost | null> {
+  async get(id: string): Promise<LocalPost> {
     for await (const p of this.db.get("post", { where: { id } })) {
       return {
         ...p,
@@ -116,7 +96,7 @@ export class LocalPostStoreImpl extends LocalPostStore {
         updatedAt: p.updatedAt ?? undefined,
       };
     }
-    return null;
+    throw PostNotFound.error(`No local post with ID ${id}`);
   }
 
   async create(
@@ -124,98 +104,69 @@ export class LocalPostStoreImpl extends LocalPostStore {
     createAttachments?: (id: string) => Promise<readonly LocalAttachment[]>,
   ): Promise<string> {
     const id = this.ulid.next(), createdAt = new Date();
-    await this.db.insert("post", [{
-      ...post,
-      id,
-      content: post.content,
-      createdAt,
-      collapseSummary: post.collapseSummary,
-    }]);
-    const attachments = createAttachments ? await createAttachments(id) : [],
-      media = await Promise.all(attachments.map(async (attachment) => {
-        const media = await this.localMediaStore.getMeta(attachment.original);
-        if (media == null) {
-          throw new Error(
-            `No media exists for attachment with hash ${attachment.original}`,
-          );
+    let attachments: readonly LocalAttachment[] = [];
+    try {
+      await this.db.insert("post", [{ ...post, id, createdAt }]);
+      attachments = createAttachments ? await createAttachments(id) : [];
+      await this.publisherService.createPost(
+        { ...post, id, createdAt },
+        attachments,
+      );
+      return id;
+    } catch (e) {
+      try {
+        await this.db.delete("post", { id });
+        if (attachments.length) {
+          await this.db.delete("attachment", {
+            id: Q.in(attachments.map((a) => a.id)),
+          });
         }
-        return media;
-      }));
-    await this.activityDispatchStore.createAndDispatch(
-      await this.inFollowStore.listFollowerInboxes(post.persona),
-      this.apGen.publicActivity(post.persona, {
-        type: "Create",
-        createdAt,
-        object: this.apGen.publicObject(post.persona, {
-          type: "Note",
-          content: post.content,
-          published: createdAt.toJSON(),
-          updated: createdAt.toJSON(),
-          summary: post.collapseSummary,
-          attachment: await Promise.all(
-            attachments.map((a, i) =>
-              this.apGen.attachment({ ...media[i], ...a })
-            ),
-          ),
-        }),
-      }),
-      id,
-    );
-    return id;
+      } catch (e) {
+        logError(
+          "Failed to delete post after failing to dispatch it, database may be in an inconsistent state",
+          e,
+        );
+      }
+      throw CreatePostFailed.wrap(e);
+    }
   }
 
   async update(id: string, update: PostUpdate): Promise<void> {
-    const existing = await this.get(id),
-      originalJson = await this.localActivityStore.getObject(id);
-    if (existing == null || originalJson == null) {
-      throw new Error(`Cannot update post ${id}: post does not exist`);
+    try {
+      const existing = await this.get(id);
+      if (existing.content == null) {
+        throw UpdatePostFailed.error(
+          `Post ${id} does not have text content, thus cannot be updated`,
+        );
+      }
+      const updatedAt = new Date(),
+        newPost = {
+          ...existing,
+          content: update.content ?? existing.content,
+          collapseSummary: update.collapseSummary ?? existing.collapseSummary,
+          updatedAt,
+        };
+      await this.db.update("post", { id }, {
+        content: update.content,
+        collapseSummary: update.collapseSummary,
+        updatedAt,
+      });
+      await this.publisherService.updatePost(newPost);
+    } catch (e) {
+      throw UpdatePostFailed.wrap(e);
     }
-    if (existing.content == null) {
-      throw new Error(
-        `Cannot update post ${id}: post does not have text content`,
-      );
-    }
-    const updatedAt = new Date(),
-      newJson = {
-        ...originalJson,
-        updated: updatedAt.toJSON(),
-        content: update.content ?? originalJson.content,
-        summary: update.collapseSummary ?? originalJson.summary,
-      };
-    await this.db.update("post", { id }, {
-      content: update.content,
-      collapseSummary: update.collapseSummary,
-      updatedAt,
-    });
-    await this.activityDispatchStore.createAndDispatch(
-      await this.activityDispatchStore.inboxesWhichReceived(id),
-      this.apGen.publicActivity(existing.persona, {
-        type: "Update",
-        createdAt: updatedAt,
-        target: urls.activityPubObject(id, this.config.url),
-        object: newJson,
-      }),
-    );
-    await this.localActivityStore.updateObject(id, newJson);
   }
 
   async delete(id: string): Promise<void> {
-    const existing = await this.get(id);
-    if (existing == null) {
-      return;
+    try {
+      const existing = await this.get(id);
+      if (existing == null) {
+        return;
+      }
+      await this.db.delete("post", { id });
+      await this.publisherService.deletePost(id);
+    } catch (e) {
+      throw DeletePostFailed.wrap(e);
     }
-    await this.db.delete("post", { id });
-
-    // TODO: This is not suffficient if there are still pending Creates!
-    // The pending Creates should be canceled.
-    // Also a Delete should probably just be spammed to the whole network.
-
-    await this.activityDispatchStore.createAndDispatch(
-      await this.activityDispatchStore.inboxesWhichReceived(id),
-      this.apGen.publicActivity(existing.persona, {
-        type: "Delete",
-        target: urls.activityPubObject(id, this.config.url),
-      }),
-    );
   }
 }

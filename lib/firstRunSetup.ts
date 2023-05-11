@@ -10,6 +10,7 @@ import { localDatabaseSpec } from "$/schemas/tapir/db/local/mod.ts";
 import { assertTapirConfig, TapirConfig } from "$/schemas/tapir/TapirConfig.ts";
 import { LocalDatabaseService } from "$/services/LocalDatabaseService.ts";
 import { LocalRepoService } from "$/services/LocalRepoService.ts";
+import { ProfileType } from "../models/types.ts";
 
 export function isConfigComplete(
   config: TapirConfig,
@@ -71,6 +72,7 @@ export async function firstRunSetup(config: Required<TapirConfig>) {
   log.info(`Creating main persona ${JSON.stringify(mainPersona.name)}`);
   const personaStore = await injector.resolve(PersonaStore);
   await personaStore.create({
+    type: ProfileType.Person,
     displayName: mainPersona.name,
     summary: "",
     requestToFollow: false,

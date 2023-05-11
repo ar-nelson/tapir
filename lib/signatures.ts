@@ -1,5 +1,15 @@
+import { Status } from "$/deps.ts";
 import { datetime, diffInMin } from "$/lib/datetime/mod.ts";
+import { LogLevels, Tag } from "$/lib/error.ts";
 import * as base64 from "base64";
+
+export const BadKeyFormat = new Tag("Bad Key Format");
+export const BadSignature = new Tag("Bad Signature", {
+  level: LogLevels.WARNING,
+  needsStackTrace: false,
+  internal: false,
+  httpStatus: Status.Unauthorized,
+});
 
 export function generateKeyPair(): Promise<CryptoKeyPair> {
   return crypto.subtle.generateKey(
@@ -26,7 +36,7 @@ export function publicKeyFromPem(pem: string): Promise<CryptoKey> {
     /-----\s*BEGIN[\w\s]+PUBLIC[\w\s]+-----([a-zA-Z0-9\/+=\s]+)-----\s*END[\w\s]+PUBLIC[\w\s]+-----\s*/m
       .exec(pem);
   if (!match) {
-    throw new TypeError(`String is not a PEM public key: \n${pem}`);
+    throw BadKeyFormat.error(`String is not a PEM public key: \n${pem}`);
   }
   return crypto.subtle.importKey(
     "spki",
@@ -111,17 +121,17 @@ export async function signRequest(
 export async function verifyRequest(
   request: Request,
   lookupPublicKey: (keyName: string) => Promise<CryptoKey | undefined>,
-): Promise<{ verified: true } | { verified: false; error: string }> {
+): Promise<void> {
   const url = new URL(request.url),
     match =
       /keyId="([^"]+)",algorithm="([^"]+)",headers="([^"]+)",signature="([a-zA-Z0-9\/+=]+)"/
         .exec(request.headers.get("signature") || "");
   if (!match) {
-    return { verified: false, error: "malformed signature header" };
+    throw BadSignature.error("Malformed signature header");
   }
   const [, keyName, algorithm, headersString, base64Sig] = match;
   if (algorithm !== "rsa-sha256") {
-    return { verified: false, error: "signature is not rsa-sha256" };
+    throw BadSignature.error("Signature is not rsa-sha256");
   }
 
   const headers = headersString.split(" "),
@@ -133,18 +143,24 @@ export async function verifyRequest(
     ].filter((h) => !headersString.includes(h));
 
   if (required.length) {
-    return {
-      verified: false,
-      error: `required headers missing: ${JSON.stringify(required)}`,
-    };
+    throw BadSignature.error(
+      `Required headers missing: ${JSON.stringify(required)}`,
+    );
   }
 
-  const publicKey = await lookupPublicKey(keyName);
+  let publicKey: CryptoKey | undefined;
+  try {
+    publicKey = await lookupPublicKey(keyName);
+  } catch (e) {
+    throw BadSignature.error(
+      `Failed to fetch public key for keyId=${JSON.stringify(keyName)}`,
+      e,
+    );
+  }
   if (!publicKey) {
-    return {
-      verified: false,
-      error: `no public key for keyId=${JSON.stringify(keyName)}`,
-    };
+    throw BadSignature.error(
+      `No public key for keyId=${JSON.stringify(keyName)}`,
+    );
   }
 
   const linesToSign: string[] = [];
@@ -159,16 +175,13 @@ export async function verifyRequest(
         try {
           const minutes = diffInMin(datetime(new Date(s)), datetime());
           if (Math.abs(minutes) > 30) {
-            return {
-              verified: false,
-              error: `date out of range: ${JSON.stringify(s)}`,
-            };
+            throw BadSignature.error(`Date out of range: ${JSON.stringify(s)}`);
           }
-        } catch (_) {
-          return {
-            verified: false,
-            error: `cannot parse date header ${JSON.stringify(s)}`,
-          };
+        } catch (e) {
+          throw BadSignature.error(
+            `Cannot parse date header ${JSON.stringify(s)}`,
+            e,
+          );
         }
         if (request.headers.has(h)) {
           s = request.headers.get(h)!;
@@ -178,9 +191,7 @@ export async function verifyRequest(
         break;
       case "host":
         s = request.headers.get(h) ?? "";
-        if (!s) {
-          return { verified: false, error: "no host header" };
-        }
+        if (!s) throw BadSignature.error("No host header");
         break;
       case "digest": {
         s = request.headers.get(h) ?? "";
@@ -193,10 +204,9 @@ export async function verifyRequest(
           )
         }`;
         if (s !== expected) {
-          return {
-            verified: false,
-            error: `digest header ${JSON.stringify(s)} did not match content`,
-          };
+          throw BadSignature.error(
+            `Digest header ${JSON.stringify(s)} did not match content`,
+          );
         }
         break;
       }
@@ -213,7 +223,5 @@ export async function verifyRequest(
     new TextEncoder().encode(linesToSign.join("\n")),
   );
 
-  return verified
-    ? { verified: true }
-    : { verified: false, error: "signature does not match" };
+  if (!verified) throw BadSignature.error("Signature does not match");
 }

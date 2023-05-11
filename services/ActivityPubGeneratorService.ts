@@ -1,8 +1,9 @@
+import { base64 } from "$/deps.ts";
 import { Singleton } from "$/lib/inject.ts";
-import { publicKeyToPem } from "$/lib/signatures.ts";
 import * as urls from "$/lib/urls.ts";
-import { Persona } from "$/models/PersonaStoreReadOnly.ts";
+import { Key } from "$/models/Key.ts";
 import { TapirConfig } from "$/models/TapirConfig.ts";
+import { Persona } from "$/models/types.ts";
 import {
   Activity,
   Actor,
@@ -56,12 +57,15 @@ export class ActivityPubGeneratorService {
     };
   }
 
-  async actor(persona: Persona, publicKey?: CryptoKey): Promise<Actor> {
+  actor(persona: Persona, keys: readonly Key[]): Actor {
+    const keysJson = keys.filter((k) => k.public).map((k) =>
+      this.publicKey(k as Key & { readonly public: Uint8Array }, persona.name)
+    );
     return {
       id: urls.activityPubActor(persona.name, this.config.url),
       type: "Person",
 
-      name: persona.displayName,
+      name: persona.displayName ?? persona.name,
       preferredUsername: persona.name,
       url: urls.localProfile(persona.name, {}, this.config.url),
       summary: persona.summary,
@@ -86,11 +90,18 @@ export class ActivityPubGeneratorService {
         url: urls.urlJoin(this.config.url, "tapir-avatar.jpg"),
       },
 
-      publicKey: publicKey && {
-        id: `${urls.activityPubActor(persona.name, this.config.url)}#main-key`,
-        owner: urls.activityPubActor(persona.name, this.config.url),
-        publicKeyPem: await publicKeyToPem(publicKey),
-      },
+      publicKey: keysJson.length > 1 ? keysJson : keysJson[0],
+    };
+  }
+
+  publicKey(key: Key & { readonly public: Uint8Array }, ownerPersona: string) {
+    return {
+      id: urls.urlJoin(this.config.url, key.name),
+      owner: urls.activityPubActor(ownerPersona, this.config.url),
+      publicKeyPem: `-----BEGIN PUBLIC KEY-----\r
+${base64.encode(key.public)}\r
+-----END PUBLIC KEY-----\r
+`,
     };
   }
 

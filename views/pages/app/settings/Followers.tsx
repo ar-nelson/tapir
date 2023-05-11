@@ -1,18 +1,18 @@
 import {
-  FollowDetail,
   FollowRequestDetail,
+  ProfileCardDetail,
   SettingsPage,
   UserDetail,
   view,
 } from "$/views/components/mod.ts";
-import { Persona } from "$/models/Persona.ts";
+import { Persona } from "$/models/types.ts";
 
-const FollowerLink = ({ follow }: { follow: FollowDetail }) => (
+const FollowerLink = ({ follow }: { follow: ProfileCardDetail }) => (
   <a href={follow.url}>{follow.displayName} ({follow.name})</a>
 );
 
 const PostButton = (
-  { url, id, text }: { url: string; id: string; text: string },
+  { url, id, text }: { url: string; id: number; text: string },
 ) => (
   <form method="post" action={url} style="display: inline-block;">
     <input type="hidden" name="id" value={id} />
@@ -24,7 +24,7 @@ export const SettingsFollowersPage = view<{
   user: UserDetail;
   followersByPersona: {
     persona: Persona;
-    followers: FollowDetail[];
+    followers: ProfileCardDetail[];
     requests: FollowRequestDetail[];
   }[];
 }>(
@@ -52,13 +52,13 @@ export const SettingsFollowersPage = view<{
                     <FollowerLink follow={r} /> -{" "}
                     <PostButton
                       url="./followers/accept"
-                      id={r.id}
+                      id={r.followRequestId}
                       text="Accept"
                     />{" "}
                     -{" "}
                     <PostButton
                       url="./followers/reject"
-                      id={r.id}
+                      id={r.followRequestId}
                       text="Reject"
                     />
                   </li>

@@ -1,10 +1,10 @@
+import { logError } from "$/lib/error.ts";
+import { I18nState } from "$/lib/html.ts";
+import { InjectableAbstract, Singleton } from "$/lib/inject.ts";
+import { InstanceConfigStore } from "$/models/InstanceConfig.ts";
 import defaultEnglishStrings from "$/resources/strings/en-US.json" assert {
   type: "json",
 };
-import { I18nState } from "$/lib/html.ts";
-import { InstanceConfigStore } from "$/models/InstanceConfig.ts";
-import { InjectableAbstract, Singleton } from "$/lib/inject.ts";
-import { log } from "$/deps.ts";
 
 @InjectableAbstract()
 export class I18nService {
@@ -32,10 +32,10 @@ export class I18nService {
             assert: { type: "json" },
           })
             .catch((e) => {
-              log.error(
+              logError(
                 `Failed to load strings for locale ${l}; using en-US strings instead`,
+                e,
               );
-              log.error(e);
               return defaultEnglishStrings;
             })),
     }));

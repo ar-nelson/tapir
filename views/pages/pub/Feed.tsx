@@ -20,7 +20,7 @@ export const PublicFeedPage = view<
   if (title) {
     pageTitle = `${server.name} - ${title}`;
   } else {
-    const post = posts.find((p) => p.id === selectedPost);
+    const post = posts.find((p) => p.addr.path === selectedPost);
     if (post) {
       pageTitle = `${server.name} - ${
         sprintf(strings.post.title, post.author.displayName, post.author.name)

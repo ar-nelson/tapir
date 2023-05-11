@@ -1,9 +1,8 @@
+import { base64 } from "$/deps.ts";
 import {
   InstanceConfig,
   InstanceConfigStore,
 } from "$/models/InstanceConfig.ts";
-import { generateKeyPair } from "$/lib/signatures.ts";
-import { base64 } from "$/deps.ts";
 
 export const MOCK_INSTANCE_CONFIG: InstanceConfig = {
   initialized: true,
@@ -26,14 +25,10 @@ export const MOCK_INSTANCE_CONFIG: InstanceConfig = {
 };
 
 export class MockInstanceConfigStore extends InstanceConfigStore {
-  #config = generateKeyPair().then((signingKey) => ({
-    ...MOCK_INSTANCE_CONFIG,
-    signingKey,
-    updatedAt: new Date(),
-  }));
+  #config = MOCK_INSTANCE_CONFIG;
 
   get() {
-    return this.#config;
+    return Promise.resolve(this.#config);
   }
 
   update() {

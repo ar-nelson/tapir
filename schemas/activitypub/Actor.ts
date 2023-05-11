@@ -33,11 +33,10 @@ export const schema = {
       sharedInbox: ["optional", "string"],
     }],
 
-    publicKey: ["optional", {
-      id: "string",
-      owner: "string",
-      publicKeyPem: "string",
-    }],
+    publicKey: ["optional", ["oneof", ["ref", "PublicKey"], ["array", [
+      "ref",
+      "PublicKey",
+    ]]]],
 
     manuallyApprovesFollowers: ["optional", "boolean"],
     discoverable: ["optional", "boolean"],
@@ -45,7 +44,14 @@ export const schema = {
     featuredTags: ["optional", "string"],
     devices: ["optional", "string"],
   },
-  let: commonDefs,
+  let: {
+    ...commonDefs,
+    PublicKey: {
+      id: "string",
+      owner: "string",
+      publicKeyPem: "string",
+    },
+  },
 } as const;
 
 export type Actor = MatchesSchema<typeof schema>;

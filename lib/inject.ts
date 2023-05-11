@@ -216,7 +216,9 @@ export class Injector {
       throw new TypeError(
         `Type ${Type.name} has no candidates available for dependency injection.
 Missing dependencies: ${
-          missing.map((x) => "(" + x.join(", ") + ")").join(" or ")
+          missing.map((x) => "(" + [...new Set(x)].join(", ") + ")").join(
+            " or ",
+          )
         }`,
       );
     }

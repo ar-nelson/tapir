@@ -1,10 +1,11 @@
-import { InjectableAbstract, Singleton } from "$/lib/inject.ts";
 import {
   DateDiff,
   DateTime,
   datetime,
   diffInMillisec,
 } from "$/lib/datetime/mod.ts";
+import { InjectableAbstract, Singleton } from "$/lib/inject.ts";
+import { BackgroundTaskService } from "./BackgroundTaskService.ts";
 
 export enum Reschedule {
   Always,
@@ -127,8 +128,15 @@ export abstract class SchedulerService {
 
 @Singleton(SchedulerService)
 export class SchedulerServiceImpl extends SchedulerService {
+  constructor(private readonly backgroundTaskService: BackgroundTaskService) {
+    super();
+  }
+
   protected notifyLater(key: string, delayMs: number): void {
-    setTimeout(() => this.notifyNow(key), delayMs);
+    setTimeout(
+      () => this.backgroundTaskService.watch(this.notifyNow(key), key),
+      delayMs,
+    );
   }
 
   now() {

@@ -13,13 +13,16 @@ export const Post = view<
       <div class="post-body">
         {post.content}
       </div>
-      {post.attachments.map((attachment) => (
+      {(post.attachments ?? []).map((attachment) => (
         <Attachment attachment={attachment} />
       ))}
     </>
   );
   return (
-    <article class={`post${big ? " post-big" : ""}`} id={`post-${post.id}`}>
+    <article
+      class={`post${big ? " post-big" : ""}`}
+      id={`post-${post.addr.path}`}
+    >
       <header>
         <h3 class="post-heading">
           <a href={post.author.url}>
@@ -40,10 +43,10 @@ export const Post = view<
           />
         </span>
       </header>
-      {post.collapseSummary
+      {post.contentWarning
         ? (
           <details>
-            <summary>{post.collapseSummary}</summary>
+            <summary>{post.contentWarning}</summary>
             <div>{body}</div>
           </details>
         )

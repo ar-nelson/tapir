@@ -1,29 +1,12 @@
 import { ActivityPubController } from "$/controllers/ActivityPubController.ts";
-import {
-  Context,
-  isHttpError,
-  log,
-  Router,
-  RouterContext,
-  Status,
-} from "$/deps.ts";
+import { Context, Router, Status } from "$/deps.ts";
 import { Injectable } from "$/lib/inject.ts";
-import { jsonOr404 } from "$/lib/utils.ts";
-import { BlockedServerStore } from "$/models/BlockedServer.ts";
-import {
-  Activity,
-  CONTENT_TYPE,
-  defaultContextJson,
-} from "$/schemas/activitypub/mod.ts";
-import { TapirConfig } from "../models/TapirConfig.ts";
+import { CONTENT_TYPE, defaultContextJson } from "$/schemas/activitypub/mod.ts";
+import { RouterState } from "./main.ts";
 
 @Injectable()
 export class ActivityPubRouter extends Router {
-  constructor(
-    private readonly controller: ActivityPubController,
-    private readonly blockedServerStore: BlockedServerStore,
-    private readonly config: TapirConfig,
-  ) {
+  constructor(controller: ActivityPubController) {
     super();
 
     this.get("/context", (ctx) => {
@@ -34,30 +17,28 @@ export class ActivityPubRouter extends Router {
       .use("/", (ctx, next) => this.#middleware(ctx, next))
       .get(
         "/activity/:id",
-        async (ctx) =>
-          jsonOr404(ctx, await controller.getActivity(ctx.params.id)),
+        (ctx) => controller.getActivity(ctx.params.id),
       ).get(
         "/object/:id",
-        async (ctx) =>
-          jsonOr404(ctx, await controller.getObject(ctx.params.id)),
+        (ctx) => controller.getObject(ctx.params.id),
       ).get(
         "/actor/:name",
-        async (ctx) =>
-          jsonOr404(ctx, await controller.getPersona(ctx.params.name)),
+        (ctx) => controller.getPersona(ctx.params.name),
       ).get(
         "/actor/:name/followers",
-        async (ctx) =>
-          jsonOr404(ctx, await controller.getFollowers(ctx.params.name)),
+        (ctx) => controller.getFollowers(ctx.params.name),
       ).get(
         "/actor/:name/following",
-        async (ctx) =>
-          jsonOr404(ctx, await controller.getFollowing(ctx.params.name)),
+        (ctx) => controller.getFollowing(ctx.params.name),
       ).get(
         "/actor/:name/outbox",
-        async (ctx) =>
-          jsonOr404(ctx, await controller.getPostCollection(ctx.params.name)),
+        (ctx) => controller.getPostCollection(ctx.params.name),
       )
-      .post("/actor/:name/inbox", (ctx) => this.#inbox(ctx))
+      .post("/actor/:name/inbox", async (ctx) => {
+        const json = await ctx.request.body({ type: "json" }).value;
+        await controller.onInboxPost(json, ctx.params.name);
+        ctx.response.status = 202;
+      })
       .get("/(.*)", (ctx) => {
         ctx.response.status = Status.NotFound;
         ctx.response.body = {
@@ -66,58 +47,10 @@ export class ActivityPubRouter extends Router {
       });
   }
 
-  async #inbox(ctx: RouterContext<"/actor/:name/inbox", { name: string }>) {
-    const json = await ctx.request.body({ type: "json" }).value,
-      { id, actor } = json,
-      idUrl = typeof id === "string" && new URL(id),
-      actorUrl = typeof actor === "string" && new URL(actor);
-
-    let activity: Activity;
-    try {
-      activity = await this.controller.canonicalizeIncomingActivity(json);
-    } catch (e) {
-      log.error(e);
-      log.error(
-        `Request body was not a valid Activity:\n${
-          JSON.stringify(json, null, 2)
-        }`,
-      );
-      ctx.throw(Status.BadRequest, "Request body was not a valid Activity");
-    }
-
-    if (idUrl) {
-      ctx.assert(
-        !await this.blockedServerStore.blocksActivityUrl(idUrl),
-        Status.Forbidden,
-        `Rejected ActivityPub POST from blocked domain ${idUrl.hostname}`,
-      );
-    }
-    if (actorUrl) {
-      ctx.assert(
-        !await this.blockedServerStore.blocksActivityUrl(actorUrl),
-        Status.Forbidden,
-        `Rejected ActivityPub POST from blocked domain ${actorUrl.hostname}`,
-      );
-    }
-
-    await this.controller.onInboxPost(ctx.params.name, activity);
-    ctx.response.status = 202;
-  }
-
-  async #middleware(ctx: Context, next: () => Promise<unknown>) {
+  async #middleware(ctx: Context<RouterState>, next: () => Promise<unknown>) {
+    ctx.state.isJson = true;
     ctx.response.type = "json";
-    try {
-      await next();
-    } catch (err) {
-      log.error(`Error occurred at URL ${ctx.request.url}:`);
-      log.error(err);
-      if (isHttpError(err)) {
-        ctx.response.status = err.status;
-      } else {
-        ctx.response.status = Status.InternalServerError;
-      }
-      ctx.response.body = { error: `${err.message ?? err}` };
-    }
+    await next();
     if (
       ctx.response.status === Status.OK && ctx.response.body &&
       typeof ctx.response.body === "object"

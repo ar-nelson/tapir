@@ -6,6 +6,7 @@ export type { Filter } from "./Filter.ts";
 export type { FilterKeyword } from "./FilterKeyword.ts";
 export type { FilterResult } from "./FilterResult.ts";
 export type { FilterStatus } from "./FilterStatus.ts";
+export { assertIsInstance } from "./Instance.ts";
 export type { Instance } from "./Instance.ts";
 export type { MediaAttachment } from "./MediaAttachment.ts";
 export type { Poll } from "./Poll.ts";

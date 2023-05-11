@@ -36,6 +36,9 @@ export const schema = {
       "Undo",
       "Update",
       "View",
+
+      // Nonstandard
+      "EmojiReaction",
     ],
 
     actor: ["ref", "ObjectOrLinkRef"],

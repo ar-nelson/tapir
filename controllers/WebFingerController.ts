@@ -1,9 +1,17 @@
+import { Status } from "$/deps.ts";
+import { LogLevels, Tag } from "$/lib/error.ts";
 import { Singleton } from "$/lib/inject.ts";
-import { WebFingerResponse } from "$/schemas/webfinger/WebFingerResponse.ts";
-import { TapirConfig } from "$/models/TapirConfig.ts";
-import { PersonaStore } from "$/models/Persona.ts";
 import * as urls from "$/lib/urls.ts";
-import { log } from "$/deps.ts";
+import { PersonaStore } from "$/models/Persona.ts";
+import { TapirConfig } from "$/models/TapirConfig.ts";
+import { WebFingerResponse } from "$/schemas/webfinger/WebFingerResponse.ts";
+
+export const WebFingerNotFound = new Tag("WebFinger Resource Not Found", {
+  level: LogLevels.WARNING,
+  needsStackTrace: false,
+  internal: false,
+  httpStatus: Status.NotFound,
+});
 
 @Singleton()
 export class WebFingerController {
@@ -14,25 +22,23 @@ export class WebFingerController {
 
   async queryResource(
     resource: string,
-  ): Promise<WebFingerResponse | undefined> {
+  ): Promise<WebFingerResponse> {
     const match = /^acct:[@]?([^@:]+)(?:[@]([^@:]+))?$/i.exec(resource);
     if (!match || (match[2] && match[2] !== this.config.domain)) {
-      log.warning(
-        `not a valid acct resource for this server: ${
+      throw WebFingerNotFound.error(
+        `Not a valid acct resource for this server: ${
           JSON.stringify(resource)
         }`,
       );
-      return undefined;
     }
     const name = match[1],
       persona = await this.personaStore.get(name);
     if (!persona) {
-      log.warning(
-        `cannot resolve resource ${
+      throw WebFingerNotFound.error(
+        `Cannot resolve resource ${
           JSON.stringify(resource)
-        }: no persona named ${JSON.stringify(name)}`,
+        }: No persona named ${JSON.stringify(name)}`,
       );
-      return undefined;
     }
     return {
       subject: `acct:${name}@${this.config.domain}`,

@@ -5,7 +5,7 @@ import {
   UserDetail,
   view,
 } from "$/views/components/mod.ts";
-import { Persona } from "$/models/Persona.ts";
+import { Persona } from "$/models/types.ts";
 
 export const SettingsEditPersonaPage = view<
   { user: UserDetail; persona: Persona }

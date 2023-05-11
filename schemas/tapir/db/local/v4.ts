@@ -1,6 +1,6 @@
 import { base64, toml } from "$/deps.ts";
 import { ColumnType } from "$/lib/sql/mod.ts";
-import { asyncToArray } from "$/lib/utils.ts";
+import { chainFrom } from "$/lib/transducers.ts";
 import v3 from "./v3.ts";
 
 const { Integer, String, Boolean, Ulid, Json, Blob } = ColumnType;
@@ -158,7 +158,7 @@ const Spec = v3.newVersion(4, {
     );
   await db.update("persona", {}, { privateKey, publicKey });
 }).prePostMigrate(
-  (db) => asyncToArray(db.get("inFollow", {})),
+  (db) => chainFrom(db.get("inFollow")).toArray(),
   async (db, preMigrateState) => {
     type Follow = {
       actor: string;

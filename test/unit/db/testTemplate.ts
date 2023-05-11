@@ -8,7 +8,7 @@ import {
   Q,
   QueryOperator,
 } from "$/lib/sql/mod.ts";
-import { asyncToArray as collect } from "$/lib/utils.ts";
+import { chainFrom } from "$/lib/transducers.ts";
 import { UlidService } from "$/services/UlidService.ts";
 import { assertArrayIncludes, assertEquals } from "asserts";
 
@@ -44,55 +44,56 @@ export function testDatabaseService(
     await db.insert("people", [row]);
 
     await t.step("select all", async () => {
-      assertEquals(await collect(db.get("people", {})), [row]);
+      assertEquals(await chainFrom(db.get("people", {})).toArray(), [row]);
     });
     await t.step("where id eq", async () => {
       assertEquals(
-        await collect(db.get("people", { where: { id } })),
+        await chainFrom(db.get("people", { where: { id } })).toArray(),
         [row],
       );
     });
     await t.step("where name eq", async () => {
       assertEquals(
-        await collect(db.get("people", { where: { name: "Bob" } })),
+        await chainFrom(db.get("people", { where: { name: "Bob" } })).toArray(),
         [row],
       );
     });
     await t.step("where age eq", async () => {
       assertEquals(
-        await collect(db.get("people", { where: { age: 42 } })),
+        await chainFrom(db.get("people", { where: { age: 42 } })).toArray(),
         [row],
       );
     });
     await t.step("where id and name eq", async () => {
       assertEquals(
-        await collect(
+        await chainFrom(
           db.get("people", {
             where: { id: new Q(QueryOperator.Equal, id), name: "Bob" },
           }),
-        ),
+        ).toArray(),
         [row],
       );
     });
     await t.step("where id eq different", async () => {
       assertEquals(
-        await collect(db.get("people", { where: { id: ulid.next() } })),
+        await chainFrom(db.get("people", { where: { id: ulid.next() } }))
+          .toArray(),
         [],
       );
     });
     await t.step("where name eq but id eq different", async () => {
       assertEquals(
-        await collect(
+        await chainFrom(
           db.get("people", { where: { id: ulid.next(), name: "Bob" } }),
-        ),
+        ).toArray(),
         [],
       );
     });
     await t.step("where id eq but name eq different", async () => {
       assertEquals(
-        await collect(
+        await chainFrom(
           db.get("people", { where: { id: id, name: "Alice" } }),
-        ),
+        ).toArray(),
         [],
       );
     });
@@ -128,7 +129,7 @@ export function testDatabaseService(
     });
 
     await t.step("select all unordered", async () => {
-      const queryAll = await collect(db.get("people", {}));
+      const queryAll = await chainFrom(db.get("people", {})).toArray();
       assertArrayIncludes(queryAll, [rows[0]]);
       assertArrayIncludes(queryAll, [rows[1]]);
       assertArrayIncludes(queryAll, [rows[2]]);
@@ -136,38 +137,38 @@ export function testDatabaseService(
     });
 
     await t.step("select where age eq", async () => {
-      const queryAll = await collect(
+      const queryAll = await chainFrom(
         db.get("people", { where: { age: 32 } }),
-      );
+      ).toArray();
       assertArrayIncludes(queryAll, [rows[0]]);
       assertArrayIncludes(queryAll, [rows[2]]);
       assertEquals(queryAll.length, 2);
     });
 
     await t.step("select where age neq", async () => {
-      const queryAll = await collect(
+      const queryAll = await chainFrom(
         db.get("people", { where: { age: new Q(QueryOperator.NotEqual, 32) } }),
-      );
+      ).toArray();
       assertArrayIncludes(queryAll, [rows[1]]);
       assertEquals(queryAll.length, 1);
     });
 
     await t.step("select where age gt", async () => {
-      const queryAll = await collect(
+      const queryAll = await chainFrom(
         db.get("people", {
           where: { age: new Q(QueryOperator.GreaterThan, 32) },
         }),
-      );
+      ).toArray();
       assertArrayIncludes(queryAll, [rows[1]]);
       assertEquals(queryAll.length, 1);
     });
 
     await t.step("select where age gte", async () => {
-      const queryAll = await collect(
+      const queryAll = await chainFrom(
         db.get("people", {
           where: { age: new Q(QueryOperator.GreaterThanEqual, 32) },
         }),
-      );
+      ).toArray();
       assertArrayIncludes(queryAll, [rows[0]]);
       assertArrayIncludes(queryAll, [rows[1]]);
       assertArrayIncludes(queryAll, [rows[2]]);
@@ -175,22 +176,22 @@ export function testDatabaseService(
     });
 
     await t.step("select where age lt", async () => {
-      const queryAll = await collect(
+      const queryAll = await chainFrom(
         db.get("people", {
           where: { age: new Q(QueryOperator.LowerThan, 42) },
         }),
-      );
+      ).toArray();
       assertArrayIncludes(queryAll, [rows[0]]);
       assertArrayIncludes(queryAll, [rows[2]]);
       assertEquals(queryAll.length, 2);
     });
 
     await t.step("select where age lte", async () => {
-      const queryAll = await collect(
+      const queryAll = await chainFrom(
         db.get("people", {
           where: { age: new Q(QueryOperator.LowerThanEqual, 42) },
         }),
-      );
+      ).toArray();
       assertArrayIncludes(queryAll, [rows[0]]);
       assertArrayIncludes(queryAll, [rows[1]]);
       assertArrayIncludes(queryAll, [rows[2]]);
@@ -199,37 +200,39 @@ export function testDatabaseService(
 
     await t.step("order by id ascending", async () => {
       assertEquals(
-        await collect(db.get("people", { orderBy: [["id", "ASC"]] })),
+        await chainFrom(db.get("people", { orderBy: [["id", "ASC"]] }))
+          .toArray(),
         rows,
       );
     });
 
     await t.step("order by id descending", async () => {
       assertEquals(
-        await collect(db.get("people", { orderBy: [["id", "DESC"]] })),
+        await chainFrom(db.get("people", { orderBy: [["id", "DESC"]] }))
+          .toArray(),
         [rows[2], rows[1], rows[0]],
       );
     });
 
     await t.step("order by age then name", async () => {
       assertEquals(
-        await collect(
+        await chainFrom(
           db.get("people", {
             orderBy: [["age", "ASC"], ["name", "DESC"]],
           }),
-        ),
+        ).toArray(),
         [rows[2], rows[0], rows[1]],
       );
     });
 
     await t.step("order by age then name, limit 2", async () => {
       assertEquals(
-        await collect(
+        await chainFrom(
           db.get("people", {
             orderBy: [["age", "ASC"], ["name", "DESC"]],
             limit: 2,
           }),
-        ),
+        ).toArray(),
         [rows[2], rows[0]],
       );
     });

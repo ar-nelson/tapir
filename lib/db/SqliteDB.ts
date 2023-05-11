@@ -87,7 +87,7 @@ class SqliteDBApi<Ts extends Tables> implements DBLike<Ts> {
     where?: Query<ColumnsOf<Ts, T>>;
     orderBy?: [ColumnOf<Ts, T>, OrderDirection][];
     limit?: number;
-  }): AsyncIterable<any> {
+  } = {}): AsyncIterable<any> {
     const db = await this.dbPromise,
       { text, values } = select(
         table,
@@ -157,6 +157,7 @@ class SqliteDBApi<Ts extends Tables> implements DBLike<Ts> {
     rows: InRow<ColumnsOf<Ts, T>>[],
     returning?: ColumnOf<Ts, T>[],
   ): Promise<void | Pick<OutRow<ColumnsOf<Ts, T>>, Returned>[]> {
+    if (!rows.length) return returning ? [] : undefined;
     const db = await this.dbPromise,
       { text, values } = insert(
         table,

@@ -23,8 +23,8 @@ export const PublicProfilePage = view<
         <header class="profile-header">
           <div
             class="profile-banner"
-            style={profile.backgroundUrl &&
-              `background-image: url('${profile.backgroundUrl}');`}
+            style={profile.bannerUrl &&
+              `background-image: url('${profile.bannerUrl}');`}
           />
           <div class="profile-content">
             <div class="profile-avatar">
@@ -36,25 +36,27 @@ export const PublicProfilePage = view<
             </h2>
             <div class="summary">{profile.summary}</div>
             <dl class="profile-stats">
-              <div>
-                <dt>{strings.profile.createdAt}</dt>
-                <dd>
-                  <time datetime={profile.createdAt.toJSON()}>
-                    {date.format(profile.createdAt)}
-                  </time>
-                </dd>
-              </div>
+              {profile.createdAt && (
+                <div>
+                  <dt>{strings.profile.createdAt}</dt>
+                  <dd>
+                    <time datetime={profile.createdAt.toISO()}>
+                      {date.format(profile.createdAt.toJSDate())}
+                    </time>
+                  </dd>
+                </div>
+              )}
               <div>
                 <dt>{strings.profile.posts}</dt>
-                <dd>{number.format(profile.posts)}</dd>
+                <dd>{number.format(profile.postCount ?? 0)}</dd>
               </div>
               <div>
                 <dt>{strings.profile.following}</dt>
-                <dd>{number.format(profile.following)}</dd>
+                <dd>{number.format(profile.followingCount ?? 0)}</dd>
               </div>
               <div>
                 <dt>{strings.profile.followers}</dt>
-                <dd>{number.format(profile.followers)}</dd>
+                <dd>{number.format(profile.followerCount ?? 0)}</dd>
               </div>
             </dl>
           </div>

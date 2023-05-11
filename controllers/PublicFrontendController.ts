@@ -1,19 +1,21 @@
-import { LocalPost, LocalPostStore } from "$/models/LocalPost.ts";
-import { InstanceConfigStore } from "$/models/InstanceConfig.ts";
-import { Persona, PersonaStore } from "$/models/Persona.ts";
+import { datetime } from "$/lib/datetime/mod.ts";
+import { View } from "$/lib/html.ts";
+import { Singleton } from "$/lib/inject.ts";
+import { chainFrom } from "$/lib/transducers.ts";
+import * as urls from "$/lib/urls.ts";
 import { InFollowStore } from "$/models/InFollow.ts";
-import { KnownActorStore } from "$/models/KnownActor.ts";
+import { InstanceConfigStore } from "$/models/InstanceConfig.ts";
 import { LocalAttachmentStore } from "$/models/LocalAttachment.ts";
+import { LocalPostStore } from "$/models/LocalPost.ts";
+import { PersonaStore } from "$/models/Persona.ts";
+import { RemoteProfileStore } from "$/models/RemoteProfile.ts";
+import { LocalPost, Persona, Protocol } from "$/models/types.ts";
 import {
-  FollowDetail,
   PostDetail,
+  ProfileCardDetail,
   ProfileDetail,
   ServerDetail,
 } from "$/views/types.ts";
-import { Singleton } from "$/lib/inject.ts";
-import { asyncToArray } from "$/lib/utils.ts";
-import { View } from "$/lib/html.ts";
-import * as urls from "$/lib/urls.ts";
 
 const PAGE_SIZE = 20;
 
@@ -24,18 +26,18 @@ export class PublicFrontendController {
     private readonly personaStore: PersonaStore,
     private readonly localPostStore: LocalPostStore,
     private readonly inFollowStore: InFollowStore,
-    private readonly knownActorStore: KnownActorStore,
     private readonly localAttachmentStore: LocalAttachmentStore,
+    private readonly remoteProfileStore: RemoteProfileStore,
   ) {}
 
   async serverDetail(): Promise<ServerDetail> {
     const instanceConfig = await this.instanceConfigStore.get(),
-      personas = await asyncToArray(this.personaStore.list());
+      personas = await chainFrom(this.personaStore.list()).toArray();
     return {
       name: instanceConfig.displayName,
       summary: new View(() => instanceConfig.summary),
       links: personas.map((p) => ({
-        name: p.linkTitle ?? p.displayName,
+        name: p.linkTitle ?? p.displayName ?? p.name,
         url: urls.localProfile(p.name, {}),
       })),
     };
@@ -46,12 +48,14 @@ export class PublicFrontendController {
       url: urls.localProfile(persona.name, {}),
       name: `@${persona.name}`,
       displayName: persona.displayName,
+      addr: { protocol: Protocol.Local, path: persona.name },
+      type: persona.type,
       avatarUrl: "/static/tapir-avatar.jpg",
       summary: persona.summary,
-      posts: await this.localPostStore.count(persona.name),
-      followers: await this.inFollowStore.countFollowers(persona.name),
-      following: 0,
-      createdAt: persona.createdAt,
+      postCount: await this.localPostStore.count(persona.name),
+      followerCount: await this.inFollowStore.countFollowers(persona.name),
+      followingCount: 0,
+      createdAt: persona.createdAt && datetime(persona.createdAt),
     };
   }
 
@@ -59,34 +63,46 @@ export class PublicFrontendController {
     post: LocalPost,
     persona: Persona,
   ): Promise<PostDetail> {
-    const attachments = await asyncToArray(
-      this.localAttachmentStore.list(post.id),
-    );
     return {
-      id: post.id,
+      addr: { protocol: Protocol.Local, path: post.id },
       url: urls.localPost(post.id, {}),
       type: post.type,
-      createdAt: post.createdAt,
-      updatedAt: post.updatedAt,
-      content: post.content == null ? undefined : new View(() => post.content!), // TODO: sanitize html
-      collapseSummary: post.collapseSummary,
-      replyTo: post.replyTo,
+      createdAt: post.createdAt && datetime(post.createdAt),
+      updatedAt: post.updatedAt && datetime(post.updatedAt),
+      content: post.content, // TODO: sanitize html
+      contentWarning: post.collapseSummary,
+      //replyTo: post.replyTo,
       author: {
         name: `@${persona.name}`,
         displayName: persona.displayName,
         url: urls.localProfile(persona.name, {}),
         avatarUrl: "/static/tapir-avatar.jpg",
+        addr: { protocol: Protocol.Local, path: persona.name },
+        type: persona.type,
       },
-      likes: 0,
-      boosts: 0,
-      replies: 0,
-      liked: false,
-      boosted: false,
-      attachments: attachments.map((a) => ({
+      attachments: await chainFrom(
+        this.localAttachmentStore.list(post.id),
+      ).map((a) => ({
         url: urls.localMedia(a.original),
         type: a.type,
         alt: a.alt ?? undefined,
-      })),
+      })).toArray(),
+      actions: {
+        like: {
+          enabled: false,
+          count: 0,
+          you: false,
+        },
+        boost: {
+          enabled: false,
+          count: 0,
+          you: false,
+        },
+        reply: {
+          enabled: false,
+          count: 0,
+        },
+      },
     };
   }
 
@@ -94,16 +110,13 @@ export class PublicFrontendController {
     server: ServerDetail;
     posts: PostDetail[];
   }> {
-    const posts = await asyncToArray(
-      this.localPostStore.list({ beforeId, limit: PAGE_SIZE }),
-    );
     return {
       server: await this.serverDetail(),
-      posts: await Promise.all(
-        posts.map(async (p) =>
-          this.#localPostDetail(p, (await this.personaStore.get(p.persona))!)
-        ),
-      ),
+      posts: await chainFrom(
+        this.localPostStore.list({ beforeId, limit: PAGE_SIZE }),
+      ).mapAsync(async (p) =>
+        this.#localPostDetail(p, await this.personaStore.get(p.persona))
+      ).toArray(),
     };
   }
 
@@ -112,23 +125,19 @@ export class PublicFrontendController {
       server: ServerDetail;
       profile: ProfileDetail;
       posts: PostDetail[];
-    } | null
+    }
   > {
     const persona = await this.personaStore.get(personaName);
-    if (!persona) return null;
-    const posts = await asyncToArray(
-      this.localPostStore.list({
-        persona: personaName,
-        beforeId,
-        limit: PAGE_SIZE,
-      }),
-    );
     return {
       server: await this.serverDetail(),
       profile: await this.#personaDetail(persona),
-      posts: await Promise.all(
-        posts.map((p) => this.#localPostDetail(p, persona!)),
-      ),
+      posts: await chainFrom(
+        this.localPostStore.list({
+          persona: personaName,
+          beforeId,
+          limit: PAGE_SIZE,
+        }),
+      ).mapAsync((p) => this.#localPostDetail(p, persona)).toArray(),
     };
   }
 
@@ -136,12 +145,10 @@ export class PublicFrontendController {
     id: string,
     _afterReplyDate?: Date,
   ): Promise<
-    { server: ServerDetail; posts: PostDetail[]; selectedPost: string } | null
+    { server: ServerDetail; posts: PostDetail[]; selectedPost: string }
   > {
-    const post = await this.localPostStore.get(id);
-    if (!post) return null;
-    const persona = await this.personaStore.get(post.persona);
-    if (!persona) return null;
+    const post = await this.localPostStore.get(id),
+      persona = await this.personaStore.get(post.persona);
     return {
       server: await this.serverDetail(),
       posts: [await this.#localPostDetail(post, persona)],
@@ -152,47 +159,42 @@ export class PublicFrontendController {
   async followers(
     personaName: string,
   ): Promise<
-    | {
+    {
       server: ServerDetail;
       profile: ProfileDetail;
-      followers: FollowDetail[];
+      followers: ProfileCardDetail[];
     }
-    | null
   > {
     const persona = await this.personaStore.get(personaName);
-    if (!persona) return null;
-    const follows = await asyncToArray(
-      this.inFollowStore.listFollowers(personaName),
-    );
-    const followers = await Promise.all(
-      follows.map(({ actor }) => this.knownActorStore.get(new URL(actor))),
-    );
     return {
       server: await this.serverDetail(),
       profile: await this.#personaDetail(persona),
-      followers: followers.map((f) =>
-        (f && {
-          url: f.url,
-          name: `${f.name}@${new URL(f.server).host}`,
+      followers: await chainFrom(
+        this.inFollowStore.listFollowers(personaName),
+      ).mapAsync(async ({ remoteProfile }) => {
+        const f = await this.remoteProfileStore.get(remoteProfile);
+        return {
+          addr: f.addr,
+          type: f.type,
+          url: f.url ?? undefined,
+          name: f.name,
           displayName: f.displayName ?? f.name,
           avatarUrl: "",
-        })!
-      ),
+        };
+      }).toArray(),
     };
   }
 
   async following(
     personaName: string,
   ): Promise<
-    | {
+    {
       server: ServerDetail;
       profile: ProfileDetail;
-      followers: FollowDetail[];
+      followers: ProfileCardDetail[];
     }
-    | null
   > {
     const persona = await this.personaStore.get(personaName);
-    if (!persona) return null;
     return {
       server: await this.serverDetail(),
       profile: await this.#personaDetail(persona),

@@ -29,9 +29,19 @@ export abstract class InstanceConfigStore {
   abstract get(): Promise<InstanceConfig>;
   abstract update(
     patch: Partial<Omit<InstanceConfig, "initialized" | "updatedAt">>,
-  ): Promise<void>;
-  abstract setPassword(newPassword: string): Promise<void>;
-  abstract checkPassword(password: string): Promise<boolean>;
+  ): Promise<InstanceConfig>;
+
+  setPassword(newPassword: string): Promise<InstanceConfig> {
+    const passwordSalt = crypto.getRandomValues(new Uint8Array(16)),
+      passwordHash = hashPassword(newPassword, passwordSalt),
+      update = { passwordHash, passwordSalt };
+    return this.update(update);
+  }
+
+  async checkPassword(password: string): Promise<boolean> {
+    const { passwordHash, passwordSalt } = await this.get();
+    return timingSafeEqual(passwordHash, hashPassword(password, passwordSalt));
+  }
 }
 
 @Singleton(InstanceConfigStore)
@@ -61,7 +71,7 @@ export class InstanceConfigStoreImpl extends InstanceConfigStore {
         maxMediaAttachments: 32,
         maxImageBytes: 1024 * 1024 * 16,
         maxImagePixels: 3840 * 2160,
-        maxVideoBytes: 1024 * 1024 * 256,
+        maxVideoBytes: 1024 * 1024 * 64,
         maxVideoPixels: 1920 * 1080,
         maxVideoFramerate: 60,
         passwordHash: new Uint8Array(0),
@@ -77,11 +87,9 @@ export class InstanceConfigStoreImpl extends InstanceConfigStore {
     return this.#config;
   }
 
-  async update(
-    patch: Partial<Omit<InstanceConfig, "initialized" | "updatedAt">>,
-  ) {
+  update(patch: Partial<Omit<InstanceConfig, "initialized" | "updatedAt">>) {
     const lastConfigPromise = this.#config;
-    await (this.#config = (async () => {
+    return (this.#config = (async () => {
       const { initialized, ...last } = await lastConfigPromise,
         update = { ...patch, updatedAt: new Date() };
       try {
@@ -100,26 +108,5 @@ export class InstanceConfigStoreImpl extends InstanceConfigStore {
       }
       return { ...last, ...update, initialized: true };
     })());
-  }
-
-  async setPassword(newPassword: string): Promise<void> {
-    const lastConfigPromise = this.#config;
-    await (this.#config = (async () => {
-      const { initialized, ...last } = await lastConfigPromise,
-        hash = hashPassword(newPassword, last.passwordSalt),
-        update = { passwordHash: hash, updatedAt: new Date() };
-      try {
-        await this.db.update("instanceConfig", { key: true }, update);
-      } catch (e) {
-        log.error(e);
-        return { ...last, initialized };
-      }
-      return { ...last, ...update, initialized: true };
-    })());
-  }
-
-  async checkPassword(password: string): Promise<boolean> {
-    const { passwordHash, passwordSalt } = await this.#config;
-    return timingSafeEqual(passwordHash, hashPassword(password, passwordSalt));
   }
 }

@@ -1,6 +1,13 @@
 import { Icon, Page, ServerDetail, view } from "$/views/components/mod.ts";
 
-export const ServerErrorPage = view<{ server: ServerDetail }>((
+export const ServerErrorPage = view<
+  {
+    server: ServerDetail;
+    status: number;
+    errorType?: string;
+    errorMessage?: string;
+  }
+>((
   { server },
   { strings },
 ) => (

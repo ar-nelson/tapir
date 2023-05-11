@@ -1,10 +1,12 @@
 // Adapted from https://github.com/devbanana/crockford-base32
 // Original code is MIT licensed, (c) 2021 Brandon Olivares
 
-const characters = "0123456789ABCDEFGHJKMNPQRSTVWXYZ";
+const charactersUpper = "0123456789ABCDEFGHJKMNPQRSTVWXYZ";
+const charactersLower = "0123456789abcdefghjkmnpqrstvwxyz";
 
 interface EncodeOptions {
   stripLeadingZeros?: boolean;
+  lowerCase?: boolean;
 }
 
 type DecodeAsNumberOptions = { asNumber: true } & EncodeOptions;
@@ -20,6 +22,7 @@ export class CrockfordBase32 {
     input: Uint8Array | number | bigint,
     options?: EncodeOptions,
   ): string {
+    const characters = options?.lowerCase ? charactersLower : charactersUpper;
     let stripZeros = options?.stripLeadingZeros || false;
 
     if (input instanceof Uint8Array) {
@@ -85,7 +88,7 @@ export class CrockfordBase32 {
     let buffer = 0;
 
     for (const character of input) {
-      const byte = characters.indexOf(character);
+      const byte = charactersUpper.indexOf(character);
       if (byte === -1) {
         throw new Error(
           `Invalid base 32 character found in string: ${character}`,

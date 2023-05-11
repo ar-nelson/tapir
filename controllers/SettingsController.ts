@@ -1,22 +1,23 @@
-import { LocalPostStore, PostType } from "$/models/LocalPost.ts";
+import { FormDataBody, log } from "$/deps.ts";
+import { Singleton } from "$/lib/inject.ts";
+import { chainFrom } from "$/lib/transducers.ts";
+import * as urls from "$/lib/urls.ts";
+import { InFollowStore } from "$/models/InFollow.ts";
 import { InstanceConfigStore } from "$/models/InstanceConfig.ts";
-import { Persona, PersonaStore } from "$/models/Persona.ts";
-import { InFollow, InFollowStore } from "$/models/InFollow.ts";
-import { KnownActorStore } from "$/models/KnownActor.ts";
 import { LocalAttachmentStore } from "$/models/LocalAttachment.ts";
+import { LocalPostStore } from "$/models/LocalPost.ts";
+import { PersonaStore } from "$/models/Persona.ts";
+import { RemoteProfileStore } from "$/models/RemoteProfile.ts";
+import { InFollow, Persona, PostType, ProfileType } from "$/models/types.ts";
 import {
-  FollowDetail,
   FollowRequestDetail,
+  ProfileCardDetail,
   UserDetail,
 } from "$/views/types.ts";
-import { Singleton } from "$/lib/inject.ts";
-import { asyncToArray } from "$/lib/utils.ts";
-import * as urls from "$/lib/urls.ts";
-import { base64, FormDataBody, log } from "$/deps.ts";
 
 interface PersonaFollows {
   persona: Persona;
-  followers: FollowDetail[];
+  followers: ProfileCardDetail[];
   requests: FollowRequestDetail[];
 }
 
@@ -28,34 +29,37 @@ export class SettingsController {
     private readonly localPostStore: LocalPostStore,
     private readonly localAttachmentStore: LocalAttachmentStore,
     private readonly inFollowStore: InFollowStore,
-    private readonly knownActorStore: KnownActorStore,
+    private readonly remoteProfileStore: RemoteProfileStore,
   ) {}
 
   async #userDetail(): Promise<UserDetail> {
-    const instanceConfig = await this.instanceConfigStore.get(),
-      personas = await asyncToArray(this.personaStore.list());
+    const instanceConfig = await this.instanceConfigStore.get();
     return {
       serverName: instanceConfig.displayName,
-      personas,
+      personas: await chainFrom(this.personaStore.list()).map((p) => ({
+        name: p.name,
+        displayName: p.displayName ?? p.name,
+      })).toArray(),
     };
   }
 
   async #followDetail(inFollow: InFollow): Promise<FollowRequestDetail> {
-    const actor = await this.knownActorStore.get(new URL(inFollow.actor)) ??
-      {
-        name: inFollow.actor,
-        server: new URL(inFollow.actor).host,
-        displayName: undefined,
-        smallAvatar: undefined,
+    let profile;
+    try {
+      profile = await this.remoteProfileStore.get(inFollow.remoteProfile);
+    } catch {
+      profile = {
+        name: inFollow.remoteProfile.path,
+        type: ProfileType.Person,
       };
+    }
     return {
-      id: inFollow.id,
-      url: inFollow.actor,
-      name: `${actor.name}@${new URL(actor.server).host}`,
-      displayName: actor.displayName ?? actor.name,
-      avatarUrl: actor.smallAvatar
-        ? `data:image/webp;base64,${base64.encode(actor.smallAvatar)}`
-        : "",
+      addr: inFollow.remoteProfile,
+      type: profile.type,
+      url: profile.url ?? undefined,
+      name: profile.name,
+      displayName: profile.displayName ?? profile.name,
+      followRequestId: inFollow.id,
     };
   }
 
@@ -66,7 +70,7 @@ export class SettingsController {
   async personasForm(): Promise<{ user: UserDetail; personas: Persona[] }> {
     return {
       user: await this.#userDetail(),
-      personas: await asyncToArray(this.personaStore.list()),
+      personas: await chainFrom(this.personaStore.list()).toArray(),
     };
   }
 
@@ -83,7 +87,7 @@ export class SettingsController {
   ): Promise<{ user: UserDetail; persona: Persona }> {
     return {
       user: await this.#userDetail(),
-      persona: (await this.personaStore.get(personaName))!,
+      persona: await this.personaStore.get(personaName),
     };
   }
 
@@ -108,29 +112,29 @@ export class SettingsController {
     for await (const persona of this.personaStore.list()) {
       followersByPersona.push({
         persona,
-        followers: await Promise.all((await asyncToArray(
+        followers: await chainFrom(
           this.inFollowStore.listFollowers(persona.name),
-        )).map((f) => this.#followDetail(f))),
-        requests: await Promise.all((await asyncToArray(
+        ).mapAsync((f) => this.#followDetail(f)).toArray(),
+        requests: await chainFrom(
           this.inFollowStore.listRequests(persona.name),
-        )).map((f) => this.#followDetail(f))),
+        ).mapAsync((f) => this.#followDetail(f)).toArray(),
       });
     }
     return { user: await this.#userDetail(), followersByPersona };
   }
 
-  async doAcceptFollow(id: string): Promise<void> {
+  async doAcceptFollow(id: number): Promise<void> {
     await this.inFollowStore.accept({ id });
   }
 
-  async doRejectFollow(id: string): Promise<void> {
+  async doRejectFollow(id: number): Promise<void> {
     await this.inFollowStore.reject({ id });
   }
 
   async composeForm(): Promise<{ user: UserDetail; personas: Persona[] }> {
     return {
       user: await this.#userDetail(),
-      personas: await asyncToArray(this.personaStore.list()),
+      personas: await chainFrom(this.personaStore.list()).toArray(),
     };
   }
 

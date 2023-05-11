@@ -1,6 +1,6 @@
 import { view } from "$/lib/html.ts";
 import { AttachmentDetail } from "$/views/types.ts";
-import { AttachmentType } from "$/models/LocalAttachment.ts";
+import { AttachmentType } from "$/models/types.ts";
 
 export const Attachment = view<{ attachment: AttachmentDetail }>(
   ({ attachment }) => {

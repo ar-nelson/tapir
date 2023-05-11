@@ -1,7 +1,8 @@
-import { MockBlockedServerStore } from "$/test/mock/MockBlockedServerStore.ts";
+import { MockDomainTrustStore } from "$/test/mock/MockDomainTrustStore.ts";
 import { MockHttpClientService } from "$/test/mock/MockHttpClientService.ts";
 import { MockSchedulerService } from "$/test/mock/MockSchedulerService.ts";
 
+import { BackgroundTaskService } from "$/services/BackgroundTaskService.ts";
 import { HttpDispatcherImpl, Priority } from "$/services/HttpDispatcher.ts";
 import { assertEquals } from "asserts";
 import { Context, Router, Status } from "oak";
@@ -13,9 +14,10 @@ function makeDispatcher() {
     http,
     scheduler,
     dispatcher: new HttpDispatcherImpl(
-      new MockBlockedServerStore(),
+      new MockDomainTrustStore(),
       http,
       scheduler,
+      new BackgroundTaskService(),
     ),
   };
 }
@@ -30,10 +32,10 @@ Deno.test("dispatch an immediate GET", async () => {
       ctx.response.body = "got a response";
     }),
   );
-  const rsp = await dispatcher.dispatch(
+  const rsp = await dispatcher.dispatchAndWait(
     new Request("http://example.test/foo"),
-    Priority.Immediate,
-  ).response;
+    { priority: Priority.Immediate },
+  );
   assertEquals(n, 1, "route handler should be called once");
   assertEquals(await rsp.text(), "got a response");
 });
@@ -55,10 +57,10 @@ Deno.test("dispatch a GET with each priority", async () => {
     Priority.Optional,
   ];
   for (let i = 0; i < priorities.length; i++) {
-    const rsp = await dispatcher.dispatch(
+    const rsp = await dispatcher.dispatchAndWait(
       new Request("http://example.test/foo"),
-      priorities[i],
-    ).response;
+      { priority: priorities[i] },
+    );
     assertEquals(
       n,
       i + 1,
@@ -78,7 +80,7 @@ Deno.test("dispatch five GETs with a required ordering", async () => {
       ctx.response.body = "got a response";
     }),
   );
-  const { responses, dispatched } = dispatcher.dispatchInOrder(
+  await dispatcher.dispatchInOrder(
     [
       new Request("http://example.test/foo"),
       new Request("http://example.test/bar"),
@@ -86,12 +88,10 @@ Deno.test("dispatch five GETs with a required ordering", async () => {
       new Request("http://example.test/qux"),
       new Request("http://example.test/quux"),
     ],
-    Priority.Soon,
+    { priority: Priority.Soon },
   );
-  await dispatched;
   await scheduler.fastforward({ second: 1 });
   assertEquals(words, ["foo", "bar", "baz", "qux", "quux"]);
-  for await (const _ of responses) { /* do nothing */ }
 });
 
 Deno.test("backoff after error (Priority: Soon)", async () => {
@@ -105,11 +105,11 @@ Deno.test("backoff after error (Priority: Soon)", async () => {
       ctx.response.body = "got a response";
     }),
   );
-  const { response, dispatched } = dispatcher.dispatch(
+  dispatcher.dispatch(
     new Request("http://example.test/foo"),
-    Priority.Soon,
+    { priority: Priority.Soon },
   );
-  await dispatched;
+  await scheduler.fastforward({ millisecond: 1 });
   assertEquals(n, 1);
   await scheduler.fastforward({ second: 5, millisecond: 1 });
   assertEquals(n, 2);
@@ -117,7 +117,6 @@ Deno.test("backoff after error (Priority: Soon)", async () => {
   assertEquals(n, 3);
   await scheduler.fastforward({ second: 500, millisecond: 1 });
   assertEquals(n, 4);
-  await response;
 });
 
 Deno.test("give up after repeated errors (Priority: Soon)", async () => {
@@ -128,9 +127,9 @@ Deno.test("give up after repeated errors (Priority: Soon)", async () => {
       ctx.throw(Status.Teapot);
     }),
   );
-  const { response } = dispatcher.dispatch(
+  const response = dispatcher.dispatchAndWait(
     new Request("http://example.test/foo"),
-    Priority.Soon,
+    { priority: Priority.Soon },
   );
   await scheduler.fastforward({ minute: 100 });
   assertEquals((await response).status, Status.Teapot);
@@ -151,7 +150,7 @@ Deno.test("preserve ordering even when waiting on errors (Priority: Soon)", asyn
       }
     }),
   );
-  const { responses, dispatched } = dispatcher.dispatchInOrder(
+  dispatcher.dispatchInOrder(
     [
       new Request("http://example.test/foo"),
       new Request("http://example.test/bar"),
@@ -159,12 +158,10 @@ Deno.test("preserve ordering even when waiting on errors (Priority: Soon)", asyn
       new Request("http://example.test/qux"),
       new Request("http://example.test/quux"),
     ],
-    Priority.Soon,
+    { priority: Priority.Soon },
   );
-  await dispatched;
   await scheduler.fastforward({ minute: 1 });
   assertEquals(words, ["foo", "bar", "baz", "qux", "quux"]);
-  for await (const _ of responses) { /* do nothing */ }
 });
 
 Deno.test("delay future scheduled entries after a 429 (Priority: Soon)", async () => {
@@ -178,21 +175,21 @@ Deno.test("delay future scheduled entries after a 429 (Priority: Soon)", async (
       ctx.response.body = "got a response";
     }),
   );
-  const { response: rsp1, dispatched } = dispatcher.dispatch(
+  dispatcher.dispatch(
     new Request("http://example.test/foo"),
-    Priority.Soon,
+    { priority: Priority.Soon },
   );
-  await dispatched;
+  await scheduler.fastforward({ millisecond: 1 });
   assertEquals(n, 1);
-  const { response: rsp2 } = dispatcher.dispatch(
+  const rsp2 = dispatcher.dispatchAndWait(
     new Request("http://example.test/foo"),
-    Priority.Soon,
+    { priority: Priority.Soon },
   );
   await scheduler.fastforward({ second: 5 });
   assertEquals(n, 1);
   await scheduler.fastforward({ minute: 5 });
   assertEquals(n, 3);
-  await Promise.all([rsp1, rsp2]);
+  await rsp2;
 });
 
 Deno.test("delay dispatches with Priority.Spaced even when request is successful", async () => {
@@ -205,21 +202,21 @@ Deno.test("delay dispatches with Priority.Spaced even when request is successful
       ctx.response.body = "got a response";
     }),
   );
-  const { response: rsp1 } = dispatcher.dispatch(
+  const rsp1 = dispatcher.dispatchAndWait(
     new Request("http://example.test/foo"),
-    Priority.Spaced,
+    { priority: Priority.Spaced },
   );
   await scheduler.fastforward({ second: 1 });
   assertEquals(n, 1);
-  const { response: rsp2 } = dispatcher.dispatch(
+  const rsp2 = dispatcher.dispatchAndWait(
     new Request("http://example.test/bar"),
-    Priority.Spaced,
+    { priority: Priority.Spaced },
   );
   await scheduler.fastforward({ second: 1 });
   assertEquals(n, 1);
-  const { response: rsp3 } = dispatcher.dispatch(
+  const rsp3 = dispatcher.dispatchAndWait(
     new Request("http://example.test/baz"),
-    Priority.Spaced,
+    { priority: Priority.Spaced },
   );
   await scheduler.fastforward({ minute: 10 });
   assertEquals(n, 3);
@@ -238,12 +235,12 @@ Deno.test("retry with a POST body", async () => {
       ctx.response.body = "got a response";
     }),
   );
-  const { response } = dispatcher.dispatch(
+  const response = dispatcher.dispatchAndWait(
     new Request("http://example.test/foo", {
       method: "POST",
       body: "got a POST body",
     }),
-    Priority.Soon,
+    { priority: Priority.Soon },
   );
   await scheduler.fastforward({ millisecond: 1 });
   assertEquals(n, 1);

@@ -8,7 +8,11 @@ export const PublicPostFeed = view<
   <ul class="feed">
     {posts.map((post) => (
       <li>
-        <Post post={post} controls={false} big={selectedPost === post.id} />
+        <Post
+          post={post}
+          controls={false}
+          big={selectedPost === post.addr.path}
+        />
       </li>
     ))}
   </ul>

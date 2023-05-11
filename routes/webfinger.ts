@@ -2,7 +2,7 @@ import { WebFingerController } from "$/controllers/WebFingerController.ts";
 import { Context, Router, Status } from "$/deps.ts";
 import { Injectable } from "$/lib/inject.ts";
 import * as urls from "$/lib/urls.ts";
-import { jsonOr404 } from "$/lib/utils.ts";
+import { RouterState } from "./main.ts";
 
 @Injectable()
 export class WebFingerRouter extends Router {
@@ -11,10 +11,11 @@ export class WebFingerRouter extends Router {
 
     this.get(
       urls.webfinger,
-      async (ctx: Context) => {
+      async (ctx: Context<RouterState>) => {
+        ctx.state.isJson = true;
         const resource = ctx.request.url.searchParams.get("resource");
         ctx.assert(resource != null, Status.BadRequest, "No resource given");
-        jsonOr404(ctx, await controller.queryResource(resource));
+        ctx.response.body = await controller.queryResource(resource);
       },
     );
   }

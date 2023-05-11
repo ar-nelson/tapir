@@ -1,5 +1,6 @@
 import { view } from "$/lib/html.ts";
 import { sprintf } from "$/deps.ts";
+import { DateTime, datetime } from "$/lib/datetime/mod.ts";
 
 const SECOND = 1000,
   MINUTE = 60 * SECOND,
@@ -8,14 +9,14 @@ const SECOND = 1000,
   WEEK = 7 * DAY;
 
 interface Props {
-  date: Date;
+  date: DateTime;
   titleFormat?: string;
 }
 
 export const RelativeDateTime = view<Props>(
   ({ date, titleFormat }, { dateTime, relativeTime, strings: { justNow } }) => {
-    const now = new Date(),
-      diff = date.valueOf() - now.valueOf(),
+    const now = datetime(),
+      diff = date.toMilliseconds() - now.toMilliseconds(),
       absDiff = Math.abs(diff);
     let shortTime: string;
     if (absDiff < SECOND) {
@@ -28,25 +29,19 @@ export const RelativeDateTime = view<Props>(
       shortTime = relativeTime.format((diff / HOUR) | 0, "hour");
     } else if (absDiff < WEEK) {
       shortTime = relativeTime.format((diff / DAY) | 0, "day");
-    } else if (date.getUTCFullYear() !== now.getUTCFullYear()) {
-      shortTime = relativeTime.format(
-        date.getUTCFullYear() - now.getUTCFullYear(),
-        "year",
-      );
-    } else if (date.getUTCMonth() !== now.getUTCMonth()) {
-      shortTime = relativeTime.format(
-        date.getUTCMonth() - now.getUTCMonth(),
-        "month",
-      );
+    } else if (date.year !== now.year) {
+      shortTime = relativeTime.format(date.year - now.year, "year");
+    } else if (date.month !== now.month) {
+      shortTime = relativeTime.format(date.month - now.month, "month");
     } else {
       shortTime = relativeTime.format((diff / WEEK) | 0, "week");
     }
     return (
       <time
-        datetime={date.toJSON()}
+        datetime={date.toISO()}
         title={titleFormat
-          ? sprintf(titleFormat, dateTime.format(date))
-          : dateTime.format(date)}
+          ? sprintf(titleFormat, dateTime.format(date.toJSDate()))
+          : dateTime.format(date.toJSDate())}
       >
         {shortTime}
       </time>

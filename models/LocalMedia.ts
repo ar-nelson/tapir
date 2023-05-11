@@ -1,4 +1,5 @@
-import { log } from "$/deps.ts";
+import { log, Status } from "$/deps.ts";
+import { LogLevels, Tag } from "$/lib/error.ts";
 import { InjectableAbstract, Singleton } from "$/lib/inject.ts";
 import { LocalDatabaseService } from "$/services/LocalDatabaseService.ts";
 import { LocalRepoService } from "$/services/LocalRepoService.ts";
@@ -14,15 +15,21 @@ export interface LocalMedia {
   readonly data: Uint8Array;
 }
 
+export const MediaNotFound = new Tag("Local Media Not Found", {
+  level: LogLevels.WARNING,
+  internal: false,
+  httpStatus: Status.NotFound,
+});
+
 @InjectableAbstract()
 export abstract class LocalMediaStore {
   abstract list(): AsyncIterable<string>;
 
   abstract count(): Promise<number>;
 
-  abstract get(hash: string): Promise<LocalMedia | null>;
+  abstract get(hash: string): Promise<LocalMedia>;
 
-  abstract getMeta(hash: string): Promise<Omit<LocalMedia, "data"> | null>;
+  abstract getMeta(hash: string): Promise<Omit<LocalMedia, "data">>;
 
   abstract create(
     data: Uint8Array,
@@ -58,19 +65,19 @@ export class LocalMediaStoreImpl extends LocalMediaStore {
     ) {
       return media;
     }
-    return null;
+    throw MediaNotFound.error(`No local media with hash ${hash}`);
   }
 
   async get(hash: string) {
     const meta = await this.getMeta(hash);
-    if (!meta) return null;
+    if (!meta) throw MediaNotFound.error(`No local media with hash ${hash}`);
     const data = await this.repo.get(hash);
     if (!data) {
       log.error(
         `No data in repo for local media item ${hash} (mimetype ${meta.mimetype})! Deleting dangling media entry.`,
       );
       await this.db.delete("media", { hash });
-      return null;
+      throw MediaNotFound.error(`No local media with hash ${hash}`);
     }
     return { ...meta, data };
   }

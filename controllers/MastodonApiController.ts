@@ -1,14 +1,14 @@
 import { Injector, Singleton } from "$/lib/inject.ts";
-import { InstanceConfigStore } from "$/models/InstanceConfig.ts";
-import { TapirConfig } from "$/models/TapirConfig.ts";
-import { Persona, PersonaStore } from "$/models/Persona.ts";
-import { LocalPost, LocalPostStore } from "$/models/LocalPost.ts";
-import { InFollowStore } from "$/models/InFollow.ts";
-import { Account, Instance, Status } from "$/schemas/mastodon/mod.ts";
-import { asyncToArray } from "$/lib/utils.ts";
+import { chainFrom } from "$/lib/transducers.ts";
 import * as urls from "$/lib/urls.ts";
-import { log } from "$/deps.ts";
+import { InFollowStore } from "$/models/InFollow.ts";
+import { InstanceConfigStore } from "$/models/InstanceConfig.ts";
+import { LocalPostStore } from "$/models/LocalPost.ts";
+import { PersonaNotFound, PersonaStore } from "$/models/Persona.ts";
+import { TapirConfig } from "$/models/TapirConfig.ts";
+import { LocalPost, Persona } from "$/models/types.ts";
 import buildMeta from "$/resources/buildMeta.json" assert { type: "json" };
+import { Account, Instance, Status } from "$/schemas/mastodon/mod.ts";
 
 export interface HandlerState {
   injector: Injector;
@@ -108,80 +108,52 @@ export class MastodonApiController {
     };
   }
 
-  async publicTimeline(options: TimelineOptions): Promise<Status[]> {
-    const posts = await asyncToArray(this.localPostStore.list({
-        limit: options.limit ?? 20,
-      })),
-      personas = new Map<string, Promise<Persona>>();
-    return Promise.all(posts.map(async (p) => {
+  publicTimeline(options: TimelineOptions): Promise<Status[]> {
+    const personas = new Map<string, Promise<Persona>>();
+    return chainFrom(this.localPostStore.list({
+      limit: options.limit ?? 20,
+    })).mapAsync(async (p) => {
       let persona: Persona;
       if (personas.has(p.persona)) {
         persona = await personas.get(p.persona)!;
       } else {
-        const promise = this.personaStore.get(p.persona).then(
-          (persona) => {
-            if (!persona) {
-              throw new Error(`no persona ${JSON.stringify(p.persona)}`);
-            }
-            return persona;
-          },
-        );
+        const promise = this.personaStore.get(p.persona);
         personas.set(p.persona, promise);
         persona = await promise;
       }
       return (await this.#localPostToStatus(persona))(p);
-    }));
+    }).toArray();
   }
 
-  async account(acct: string): Promise<Account | undefined> {
-    const persona = await this.#lookupPersona(acct);
-    if (!persona) {
-      return undefined;
-    }
-    return this.#personaToAccount(persona);
+  async account(acct: string): Promise<Account> {
+    return this.#personaToAccount(await this.#lookupPersona(acct));
   }
 
   async accountStatuses(
     acct: string,
     options: AccountStatusesOptions,
-  ): Promise<Status[] | undefined> {
+  ): Promise<Status[]> {
     const persona = await this.#lookupPersona(acct);
-    if (!persona) {
-      return undefined;
-    }
-    const posts = await asyncToArray(this.localPostStore.list({
+    return chainFrom(this.localPostStore.list({
       persona: persona.name,
       limit: options.limit ?? 20,
-    }));
-    return posts.map(await this.#localPostToStatus(persona));
+    })).map(await this.#localPostToStatus(persona)).toArray();
   }
 
-  async status(id: string): Promise<Status | undefined> {
-    const post = await this.localPostStore.get(id);
-    if (!post) {
-      return undefined;
-    }
-    const persona = await this.personaStore.get(post.persona);
-    if (!persona) {
-      return undefined;
-    }
+  async status(id: string): Promise<Status> {
+    const post = await this.localPostStore.get(id),
+      persona = await this.personaStore.get(post.persona);
     return (await this.#localPostToStatus(persona))(post);
   }
 
-  async #lookupPersona(name: string): Promise<Persona | undefined> {
+  #lookupPersona(name: string): Promise<Persona> {
     const nameMatch = /^[@]?([^@:]+)(?:[@]([^@:]+))?$/.exec(name);
     if (!nameMatch || (nameMatch[2] && nameMatch[2] !== this.config.domain)) {
-      log.warning(
-        `not a valid account for this server: ${JSON.stringify(name)}`,
+      throw PersonaNotFound.error(
+        `Not a valid account for this server: ${JSON.stringify(name)}`,
       );
-      return undefined;
     }
-    const persona = await this.personaStore.get(nameMatch[1]);
-    if (!persona) {
-      log.warning(`account does not exist: ${JSON.stringify(nameMatch[1])}`);
-      return undefined;
-    }
-    return persona;
+    return this.personaStore.get(nameMatch[1]);
   }
 
   async #personaToAccount(persona: Persona): Promise<Account> {
@@ -189,7 +161,7 @@ export class MastodonApiController {
       id: persona.name,
       username: persona.name,
       acct: persona.name,
-      display_name: persona.displayName,
+      display_name: persona.displayName ?? persona.name,
       locked: true,
       bot: false,
       discoverable: true,

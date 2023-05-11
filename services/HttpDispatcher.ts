@@ -1,10 +1,17 @@
+import { isErrorStatus, isHttpError, log, Status } from "$/deps.ts";
+import { DateTime } from "$/lib/datetime/mod.ts";
+import { logError, LogLevels, Tag } from "$/lib/error.ts";
 import { InjectableAbstract, Singleton } from "$/lib/inject.ts";
 import { PriorityQueue } from "$/lib/priorityQueue.ts";
-import { DateTime } from "$/lib/datetime/mod.ts";
-import { BlockedServerStoreReadOnly } from "$/models/BlockedServerStoreReadOnly.ts";
+import { isSubdomainOf } from "$/lib/urls.ts";
+import {
+  DomainTrustStore,
+  OutgoingRequestBlocked,
+} from "$/models/DomainTrust.ts";
+import { TrustLevel } from "$/models/types.ts";
+import { BackgroundTaskService } from "$/services/BackgroundTaskService.ts";
 import { HttpClientService } from "$/services/HttpClientService.ts";
 import { Reschedule, SchedulerService } from "$/services/SchedulerService.ts";
-import { isErrorStatus, isHttpError, log, Status } from "$/deps.ts";
 
 export enum Priority {
   Spaced,
@@ -21,36 +28,109 @@ enum State {
   Canceled,
 }
 
+export const DEFAULT_MAX_BYTES = 16 * 1024 * 1024;
+
+export interface DispatchOptions {
+  readonly priority: Priority;
+  readonly overrideTrust?: boolean;
+  readonly maxBytes?: number;
+  readonly throwOnError?: Tag;
+  readonly errorMessage?: string;
+  readonly abort?: AbortController;
+}
+
 @InjectableAbstract()
 export abstract class HttpDispatcher {
-  abstract dispatch(
+  constructor(
+    protected readonly backgroundTaskService: BackgroundTaskService,
+  ) {}
+
+  abstract dispatchAndWait(
     request: Request,
-    priority: Priority,
-  ): {
-    cancel: () => void;
-    response: Promise<Response>;
-    dispatched: Promise<void>;
-  };
+    options: DispatchOptions,
+  ): Promise<Response>;
 
-  abstract dispatchInOrder(
-    requests: Request[],
-    priority: Priority,
-  ): {
-    cancel: () => void;
-    responses: AsyncIterable<Response>;
-    dispatched: Promise<void>;
-  };
+  dispatch(
+    request: Request,
+    options: DispatchOptions,
+    onComplete?: (response: Response) => void | Promise<void>,
+    onError?: (error: Error) => void | Promise<void>,
+  ): void {
+    const response = this.dispatchAndWait(request, options);
+    this.backgroundTaskService.watch(
+      onComplete || onError
+        ? response.then(
+          onComplete,
+          onError && (async (e) => {
+            await onError(e);
+            throw e;
+          }),
+        )
+        : response,
+      `Dispatch to ${request.url}`,
+    );
+  }
 
-  abstract cancelAllForHost(host: string): void;
+  dispatchInOrder(
+    requests: readonly Request[],
+    options: DispatchOptions,
+    onComplete: (response: Response, request: Request) => void | Promise<void> =
+      () => {},
+    onError?: (error: Error, request: Request) => void | Promise<void>,
+  ): void {
+    if (requests.length === 0) return;
+    else if (requests.length === 1) {
+      return this.dispatch(
+        requests[0],
+        options,
+        onComplete && ((rsp) => onComplete(rsp, first)),
+        onError && ((e) => onError(e, first)),
+      );
+    }
+    const [first, ...rest] = requests,
+      r0 = this.dispatchAndWait(first, options);
+    let req: Request | undefined = first;
+    this.backgroundTaskService.watch(
+      (async () => {
+        try {
+          await onComplete(await r0, first);
+          while ((req = rest.shift())) {
+            await onComplete(await this.dispatchAndWait(req, options), req);
+          }
+        } catch (e) {
+          if (onError) {
+            for (const r of [req!, ...rest]) await onError(e, r);
+          }
+          throw e;
+        }
+      })(),
+      `Dispatch ${requests.length} sequential requests, starting with ${first.url}`,
+    );
+  }
+
+  async dispatchInOrderAndWait(
+    requests: readonly Request[],
+    options: DispatchOptions,
+  ): Promise<readonly Response[]> {
+    const responses: Response[] = [];
+    for (const req of requests) {
+      responses.push(await this.dispatchAndWait(req, options));
+    }
+    return responses;
+  }
+
+  abstract cancelAllForDomain(domain: string, reason?: Error): void;
 }
 
 interface Entry {
   state: State;
   readonly request: Request;
+  readonly overrideTrust: boolean;
+  readonly maxBytes: number;
   readonly resolve: (response: Response) => void;
   readonly reject: (error: Error) => void;
   readonly priority: Priority;
-  readonly dependencies?: ReadonlySet<Entry>;
+  readonly abort: AbortController;
   waitUntil: DateTime;
   failures?: number;
 }
@@ -87,28 +167,54 @@ class RateLimitError extends Error {
   }
 }
 
+export const DispatchFailed = new Tag("HTTP Dispatch Failed", {
+  level: LogLevels.WARNING,
+  needsStackTrace: false,
+});
+
+export async function responseOrThrow(
+  response: Promise<Response>,
+  url: string,
+  tag = DispatchFailed,
+  message?: string,
+): Promise<Response> {
+  try {
+    const rsp = await response;
+    if (isErrorStatus(rsp.status)) {
+      throw DispatchFailed.error(
+        `HTTP error ${rsp.status} ${rsp.statusText} from ${url}`,
+      );
+    }
+    return rsp;
+  } catch (e) {
+    throw message ? tag.error(message, e) : tag.wrap(e);
+  }
+}
+
 @Singleton(HttpDispatcher)
 export class HttpDispatcherImpl extends HttpDispatcher {
   readonly #serverQueues = new Map<string, ServerQueue>();
 
   constructor(
-    private readonly blockedServerStore: BlockedServerStoreReadOnly,
+    private readonly domainTrustStore: DomainTrustStore,
     private readonly httpClient: HttpClientService,
     private readonly scheduler: SchedulerService,
+    backgroundTaskService: BackgroundTaskService,
   ) {
-    super();
+    super(backgroundTaskService);
   }
 
-  dispatch(
+  dispatchAndWait(
     request: Request,
-    priority: Priority,
-    dependencies?: Entry[],
-  ): {
-    cancel: () => void;
-    response: Promise<Response>;
-    dispatched: Promise<void>;
-    entry: Entry;
-  } {
+    {
+      priority,
+      overrideTrust = false,
+      maxBytes = DEFAULT_MAX_BYTES,
+      throwOnError,
+      errorMessage,
+      abort = new AbortController(),
+    }: DispatchOptions,
+  ): Promise<Response> {
     let resolve = (_: Response) => {}, reject = (_: Error) => {};
     const now = this.scheduler.now(),
       url = new URL(request.url),
@@ -126,10 +232,12 @@ export class HttpDispatcherImpl extends HttpDispatcher {
         state: State.Initializing,
         request,
         priority,
+        overrideTrust,
+        maxBytes,
         waitUntil: priority === Priority.Immediate
           ? now
           : dateMax(now, notBefore[priority]),
-        dependencies: dependencies && new Set(dependencies),
+        abort,
         resolve: (r) => resolve(r),
         reject: (e) => reject(e),
       };
@@ -138,67 +246,26 @@ export class HttpDispatcherImpl extends HttpDispatcher {
         minute: SPACED_GAP_MINUTES,
       });
     }
-    const responseWrapper = new Promise<() => Promise<Response>>((wResolve) => {
-      const response = new Promise<Response>((pResolve, pReject) => {
-        resolve = pResolve;
-        reject = pReject;
-        entry.state = State.Pending;
-        queue.push(entry);
-        this.#dispatchNext(url.host);
-        wResolve(() => response);
-      });
-    });
-    return {
-      response: responseWrapper.then((f) => f()),
-      dispatched: responseWrapper.then(() => {}),
-      entry,
-      cancel: () => this.#cancelEntry(entry),
-    };
-  }
-
-  dispatchInOrder(requests: Request[], priority: Priority) {
-    const first = this.dispatch(requests[0], priority),
-      dispatches = [first],
-      dispatch = this.dispatch.bind(this),
-      dispatched = (async () => {
-        await first.dispatched;
-        for (const req of requests.slice(1)) {
-          const next = dispatch(req, priority, dispatches.map((d) => d.entry));
-          dispatches.push(next);
-          await next.dispatched;
-        }
-      })();
-    return {
-      cancel: () => dispatches.forEach((d) => d.cancel()),
-      dispatched,
-      responses: (async function* () {
-        await dispatched;
-        for (const { response } of dispatches) {
-          yield await response;
-        }
-      })(),
-    };
-  }
-
-  #waitForDependencies(entry: Entry): boolean {
-    let mustWait = false;
-    for (const dependency of entry.dependencies ?? []) {
-      switch (dependency.state) {
-        case State.Initializing:
-        case State.Pending:
-          entry.waitUntil = dateMax(entry.waitUntil, dependency.waitUntil).add({
-            millisecond: 1,
-          });
-          mustWait = true;
-          break;
-        case State.Canceled:
-          this.#cancelEntry(entry, "Canceled dependency");
-          return false;
-        default:
-          // do nothing
+    abort.signal.addEventListener("abort", () => {
+      if (entry.state <= State.Pending) {
+        logError(
+          `Canceled dispatch to ${entry.request.url}`,
+          abort.signal.reason,
+        );
+        entry.state = State.Canceled;
+        entry.reject(abort.signal.reason);
       }
-    }
-    return mustWait;
+    });
+    const response = new Promise<Response>((pResolve, pReject) => {
+      resolve = pResolve;
+      reject = pReject;
+      entry.state = State.Pending;
+      queue.push(entry);
+      this.#dispatchNext(url.host);
+    });
+    return throwOnError
+      ? responseOrThrow(response, request.url, throwOnError, errorMessage)
+      : response;
   }
 
   #rateLimit(response: Response, squeue: ServerQueue) {
@@ -221,22 +288,36 @@ export class HttpDispatcherImpl extends HttpDispatcher {
   }
 
   async #dispatchOne(entry: Entry): Promise<boolean> {
-    if (this.#waitForDependencies(entry)) return true;
     if (entry.waitUntil.isAfter(this.scheduler.now())) return true;
     if ((entry.failures ?? 0) >= MAX_FAILURES[entry.priority]) {
-      this.#cancelEntry(entry, "Too many failures");
+      entry.abort.abort(
+        DispatchFailed.error(
+          `Too many failures: stopped trying request to ${entry.request.url} after ${entry.failures} failures`,
+        ),
+      );
       return false;
     }
     const url = new URL(entry.request.url);
-    if (await this.blockedServerStore.blocksActivityUrl(url)) {
-      this.#cancelEntry(entry, "Server is blocked");
+    if (
+      await this.domainTrustStore.requestToTrust(url) <=
+        (entry.overrideTrust
+          ? TrustLevel.BlockUnconditional
+          : TrustLevel.BlockUnlessFollow)
+    ) {
+      entry.abort.abort(
+        OutgoingRequestBlocked.error(
+          `Cannot make HTTP request to ${url}: server is blocked`,
+        ),
+      );
       return false;
     }
     if (entry.state > State.Pending) return false;
     let response: Response;
     try {
       log.info(`Dispatching ${entry.request.method} request to ${url}`);
-      response = await this.httpClient.fetch(entry.request.clone());
+      response = await this.httpClient.fetch(entry.request.clone(), {
+        signal: entry.abort.signal,
+      });
     } catch (e) {
       if (isHttpError(e)) {
         response = new Response(e.message, {
@@ -244,8 +325,7 @@ export class HttpDispatcherImpl extends HttpDispatcher {
           statusText: e.message,
         });
       } else {
-        log.error(`Error occurred while dispatching request to ${url}:`);
-        log.error(e);
+        logError(`Error occurred while dispatching request to ${url}`, e);
         entry.state = State.Canceled;
         entry.reject(e);
         return false;
@@ -253,9 +333,18 @@ export class HttpDispatcherImpl extends HttpDispatcher {
     }
     const now = this.scheduler.now();
     switch (response.status) {
+      case Status.BadRequest:
+      case Status.Unauthorized:
+      case Status.PaymentRequired:
+      case Status.Forbidden:
       case Status.NotFound:
+      case Status.MethodNotAllowed:
       case Status.Conflict:
       case Status.Gone:
+      case Status.RequestEntityTooLarge:
+      case Status.RequestURITooLong:
+      case Status.RequestHeaderFieldsTooLarge:
+      case Status.UnavailableForLegalReasons:
         log.warning(
           `Got ${response.status} ${response.statusText} for ${url}, giving up`,
         );
@@ -307,7 +396,9 @@ export class HttpDispatcherImpl extends HttpDispatcher {
             queue.push(next);
             if (queue.peek() === next && next.failures === initialFailures) {
               // this branch should never happen
-              this.#cancelEntry(next, "Priority queue isn't working (bug?)");
+              next.abort.abort(
+                new Error("Priority queue isn't working (bug?)"),
+              );
               queue.pop();
             }
           }
@@ -332,22 +423,14 @@ export class HttpDispatcherImpl extends HttpDispatcher {
     })());
   }
 
-  cancelAllForHost(host: string, message?: string): void {
-    const queueAndLock = this.#serverQueues.get(host);
-    if (!queueAndLock) return;
-    const { queue, lock } = queueAndLock;
-    lock.then(() => {
-      for (let p = queue.pop(); p; p = queue.pop()) {
-        this.#cancelEntry(p, message);
-      }
-    });
-  }
-
-  #cancelEntry(entry: Entry, message = "Request canceled") {
-    if (entry.state <= State.Pending) {
-      log.error(`Canceled dispatch to ${entry.request.url}: ${message}`);
-      entry.state = State.Canceled;
-      entry.reject(new Error(message));
+  cancelAllForDomain(domain: string, reason?: Error): void {
+    for (const [key, { queue, lock }] of this.#serverQueues) {
+      if (!isSubdomainOf(domain, key)) continue;
+      lock.then(() => {
+        for (let p = queue.pop(); p; p = queue.pop()) {
+          p.abort.abort(reason);
+        }
+      });
     }
   }
 }

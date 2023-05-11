@@ -19,6 +19,8 @@ export const ObjectCommon = {
   preview: ["optional", ["ref", "ObjectOrLinkRef"]],
   published: ["optional", "string"],
   replies: ["optional", ["ref", "Collection"]],
+  likes: ["optional", ["ref", "Collection"]],
+  shares: ["optional", ["ref", "Collection"]],
   startTime: ["optional", "string"],
   summary: ["optional", ["oneof", null, "string"]],
   tag: ["optional", ["ref", "ObjectOrLinkRefs"]],
@@ -43,7 +45,15 @@ export const CollectionCommon = {
 } as const;
 
 export const commonDefs = {
-  Object: ObjectCommon,
+  Object: {
+    ...ObjectCommon,
+    blurhash: ["optional", "string"],
+    sensitive: ["optional", "boolean"],
+    focalPoint: ["optional", ["array", "number"]],
+    votersCount: ["optional", "integer"],
+    oneOf: ["optional", ["ref", "ObjectOrLinkRefs"]],
+    anyOf: ["optional", ["ref", "ObjectOrLinkRefs"]],
+  },
   Link: {
     type: ["optional", ["enum", "Link"]],
     href: "string",

@@ -1,4 +1,6 @@
+import { Status } from "$/deps.ts";
 import { LfuCache } from "$/lib/cache.ts";
+import { LogLevels, Tag } from "$/lib/error.ts";
 import { InjectableAbstract, Singleton } from "$/lib/inject.ts";
 import {
   Context,
@@ -20,6 +22,13 @@ export abstract class JsonLdContextService {
   abstract readonly resolver: ContextResolver;
   abstract readonly defaultContext: Promise<Context>;
 }
+
+export const BadJsonLd = new Tag("Bad JSON-LD", {
+  level: LogLevels.WARNING,
+  needsStackTrace: false,
+  internal: false,
+  httpStatus: Status.BadRequest,
+});
 
 @Singleton(JsonLdContextService)
 export class HttpJsonLdContextService extends JsonLdContextService {
@@ -48,34 +57,38 @@ export class HttpJsonLdContextService extends JsonLdContextService {
           history.length >
             HttpJsonLdContextService.MAX_CHAINED_REQUESTS
         ) {
-          throw new Error(
+          throw BadJsonLd.error(
             `Cannot resolve JSON-LD context: more than ${HttpJsonLdContextService.MAX_CHAINED_REQUESTS} sequential HTTP requests`,
           );
         }
         return cache.getOrInsert(url, async () => {
-          const rsp = await dispatcher.dispatch(
-              new Request(url, {
-                headers: { accept: "application/ld+json" },
-              }),
-              Priority.Soon,
-            ).response,
-            json = await rsp.json();
-          if (
-            !json || typeof json !== "object" ||
-            !Object.hasOwn(json, "@context")
-          ) {
-            throw new Error(
-              `Cannot resolve JSON-LD context: the JSON data at ${
-                JSON.stringify(url)
-              } does not have a '@context' object`,
+          try {
+            const rsp = await dispatcher.dispatchAndWait(
+                new Request(url, {
+                  headers: { accept: "application/ld+json" },
+                }),
+                { priority: Priority.Soon, throwOnError: BadJsonLd },
+              ),
+              json = await rsp.json();
+            if (
+              !json || typeof json !== "object" ||
+              !Object.hasOwn(json, "@context")
+            ) {
+              throw BadJsonLd.error(
+                `Cannot resolve JSON-LD context: the JSON data at ${
+                  JSON.stringify(url)
+                } does not have a '@context' object`,
+              );
+            }
+            return resolveContext(
+              json["@context"],
+              resolver,
+              activeContext,
+              history,
             );
+          } catch (e) {
+            throw BadJsonLd.wrap(e);
           }
-          return resolveContext(
-            json["@context"],
-            resolver,
-            activeContext,
-            history,
-          );
         });
       },
     });

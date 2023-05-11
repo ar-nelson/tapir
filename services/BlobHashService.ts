@@ -1,6 +1,6 @@
+import { CrockfordBase32 } from "$/lib/base32.ts";
 import { InjectableAbstract, Singleton } from "$/lib/inject.ts";
 import { InstanceConfigStore } from "$/models/InstanceConfig.ts";
-import { CrockfordBase32 } from "$/lib/base32.ts";
 
 @InjectableAbstract()
 export abstract class BlobHashService {

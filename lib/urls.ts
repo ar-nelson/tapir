@@ -1,4 +1,11 @@
 import { isPersonaName } from "$/lib/utils.ts";
+import {
+  ProfileFeed,
+  ProtoAddr,
+  protoAddrToString,
+  Protocol,
+} from "$/models/types.ts";
+import { TapirConfig } from "../models/TapirConfig.ts";
 
 const extensionByMimetype: Record<string, string> = {
   "image/png": ".png",
@@ -58,7 +65,7 @@ export function urlJoin(prefix: string, suffix: string): string {
 
 export function localPost(
   id: string,
-  options: { page?: number },
+  options: { page?: string },
   prefix = "/",
 ): string {
   return withQueryParams(
@@ -69,7 +76,7 @@ export function localPost(
 
 export function localProfile(
   personaName: string,
-  options: { page?: number; view?: "feed" | "replies" | "media" },
+  options: { page?: string; view?: ProfileFeed },
   prefix = "/",
 ): string {
   return withQueryParams(
@@ -96,24 +103,64 @@ export function localMediaWithMimetype(
 }
 
 export function remotePost(
-  id: string,
-  options: { page?: number },
+  addr: ProtoAddr,
+  options: { page?: string },
   prefix = "/",
 ): string {
   return withQueryParams(
-    urlJoin(prefix, `app/post/${encodeURIComponent(id)}`),
-    options,
+    urlJoin(prefix, `app/post`),
+    { ...options, p: addr.protocol, u: addr.path },
   );
 }
 
 export function remoteProfile(
-  acct: string,
-  options: { page?: number; view?: "feed" | "replies" | "media" },
+  addr: ProtoAddr,
+  options: { page?: string; view?: ProfileFeed },
   prefix = "/",
 ): string {
   return withQueryParams(
-    urlJoin(prefix, `app/user/${encodeURIComponent(acct)}`),
-    options,
+    urlJoin(prefix, `app/profile`),
+    { ...options, p: addr.protocol, u: addr.path },
+  );
+}
+
+export function remoteFollowers(
+  addr: ProtoAddr,
+  options: { page?: string },
+  prefix = "/",
+): string {
+  return withQueryParams(
+    urlJoin(prefix, `app/profile/followers`),
+    { ...options, p: addr.protocol, u: addr.path },
+  );
+}
+
+export function remoteFollowing(
+  addr: ProtoAddr,
+  options: { page?: string },
+  prefix = "/",
+): string {
+  return withQueryParams(
+    urlJoin(prefix, `app/profile/following`),
+    { ...options, p: addr.protocol, u: addr.path },
+  );
+}
+
+export function remoteInstance(addr: ProtoAddr, prefix = "/") {
+  return withQueryParams(
+    urlJoin(prefix, `app/instance`),
+    { p: addr.protocol, u: addr.path },
+  );
+}
+
+export function remoteFeed(
+  addr: ProtoAddr,
+  options: { page?: string },
+  prefix = "/",
+) {
+  return withQueryParams(
+    urlJoin(prefix, `app/feed/remote`),
+    { ...options, p: addr.protocol, u: addr.path },
   );
 }
 
@@ -121,7 +168,46 @@ export function remoteMedia(hash: string, prefix = "/"): string {
   return urlJoin(prefix, `app/media/${encodeURIComponent(hash)}`);
 }
 
-export function composePost(prefix = "/"): string {
+export function remoteMediaPreload(
+  remoteUrl: string,
+  prefix = "/",
+): string {
+  return withQueryParams(
+    urlJoin(
+      prefix,
+      "app/media/preload",
+    ),
+    { url: remoteUrl },
+  );
+}
+
+export function composePost(
+  { persona, dm, replyTo, quote }: {
+    persona?: string;
+    dm?: ProtoAddr | ProtoAddr[];
+    replyTo?: ProtoAddr;
+    quote?: ProtoAddr;
+  },
+  prefix = "/",
+): string {
+  return withQueryParams(
+    urlJoin(prefix, "app/compose"),
+    {
+      ...persona ? { persona } : {},
+      ...dm
+        ? {
+          dm: Array.isArray(dm)
+            ? dm.map(protoAddrToString).join(",")
+            : protoAddrToString(dm),
+        }
+        : {},
+      ...replyTo ? { replyTo: protoAddrToString(replyTo) } : {},
+      ...quote ? { quote: protoAddrToString(quote) } : {},
+    },
+  );
+}
+
+export function composePostSubmit(prefix = "/") {
   return urlJoin(prefix, "app/compose");
 }
 
@@ -133,12 +219,19 @@ export function deletePost(id: string, prefix = "/"): string {
   return urlJoin(prefix, `app/delete/${encodeURIComponent(id)}`);
 }
 
-export function reactToPost(id: string, prefix = "/"): string {
-  return urlJoin(prefix, `app/react/${encodeURIComponent(id)}`);
+export function reactToPost(addr: ProtoAddr, prefix = "/"): string {
+  return withQueryParams(
+    urlJoin(prefix, `app/react`),
+    { p: addr.protocol, u: addr.path },
+  );
 }
 
-export function boostPost(id: string, prefix = "/"): string {
-  return urlJoin(prefix, `app/boost/${encodeURIComponent(id)}`);
+export function reactToPostSubmit(prefix = "/"): string {
+  return urlJoin(prefix, `app/react`);
+}
+
+export function boostPostSubmit(prefix = "/"): string {
+  return urlJoin(prefix, `app/submit`);
 }
 
 export function remoteMediaWithMimetype(
@@ -160,6 +253,10 @@ export function extensionToMimetype(extension: string): string | undefined {
 
 export function activityPubActor(personaName: string, prefix = "/"): string {
   return urlJoin(prefix, `ap/actor/${encodeURIComponent(personaName)}`);
+}
+
+export function activityPubMainKey(personaName: string, prefix = "/"): string {
+  return `${activityPubActor(personaName, prefix)}#main-key`;
 }
 
 export function isActivityPubActor(url: string, prefix = "/"): string | null {
@@ -234,4 +331,42 @@ export function contentTypeIsJson(contentType: string) {
 
 export const webfinger = "/.well-known/webfinger" as const;
 export const nodeInfoDirectory = "/.well-known/nodeinfo" as const;
+export const nodeInfoV2_1 = "/nodeinfo/2.1" as const;
 export const nodeInfoV2_0 = "/nodeinfo/2.0" as const;
+
+export function protoAddrInstance(
+  addr: ProtoAddr,
+  config: TapirConfig,
+): URL | undefined {
+  switch (addr.protocol) {
+    case Protocol.Local:
+      return new URL(config.url);
+    case Protocol.ActivityPub:
+      return new URL("", addr.path);
+    case Protocol.Mastodon:
+      if (addr.path.includes(":")) {
+        return new URL("", addr.path);
+      } else if (addr.path.includes("@")) {
+        return new URL(
+          `https://${addr.path.slice(addr.path.lastIndexOf("@") + 1)}`,
+        );
+      }
+  }
+}
+
+export function normalizeDomain(domain: string): string {
+  domain = domain.replaceAll(/\.+/g, ".").toLowerCase();
+  return domain.endsWith(".") ? domain : `${domain}.`;
+}
+
+export function isSubdomainOf(
+  parentDomain: string,
+  subdomain: string | URL,
+): boolean {
+  parentDomain = normalizeDomain(parentDomain);
+  subdomain = normalizeDomain(
+    typeof subdomain === "string" ? subdomain : subdomain.hostname,
+  );
+  return subdomain === parentDomain || parentDomain === "." ||
+    subdomain.endsWith(`.${parentDomain}`);
+}

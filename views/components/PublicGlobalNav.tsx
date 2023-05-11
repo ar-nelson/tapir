@@ -4,6 +4,7 @@ import { ServerDetail } from "$/views/types.ts";
 import { Icon } from "$/views/components/Icon.tsx";
 import { RelativeDateTime } from "$/views/components/RelativeDateTime.tsx";
 import buildMeta from "$/resources/buildMeta.json" assert { type: "json" };
+import { datetime } from "$/lib/datetime/mod.ts";
 
 export const PublicGlobalNav = view<{ server: ServerDetail }>((
   { server },
@@ -29,7 +30,7 @@ export const PublicGlobalNav = view<{ server: ServerDetail }>((
     <footer>
       <small class="fine-print">
         {new View((i18n) => {
-          const buildDate = new Date(buildMeta.buildDate);
+          const buildDate = datetime(buildMeta.buildDate);
           return sprintf(
             i18n.strings.footer,
             h(

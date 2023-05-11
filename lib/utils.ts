@@ -1,11 +1,11 @@
-import { Context, crypto_argon2i, Status } from "$/deps.ts";
+import { crypto_argon2i } from "$/deps.ts";
 
-export async function asyncToArray<T>(iter: AsyncIterable<T>): Promise<T[]> {
-  const xs: T[] = [];
-  for await (const t of iter) {
-    xs.push(t);
-  }
-  return xs;
+export function asArray<T extends string | URL | Record<string, unknown>>(
+  x: undefined | null | T | readonly T[],
+): readonly T[] {
+  if (!x) return [];
+  if (Array.isArray(x)) return x;
+  return [x as T];
 }
 
 export function mapObject<T extends Record<string, U>, U, V>(
@@ -99,16 +99,16 @@ export function toHex(bin: Uint8Array): string {
   );
 }
 
-export function jsonOr404(
-  ctx: Context,
-  json: unknown,
-  message = "Record not found",
-): void {
-  ctx.assert(json != null, Status.NotFound, message);
-  ctx.response.body = json;
-}
-
 export type AssertFn<T> = (
   value: unknown,
   message?: string,
 ) => asserts value is T;
+
+export async function* mapAsyncIterable<T, U>(
+  iter: AsyncIterable<T>,
+  fn: (x: T) => U,
+): AsyncIterable<Awaited<U>> {
+  for await (const x of iter) {
+    yield await fn(x);
+  }
+}
