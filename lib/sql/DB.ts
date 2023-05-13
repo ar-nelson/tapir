@@ -33,11 +33,11 @@ export type ColumnTypeOutValue<T extends ColumnType> = T extends ColumnType.Ulid
   : never;
 
 export interface ColumnSpec<T extends ColumnType> {
-  type: T;
-  default?: ColumnTypeInValue<T>;
-  nullable?: boolean;
-  renamedFrom?: string;
-  autoIncrement?: boolean;
+  readonly type: T;
+  readonly default?: ColumnTypeInValue<T>;
+  readonly nullable?: boolean;
+  readonly autoIncrement?: boolean;
+  readonly foreignKey?: string;
 }
 
 export type ColumnInValue<S extends ColumnSpec<ColumnType>> =
@@ -52,19 +52,14 @@ export type ColumnOutValue<S extends ColumnSpec<ColumnType>> =
     : ColumnTypeOutValue<S["type"]>;
 
 export type Columns = {
-  [name: string]: ColumnSpec<ColumnType>;
+  readonly [name: string]: ColumnSpec<ColumnType>;
 };
 
 export type TableSpec<C extends Columns> = {
-  primaryKey: keyof C & string;
-  columns: C;
-  renamedFrom?: string;
-  indexes?: readonly (string | readonly string[])[];
-  preMigrate?: (db: DBLike<DatabaseSpec>) => Promise<unknown>;
-  postMigrate?: (
-    db: DBLike<DatabaseSpec>,
-    preMigrateState?: unknown,
-  ) => Promise<void>;
+  readonly primaryKey: keyof C & string;
+  readonly columns: C;
+  readonly indexes?:
+    readonly ((keyof C & string) | readonly (keyof C & string)[])[];
 };
 
 export type InRow<C extends Columns> =
@@ -92,26 +87,21 @@ export type Query<C extends Columns> = {
 };
 
 export type Tables = {
-  [name: string]: TableSpec<Columns>;
+  readonly [name: string]: TableSpec<Columns>;
 };
 
-export interface DatabaseSpec {
-  tables: Tables;
-  version: number;
-}
-
-export type PrimaryKey<Spec extends DatabaseSpec, T extends TableOf<Spec>> =
+export type PrimaryKey<Ts extends Tables, T extends TableOf<Ts>> =
   ColumnTypeOutValue<
-    Spec["tables"][T]["columns"][Spec["tables"][T]["primaryKey"]]["type"]
+    Ts[T]["columns"][Ts[T]["primaryKey"]]["type"]
   >;
 
-export type TableOf<Spec extends DatabaseSpec> = keyof Spec["tables"] & string;
+export type TableOf<Ts extends Tables> = keyof Ts & string;
 
-export type ColumnsOf<Spec extends DatabaseSpec, K extends TableOf<Spec>> =
-  Spec["tables"][K]["columns"];
+export type ColumnsOf<Ts extends Tables, K extends TableOf<Ts>> =
+  Ts[K]["columns"];
 
-export type ColumnOf<Spec extends DatabaseSpec, K extends TableOf<Spec>> =
-  & keyof ColumnsOf<Spec, K>
+export type ColumnOf<Ts extends Tables, K extends TableOf<Ts>> =
+  & keyof ColumnsOf<Ts, K>
   & string;
 
 export function inToOut<C extends ColumnSpec<ColumnType>>(
@@ -147,86 +137,86 @@ export function inToOut<C extends ColumnSpec<ColumnType>>(
 }
 
 export interface JoinChain<
-  Spec extends DatabaseSpec,
-  FromTables extends TableOf<Spec>,
+  Ts extends Tables,
+  FromTables extends TableOf<Ts>,
   Result extends Record<string, unknown>,
 > {
   on<
     LT extends FromTables,
-    RT extends TableOf<Spec>,
-    Returned extends ColumnOf<Spec, RT>,
+    RT extends TableOf<Ts>,
+    Returned extends ColumnOf<Ts, RT>,
   >(options: {
     type: JoinType;
     fromTable: LT;
-    fromColumn: ColumnOf<Spec, LT>;
+    fromColumn: ColumnOf<Ts, LT>;
     table: RT;
-    column: ColumnOf<Spec, RT>;
+    column: ColumnOf<Ts, RT>;
     returning: Returned[];
-    where?: Query<ColumnsOf<Spec, RT>>;
-    orderBy?: [ColumnOf<Spec, RT>, OrderDirection][];
+    where?: Query<ColumnsOf<Ts, RT>>;
+    orderBy?: [ColumnOf<Ts, RT>, OrderDirection][];
   }): JoinChain<
-    Spec,
+    Ts,
     FromTables | RT,
-    Result & Pick<OutRow<ColumnsOf<Spec, RT>>, Returned>
+    Result & Pick<OutRow<ColumnsOf<Ts, RT>>, Returned>
   >;
 
   get(options?: { limit?: number }): AsyncIterable<Result>;
 }
 
-export interface DBLike<Spec extends DatabaseSpec> {
-  get<T extends TableOf<Spec>>(table: T, options?: {
-    where?: Query<ColumnsOf<Spec, T>>;
-    orderBy?: [ColumnOf<Spec, T>, OrderDirection][];
+export interface DBLike<Ts extends Tables> {
+  get<T extends TableOf<Ts>>(table: T, options?: {
+    where?: Query<ColumnsOf<Ts, T>>;
+    orderBy?: [ColumnOf<Ts, T>, OrderDirection][];
     limit?: number;
-  }): AsyncIterable<OutRow<ColumnsOf<Spec, T>>>;
+  }): AsyncIterable<OutRow<ColumnsOf<Ts, T>>>;
 
-  get<T extends TableOf<Spec>, Returned extends ColumnOf<Spec, T>>(
+  get<T extends TableOf<Ts>, Returned extends ColumnOf<Ts, T>>(
     table: T,
     options: {
       returning: Returned[];
-      where?: Query<ColumnsOf<Spec, T>>;
-      orderBy?: [ColumnOf<Spec, T>, OrderDirection][];
+      where?: Query<ColumnsOf<Ts, T>>;
+      orderBy?: [ColumnOf<Ts, T>, OrderDirection][];
       limit?: number;
     },
-  ): AsyncIterable<Pick<OutRow<ColumnsOf<Spec, T>>, Returned>>;
+  ): AsyncIterable<Pick<OutRow<ColumnsOf<Ts, T>>, Returned>>;
 
-  join<T extends TableOf<Spec>, Returned extends ColumnOf<Spec, T>>(options: {
+  join<T extends TableOf<Ts>, Returned extends ColumnOf<Ts, T>>(options: {
     table: T;
     returning: Returned[];
-    where?: Query<ColumnsOf<Spec, T>>;
-    orderBy?: [ColumnOf<Spec, T>, OrderDirection][];
-  }): JoinChain<Spec, T, Pick<OutRow<ColumnsOf<Spec, T>>, Returned>>;
+    where?: Query<ColumnsOf<Ts, T>>;
+    orderBy?: [ColumnOf<Ts, T>, OrderDirection][];
+  }): JoinChain<Ts, T, Pick<OutRow<ColumnsOf<Ts, T>>, Returned>>;
 
-  count<T extends TableOf<Spec>>(
+  count<T extends TableOf<Ts>>(
     table: T,
-    where: Query<ColumnsOf<Spec, T>>,
+    where: Query<ColumnsOf<Ts, T>>,
   ): Promise<number>;
 
-  insert<T extends TableOf<Spec>>(
+  insert<T extends TableOf<Ts>>(
     table: T,
-    rows: InRow<ColumnsOf<Spec, T>>[],
+    rows: InRow<ColumnsOf<Ts, T>>[],
   ): Promise<void>;
 
-  insert<T extends TableOf<Spec>, Returned extends ColumnOf<Spec, T>>(
+  insert<T extends TableOf<Ts>, Returned extends ColumnOf<Ts, T>>(
     table: T,
-    rows: InRow<ColumnsOf<Spec, T>>[],
+    rows: InRow<ColumnsOf<Ts, T>>[],
     returning: Returned[],
-  ): Promise<Pick<OutRow<ColumnsOf<Spec, T>>, Returned>[]>;
+  ): Promise<Pick<OutRow<ColumnsOf<Ts, T>>, Returned>[]>;
 
-  update<T extends TableOf<Spec>>(
+  update<T extends TableOf<Ts>>(
     table: T,
-    where: Query<ColumnsOf<Spec, T>>,
-    fields: Partial<InRow<ColumnsOf<Spec, T>>>,
+    where: Query<ColumnsOf<Ts, T>>,
+    fields: Partial<InRow<ColumnsOf<Ts, T>>>,
   ): Promise<number>;
 
-  delete<T extends TableOf<Spec>>(
+  delete<T extends TableOf<Ts>>(
     table: T,
-    where: Query<ColumnsOf<Spec, T>>,
+    where: Query<ColumnsOf<Ts, T>>,
   ): Promise<number>;
 }
 
-export interface DB<Spec extends DatabaseSpec> extends DBLike<Spec> {
-  transaction<R>(callback: (t: DBLike<Spec>) => Promise<R>): Promise<R>;
+export interface DB<Ts extends Tables> extends DBLike<Ts> {
+  transaction<R>(callback: (t: DBLike<Ts>) => Promise<R>): Promise<R>;
 
   close(): Promise<void>;
 }

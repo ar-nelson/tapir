@@ -22,9 +22,9 @@ import {
   Query,
   QueryBuilder,
   Schema,
-  schemaMigration,
   select,
   TableOf,
+  Tables,
   TableSpec,
   update,
 } from "$/lib/sql/mod.ts";
@@ -54,38 +54,38 @@ function rowConverter<C extends Columns>(
   ) as (r: { [K in keyof C]?: unknown }) => Partial<OutRow<C>>;
 }
 
-class SqliteDBApi<Spec extends DatabaseSpec> implements DBLike<Spec> {
+class SqliteDBApi<Ts extends Tables> implements DBLike<Ts> {
   constructor(
-    protected readonly spec: Spec,
+    protected readonly spec: DatabaseSpec<Ts>,
     protected readonly ulid: UlidService,
     protected readonly convertRow: {
-      [T in TableOf<Spec>]: (
-        r: { [K in ColumnOf<Spec, T>]?: unknown },
-      ) => Partial<OutRow<ColumnsOf<Spec, T>>>;
+      [T in TableOf<Ts>]: (
+        r: { [K in ColumnOf<Ts, T>]?: unknown },
+      ) => Partial<OutRow<ColumnsOf<Ts, T>>>;
     },
     protected dbPromise: Promise<Sqlite>,
   ) {}
 
-  get<T extends TableOf<Spec>>(table: T, options?: {
-    where?: Query<ColumnsOf<Spec, T>>;
-    orderBy?: [keyof ColumnsOf<Spec, T>, OrderDirection][];
+  get<T extends TableOf<Ts>>(table: T, options?: {
+    where?: Query<ColumnsOf<Ts, T>>;
+    orderBy?: [keyof ColumnsOf<Ts, T>, OrderDirection][];
     limit?: number;
-  }): AsyncIterable<OutRow<ColumnsOf<Spec, T>>>;
+  }): AsyncIterable<OutRow<ColumnsOf<Ts, T>>>;
 
   get<
-    T extends TableOf<Spec>,
-    Returned extends ColumnOf<Spec, T>,
+    T extends TableOf<Ts>,
+    Returned extends ColumnOf<Ts, T>,
   >(table: T, options: {
     returning: Returned[];
-    where?: Query<ColumnsOf<Spec, T>>;
-    orderBy?: [ColumnOf<Spec, T>, OrderDirection][];
+    where?: Query<ColumnsOf<Ts, T>>;
+    orderBy?: [ColumnOf<Ts, T>, OrderDirection][];
     limit?: number;
-  }): AsyncIterable<Pick<OutRow<ColumnsOf<Spec, T>>, Returned>>;
+  }): AsyncIterable<Pick<OutRow<ColumnsOf<Ts, T>>, Returned>>;
 
-  async *get<T extends TableOf<Spec>>(table: T, options: {
-    returning?: ColumnOf<Spec, T>[];
-    where?: Query<ColumnsOf<Spec, T>>;
-    orderBy?: [ColumnOf<Spec, T>, OrderDirection][];
+  async *get<T extends TableOf<Ts>>(table: T, options: {
+    returning?: ColumnOf<Ts, T>[];
+    where?: Query<ColumnsOf<Ts, T>>;
+    orderBy?: [ColumnOf<Ts, T>, OrderDirection][];
     limit?: number;
   }): AsyncIterable<any> {
     const db = await this.dbPromise,
@@ -98,7 +98,7 @@ class SqliteDBApi<Spec extends DatabaseSpec> implements DBLike<Spec> {
         options.limit,
       );
     for (
-      const row of db.queryEntries<{ [K in ColumnOf<Spec, T>]: unknown }>(
+      const row of db.queryEntries<{ [K in ColumnOf<Ts, T>]: unknown }>(
         text,
         values,
       )
@@ -107,21 +107,21 @@ class SqliteDBApi<Spec extends DatabaseSpec> implements DBLike<Spec> {
     }
   }
 
-  join<T extends TableOf<Spec>>(options: {
+  join<T extends TableOf<Ts>>(options: {
     table: T;
-    returning: ColumnOf<Spec, T>[];
-    where?: Query<ColumnsOf<Spec, T>>;
-    orderBy?: [ColumnOf<Spec, T>, OrderDirection][];
-  }): JoinChain<Spec, T, any> {
+    returning: ColumnOf<Ts, T>[];
+    where?: Query<ColumnsOf<Ts, T>>;
+    orderBy?: [ColumnOf<Ts, T>, OrderDirection][];
+  }): JoinChain<Ts, T, any> {
     const dbPromise = this.dbPromise,
       convertRow = this.convertRow[options.table];
-    return new JoinQueryBuilder<Spec, T>(
+    return new JoinQueryBuilder<Ts, T>(
       "sqlite3",
       options,
       async function* ({ text, values }) {
         const db = await dbPromise;
         for (
-          const row of db.queryEntries<{ [K in ColumnOf<Spec, T>]: unknown }>(
+          const row of db.queryEntries<{ [K in ColumnOf<Ts, T>]: unknown }>(
             text,
             values,
           )
@@ -132,31 +132,31 @@ class SqliteDBApi<Spec extends DatabaseSpec> implements DBLike<Spec> {
     );
   }
 
-  async count<T extends TableOf<Spec>>(
+  async count<T extends TableOf<Ts>>(
     table: T,
-    where: Query<ColumnsOf<Spec, T>>,
+    where: Query<ColumnsOf<Ts, T>>,
   ): Promise<number> {
     const db = await this.dbPromise,
       { text, values } = count(table, "sqlite3", where);
     return db.query(text, values)[0][0] as number;
   }
 
-  insert<T extends TableOf<Spec>>(
+  insert<T extends TableOf<Ts>>(
     table: T,
-    rows: InRow<ColumnsOf<Spec, T>>[],
+    rows: InRow<ColumnsOf<Ts, T>>[],
   ): Promise<void>;
 
-  insert<T extends TableOf<Spec>, Returned extends ColumnOf<Spec, T>>(
+  insert<T extends TableOf<Ts>, Returned extends ColumnOf<Ts, T>>(
     table: T,
-    rows: InRow<ColumnsOf<Spec, T>>[],
+    rows: InRow<ColumnsOf<Ts, T>>[],
     returning: Returned[],
-  ): Promise<Pick<OutRow<ColumnsOf<Spec, T>>, Returned>[]>;
+  ): Promise<Pick<OutRow<ColumnsOf<Ts, T>>, Returned>[]>;
 
-  async insert<T extends TableOf<Spec>, Returned extends ColumnOf<Spec, T>>(
+  async insert<T extends TableOf<Ts>, Returned extends ColumnOf<Ts, T>>(
     table: T,
-    rows: InRow<ColumnsOf<Spec, T>>[],
-    returning?: ColumnOf<Spec, T>[],
-  ): Promise<void | Pick<OutRow<ColumnsOf<Spec, T>>, Returned>[]> {
+    rows: InRow<ColumnsOf<Ts, T>>[],
+    returning?: ColumnOf<Ts, T>[],
+  ): Promise<void | Pick<OutRow<ColumnsOf<Ts, T>>, Returned>[]> {
     const db = await this.dbPromise,
       { text, values } = insert(
         table,
@@ -169,14 +169,14 @@ class SqliteDBApi<Spec extends DatabaseSpec> implements DBLike<Spec> {
     return db.queryEntries(text, values).map(
       this.convertRow[table] as any,
     ) as OutRow<
-      ColumnsOf<Spec, T>
+      ColumnsOf<Ts, T>
     >[];
   }
 
-  async update<T extends TableOf<Spec>>(
+  async update<T extends TableOf<Ts>>(
     table: T,
-    where: Query<ColumnsOf<Spec, T>>,
-    fields: Partial<InRow<ColumnsOf<Spec, T>>>,
+    where: Query<ColumnsOf<Ts, T>>,
+    fields: Partial<InRow<ColumnsOf<Ts, T>>>,
   ): Promise<number> {
     const db = await this.dbPromise,
       { text, values } = update(
@@ -190,9 +190,9 @@ class SqliteDBApi<Spec extends DatabaseSpec> implements DBLike<Spec> {
     return rows.length;
   }
 
-  async delete<T extends TableOf<Spec>>(
+  async delete<T extends TableOf<Ts>>(
     table: T,
-    where: Query<ColumnsOf<Spec, T>>,
+    where: Query<ColumnsOf<Ts, T>>,
   ): Promise<number> {
     const db = await this.dbPromise,
       { text, values } = del(table, "sqlite3", where),
@@ -201,14 +201,12 @@ class SqliteDBApi<Spec extends DatabaseSpec> implements DBLike<Spec> {
   }
 }
 
-export abstract class SqliteDB<Spec extends DatabaseSpec>
-  extends SqliteDBApi<Spec>
-  implements DB<Spec> {
+export abstract class SqliteDB<Ts extends Tables> extends SqliteDBApi<Ts>
+  implements DB<Ts> {
   constructor(
     filename: string,
     overwrite: boolean,
-    spec: Spec,
-    specVersions: readonly DatabaseSpec[],
+    spec: DatabaseSpec<Ts>,
     ulid: UlidService,
   ) {
     super(
@@ -243,7 +241,7 @@ export abstract class SqliteDB<Spec extends DatabaseSpec>
               db,
               filename,
               foundVersion,
-              specVersions,
+              spec,
               ulid,
             );
           }
@@ -275,7 +273,7 @@ export abstract class SqliteDB<Spec extends DatabaseSpec>
     db.close();
   }
 
-  async transaction<R>(callback: (t: DBLike<Spec>) => Promise<R>): Promise<R> {
+  async transaction<R>(callback: (t: DBLike<Ts>) => Promise<R>): Promise<R> {
     const db = await this.dbPromise;
     const promise = callback(
       new SqliteDBApi(
@@ -298,15 +296,14 @@ export class SqliteDBFactory extends DBFactory {
     super();
   }
 
-  protected construct<Spec extends DatabaseSpec>(
-    spec: Spec,
-    specVersions: readonly DatabaseSpec[],
-  ): Constructor<SqliteDB<Spec>> {
+  protected construct<Ts extends Tables>(
+    spec: DatabaseSpec<Ts>,
+  ): Constructor<SqliteDB<Ts>> {
     const { filename, overwrite } = this;
     @Singleton()
-    class SqliteDBImpl extends SqliteDB<Spec> {
+    class SqliteDBImpl extends SqliteDB<Ts> {
       constructor(ulid: UlidService) {
-        super(filename, overwrite, spec, specVersions, ulid);
+        super(filename, overwrite, spec, ulid);
       }
     }
     return SqliteDBImpl;
@@ -317,7 +314,7 @@ async function migrateSqliteDatabase(
   db: Sqlite,
   filename: string,
   currentVersion: number,
-  specVersions: readonly DatabaseSpec[],
+  spec: DatabaseSpec<Tables>,
   ulid: UlidService,
 ): Promise<Sqlite> {
   db.close();
@@ -325,60 +322,48 @@ async function migrateSqliteDatabase(
   await Deno.copyFile(filename, backupFile);
   db = new Sqlite(filename);
   let lastVersion = currentVersion, nextVersion = currentVersion;
+  const migrations = spec.migrate("sqlite3", currentVersion);
 
   try {
-    const startAt = specVersions.findIndex((s) => s.version === currentVersion);
-    if (startAt === -1) {
-      throw new Error(
-        `Cannot migrate database: no past spec exists for version ${currentVersion}`,
-      );
-    }
-    for (let i = startAt; i < specVersions.length - 1; i++) {
-      const from = specVersions[i],
-        to = specVersions[i + 1];
-      lastVersion = from.version, nextVersion = to.version;
-      const postMigrateHooks = await Promise.all(
-        Object.values(to.tables).map(async ({ preMigrate, postMigrate }) => {
-          let migrateArg: unknown = undefined;
-          if (preMigrate) {
-            migrateArg = await preMigrate(
-              new SqliteDBApi(
-                from,
-                ulid,
-                mapObject(from.tables, (_k, v) => rowConverter(v)) as any,
-                Promise.resolve(db),
-              ),
-            );
-          }
-          return { migrateArg, postMigrate };
-        }),
-      );
-      const sql = schemaMigration("sqlite3", from, to);
+    for (
+      const { fromSpec, toSpec, sql, preMigrate, postMigrate } of migrations
+    ) {
+      lastVersion = fromSpec?.version ?? currentVersion,
+        nextVersion = toSpec.version;
+      let migrateArg: unknown = undefined;
+      if (fromSpec && preMigrate) {
+        migrateArg = await preMigrate(
+          new SqliteDBApi(
+            fromSpec,
+            ulid,
+            mapObject(fromSpec.tables, (_k, v) => rowConverter(v)) as any,
+            Promise.resolve(db),
+          ),
+        );
+      }
       log.info(
-        `RUNNING DATABASE MIGRATION FROM VERSION ${from.version} TO ${to.version}:`,
+        `RUNNING DATABASE MIGRATION FROM VERSION ${lastVersion} TO ${nextVersion}:`,
       );
       for (const line of sql) {
         log.info(line);
         db.execute(line);
       }
-      for (const { migrateArg, postMigrate } of postMigrateHooks) {
-        if (postMigrate) {
-          await postMigrate(
-            new SqliteDBApi(
-              to,
-              ulid,
-              mapObject(to.tables, (_k, v) => rowConverter(v)) as any,
-              Promise.resolve(db),
-            ),
-            migrateArg,
-          );
-        }
+      if (postMigrate) {
+        await postMigrate(
+          new SqliteDBApi(
+            toSpec,
+            ulid,
+            mapObject(toSpec.tables, (_k, v) => rowConverter(v)) as any,
+            Promise.resolve(db),
+          ),
+          migrateArg,
+        );
       }
       const { text, values } = new QueryBuilder("_version", "sqlite3").where(
         "version",
-        from.version,
+        lastVersion,
       ).update({
-        version: to.version,
+        version: nextVersion,
       }).toSQL();
       db.query(text, values);
       log.info("MIGRATION COMPLETE");

@@ -1,6 +1,8 @@
 import { DatabaseSpec } from "$/lib/sql/mod.ts";
 
-import v1 from "./v1.ts";
+import remoteDatabaseSpec from "./v1.ts";
 
-export const remoteDatabaseSpecVersions: DatabaseSpec[] = [v1];
-export const remoteDatabaseSpec = v1;
+export { remoteDatabaseSpec };
+export type RemoteDatabaseTables = (typeof remoteDatabaseSpec) extends
+  DatabaseSpec<infer Ts> ? Ts
+  : never;

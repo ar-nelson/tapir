@@ -6,11 +6,12 @@ import {
   ColumnsOf,
   ColumnSpec,
   ColumnType,
-  DatabaseSpec,
   InRow,
   inToOut,
   JoinChain,
   Query,
+  TableOf,
+  Tables,
   TableSpec,
 } from "./DB.ts";
 import { DatabaseValues, Q, QueryOperator } from "./Q.ts";
@@ -168,9 +169,9 @@ export function count<C extends Columns>(
 }
 
 export class JoinQueryBuilder<
-  Spec extends DatabaseSpec,
-  T extends keyof Spec["tables"] & string,
-> implements JoinChain<Spec, T, Record<string, unknown>> {
+  Ts extends Tables,
+  T extends TableOf<Ts>,
+> implements JoinChain<Ts, T, Record<string, unknown>> {
   private query: QueryBuilder;
   private returning: string[] = [];
 
@@ -178,9 +179,9 @@ export class JoinQueryBuilder<
     dialect: DBDialects,
     options: {
       table: T;
-      returning: (keyof ColumnsOf<Spec, T> & string)[];
-      where?: Query<ColumnsOf<Spec, T>>;
-      orderBy?: [keyof ColumnsOf<Spec, T> & string, OrderDirection][];
+      returning: (keyof ColumnsOf<Ts, T> & string)[];
+      where?: Query<ColumnsOf<Ts, T>>;
+      orderBy?: [keyof ColumnsOf<Ts, T> & string, OrderDirection][];
     },
     private readonly execute: (
       sql: { text: string; values: DatabaseValues[] },
@@ -203,18 +204,18 @@ export class JoinQueryBuilder<
 
   on<
     LT extends T,
-    RT extends keyof Spec["tables"] & string,
-    Returned extends keyof ColumnsOf<Spec, RT> & string,
+    RT extends TableOf<Ts>,
+    Returned extends keyof ColumnsOf<Ts, RT> & string,
   >(options: {
     type: JoinType;
     fromTable: LT;
-    fromColumn: keyof ColumnsOf<Spec, LT> & string;
+    fromColumn: keyof ColumnsOf<Ts, LT> & string;
     table: RT;
-    column: keyof ColumnsOf<Spec, RT> & string;
+    column: keyof ColumnsOf<Ts, RT> & string;
     returning: Returned[];
-    where?: Query<ColumnsOf<Spec, RT>>;
-    orderBy?: [keyof ColumnsOf<Spec, RT> & string, OrderDirection][];
-  }): JoinChain<Spec, any, any> {
+    where?: Query<ColumnsOf<Ts, RT>>;
+    orderBy?: [keyof ColumnsOf<Ts, RT> & string, OrderDirection][];
+  }): JoinChain<Ts, any, any> {
     this.returning.push(
       ...options.returning.map((c) => `${options.table}.${c}`),
     );

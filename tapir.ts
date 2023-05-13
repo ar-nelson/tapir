@@ -11,14 +11,8 @@ import { TapirConfig, TapirConfigFile } from "$/models/TapirConfig.ts";
 import buildMeta from "$/resources/buildMeta.json" assert { type: "json" };
 import { FirstRunRouter } from "$/routes/firstRun.ts";
 import { TapirRouter } from "$/routes/main.ts";
-import {
-  localDatabaseSpec,
-  localDatabaseSpecVersions,
-} from "$/schemas/tapir/db/local/mod.ts";
-import {
-  remoteDatabaseSpec,
-  remoteDatabaseSpecVersions,
-} from "$/schemas/tapir/db/remote/mod.ts";
+import { localDatabaseSpec } from "$/schemas/tapir/db/local/mod.ts";
+import { remoteDatabaseSpec } from "$/schemas/tapir/db/remote/mod.ts";
 import { TapirConfig as TapirConfigSchema } from "$/schemas/tapir/TapirConfig.ts";
 import { LocalDatabaseService } from "$/services/LocalDatabaseService.ts";
 import { LocalRepoService } from "$/services/LocalRepoService.ts";
@@ -51,7 +45,6 @@ function defaultInjector(options: { config?: string }): Injector {
       DBSelector(
         (sc) => sc.localDatabase,
         localDatabaseSpec,
-        localDatabaseSpecVersions,
       ),
     ],
     [
@@ -63,7 +56,6 @@ function defaultInjector(options: { config?: string }): Injector {
       DBSelector(
         (sc) => sc.remoteDatabase,
         remoteDatabaseSpec,
-        remoteDatabaseSpecVersions,
       ),
     ],
     [

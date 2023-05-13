@@ -3,6 +3,7 @@ import { AbstractConstructor, Constructor, Injector } from "$/lib/inject.ts";
 import {
   columnCompare,
   ColumnType,
+  DatabaseSpec,
   DB,
   Q,
   QueryOperator,
@@ -18,12 +19,9 @@ const COLUMNS = {
 } as const;
 
 const TEST_SPEC = {
-  version: 1,
-  tables: {
-    people: {
-      primaryKey: "id",
-      columns: COLUMNS,
-    },
+  people: {
+    primaryKey: "id",
+    columns: COLUMNS,
   },
 } as const;
 
@@ -34,7 +32,7 @@ export function testDatabaseService(
   function newDb(): Promise<[DB<typeof TEST_SPEC>, UlidService]> {
     const injector = new Injector(...overrides);
     return Promise.all([
-      injector.inject(factory.constructService(TEST_SPEC, [TEST_SPEC])),
+      injector.inject(factory.constructService(new DatabaseSpec(1, TEST_SPEC))),
       injector.resolve(UlidService),
     ]);
   }

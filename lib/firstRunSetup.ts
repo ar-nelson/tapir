@@ -6,10 +6,7 @@ import { checkPersonaName } from "$/lib/utils.ts";
 import { InstanceConfigStore } from "$/models/InstanceConfig.ts";
 import { PersonaStore } from "$/models/Persona.ts";
 import { DEFAULT_CONFIG_FILE_TOML } from "$/models/TapirConfig.ts";
-import {
-  localDatabaseSpec,
-  localDatabaseSpecVersions,
-} from "$/schemas/tapir/db/local/mod.ts";
+import { localDatabaseSpec } from "$/schemas/tapir/db/local/mod.ts";
 import { assertTapirConfig, TapirConfig } from "$/schemas/tapir/TapirConfig.ts";
 import { LocalDatabaseService } from "$/services/LocalDatabaseService.ts";
 import { LocalRepoService } from "$/services/LocalRepoService.ts";
@@ -53,11 +50,7 @@ export async function firstRunSetup(config: Required<TapirConfig>) {
   const injector = new Injector(
     [
       LocalDatabaseService,
-      DBSelector(
-        (sc) => sc.localDatabase,
-        localDatabaseSpec,
-        localDatabaseSpecVersions,
-      ),
+      DBSelector((sc) => sc.localDatabase, localDatabaseSpec),
     ],
     [
       LocalRepoService,

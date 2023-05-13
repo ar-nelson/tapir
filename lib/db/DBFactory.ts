@@ -11,86 +11,83 @@ import {
   OutRow,
   Query,
   TableOf,
+  Tables,
 } from "$/lib/sql/mod.ts";
 
-export abstract class AbstractDatabaseService<Spec extends DatabaseSpec>
-  implements DB<Spec> {
+export abstract class AbstractDatabaseService<Ts extends Tables>
+  implements DB<Ts> {
   constructor() {
     throw new Error("do not extend AbstractDatabaseService directly");
   }
 
-  abstract get<T extends TableOf<Spec>>(table: T, options?: {
-    where?: Query<ColumnsOf<Spec, T>>;
-    orderBy?: [ColumnOf<Spec, T>, OrderDirection][];
+  abstract get<T extends TableOf<Ts>>(table: T, options?: {
+    where?: Query<ColumnsOf<Ts, T>>;
+    orderBy?: [ColumnOf<Ts, T>, OrderDirection][];
     limit?: number;
-  }): AsyncIterable<OutRow<ColumnsOf<Spec, T>>>;
+  }): AsyncIterable<OutRow<ColumnsOf<Ts, T>>>;
 
-  abstract get<T extends TableOf<Spec>, Returned extends ColumnOf<Spec, T>>(
+  abstract get<T extends TableOf<Ts>, Returned extends ColumnOf<Ts, T>>(
     table: T,
     options: {
       returning: Returned[];
-      where?: Query<ColumnsOf<Spec, T>>;
-      orderBy?: [ColumnOf<Spec, T>, OrderDirection][];
+      where?: Query<ColumnsOf<Ts, T>>;
+      orderBy?: [ColumnOf<Ts, T>, OrderDirection][];
       limit?: number;
     },
-  ): AsyncIterable<Pick<OutRow<ColumnsOf<Spec, T>>, Returned>>;
+  ): AsyncIterable<Pick<OutRow<ColumnsOf<Ts, T>>, Returned>>;
 
-  abstract join<T extends TableOf<Spec>, Returned extends ColumnOf<Spec, T>>(
+  abstract join<T extends TableOf<Ts>, Returned extends ColumnOf<Ts, T>>(
     options: {
       table: T;
       returning: Returned[];
-      where?: Query<ColumnsOf<Spec, T>>;
-      orderBy?: [ColumnOf<Spec, T>, OrderDirection][];
+      where?: Query<ColumnsOf<Ts, T>>;
+      orderBy?: [ColumnOf<Ts, T>, OrderDirection][];
     },
-  ): JoinChain<Spec, T, Pick<OutRow<ColumnsOf<Spec, T>>, Returned>>;
+  ): JoinChain<Ts, T, Pick<OutRow<ColumnsOf<Ts, T>>, Returned>>;
 
-  abstract count<T extends TableOf<Spec>>(
+  abstract count<T extends TableOf<Ts>>(
     table: T,
-    where: Query<ColumnsOf<Spec, T>>,
+    where: Query<ColumnsOf<Ts, T>>,
   ): Promise<number>;
 
-  abstract insert<T extends TableOf<Spec>>(
+  abstract insert<T extends TableOf<Ts>>(
     table: T,
-    rows: InRow<ColumnsOf<Spec, T>>[],
+    rows: InRow<ColumnsOf<Ts, T>>[],
   ): Promise<void>;
 
-  abstract insert<T extends TableOf<Spec>, Returned extends ColumnOf<Spec, T>>(
+  abstract insert<T extends TableOf<Ts>, Returned extends ColumnOf<Ts, T>>(
     table: T,
-    rows: InRow<ColumnsOf<Spec, T>>[],
+    rows: InRow<ColumnsOf<Ts, T>>[],
     returning: Returned[],
-  ): Promise<Pick<OutRow<ColumnsOf<Spec, T>>, Returned>[]>;
+  ): Promise<Pick<OutRow<ColumnsOf<Ts, T>>, Returned>[]>;
 
-  abstract update<T extends TableOf<Spec>>(
+  abstract update<T extends TableOf<Ts>>(
     table: T,
-    where: Query<ColumnsOf<Spec, T>>,
-    fields: Partial<InRow<ColumnsOf<Spec, T>>>,
+    where: Query<ColumnsOf<Ts, T>>,
+    fields: Partial<InRow<ColumnsOf<Ts, T>>>,
   ): Promise<number>;
 
-  abstract delete<T extends TableOf<Spec>>(
+  abstract delete<T extends TableOf<Ts>>(
     table: T,
-    where: Query<ColumnsOf<Spec, T>>,
+    where: Query<ColumnsOf<Ts, T>>,
   ): Promise<number>;
 
   abstract transaction<R>(
-    callback: (t: DBLike<Spec>) => Promise<R>,
+    callback: (t: DBLike<Ts>) => Promise<R>,
   ): Promise<R>;
 
   abstract close(): Promise<void>;
 }
 
 export abstract class DBFactory {
-  protected abstract construct<Spec extends DatabaseSpec>(
-    spec: Spec,
-    specVersions: readonly DatabaseSpec[],
-  ): Constructor<DB<Spec>>;
+  protected abstract construct<Ts extends Tables>(
+    spec: DatabaseSpec<Ts>,
+  ): Constructor<DB<Ts>>;
 
   constructService<
-    Spec extends DatabaseSpec,
-    Service extends AbstractDatabaseService<Spec>,
-  >(spec: Spec, specVersions: readonly DatabaseSpec[]): Constructor<Service> {
-    if (specVersions[specVersions.length - 1].version !== spec.version) {
-      throw new Error("specVersions must end with the current database spec");
-    }
-    return this.construct(spec, specVersions) as Constructor<Service>;
+    Ts extends Tables,
+    Service extends AbstractDatabaseService<Ts>,
+  >(spec: DatabaseSpec<Ts>): Constructor<Service> {
+    return this.construct(spec) as Constructor<Service>;
   }
 }

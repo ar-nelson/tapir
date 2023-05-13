@@ -18,6 +18,7 @@ import {
   Query,
   QueryOperator,
   TableOf,
+  Tables,
 } from "$/lib/sql/mod.ts";
 import { mapObject } from "$/lib/utils.ts";
 import { UlidService } from "$/services/UlidService.ts";
@@ -26,12 +27,11 @@ function escapeRegExp(s: string) {
   return s.replace(/[.*+?^${}()|[\]\\]/g, "\\$&"); // $& means the whole matched string
 }
 
-export abstract class InMemoryDB<Spec extends DatabaseSpec>
-  implements DB<Spec> {
+export abstract class InMemoryDB<Ts extends Tables> implements DB<Ts> {
   private readonly db: Loki;
 
   constructor(
-    private readonly spec: Spec,
+    private readonly spec: DatabaseSpec<Ts>,
     private readonly ulid: UlidService,
   ) {
     this.db = new Loki("InMemoryDB", {
@@ -102,26 +102,26 @@ export abstract class InMemoryDB<Spec extends DatabaseSpec>
     );
   }
 
-  get<T extends TableOf<Spec>>(table: T, options?: {
-    where?: Query<ColumnsOf<Spec, T>>;
-    orderBy?: [keyof ColumnsOf<Spec, T>, OrderDirection][];
+  get<T extends TableOf<Ts>>(table: T, options?: {
+    where?: Query<ColumnsOf<Ts, T>>;
+    orderBy?: [keyof ColumnsOf<Ts, T>, OrderDirection][];
     limit?: number;
-  }): AsyncIterable<OutRow<ColumnsOf<Spec, T>>>;
+  }): AsyncIterable<OutRow<ColumnsOf<Ts, T>>>;
 
   get<
-    T extends TableOf<Spec>,
-    Returned extends ColumnOf<Spec, T>,
+    T extends TableOf<Ts>,
+    Returned extends ColumnOf<Ts, T>,
   >(table: T, options: {
     returning: Returned[];
-    where?: Query<ColumnsOf<Spec, T>>;
-    orderBy?: [ColumnOf<Spec, T>, OrderDirection][];
+    where?: Query<ColumnsOf<Ts, T>>;
+    orderBy?: [ColumnOf<Ts, T>, OrderDirection][];
     limit?: number;
-  }): AsyncIterable<Pick<OutRow<ColumnsOf<Spec, T>>, Returned>>;
+  }): AsyncIterable<Pick<OutRow<ColumnsOf<Ts, T>>, Returned>>;
 
-  async *get<T extends TableOf<Spec>>(tableName: T, options: {
-    returning?: ColumnOf<Spec, T>[];
-    where?: Query<ColumnsOf<Spec, T>>;
-    orderBy?: [ColumnOf<Spec, T>, OrderDirection][];
+  async *get<T extends TableOf<Ts>>(tableName: T, options: {
+    returning?: ColumnOf<Ts, T>[];
+    where?: Query<ColumnsOf<Ts, T>>;
+    orderBy?: [ColumnOf<Ts, T>, OrderDirection][];
     limit?: number;
   }): AsyncIterable<any> {
     let query = this.db.getCollection(tableName)
@@ -145,20 +145,20 @@ export abstract class InMemoryDB<Spec extends DatabaseSpec>
   }
 
   join<
-    T extends TableOf<Spec>,
-    Returned extends ColumnOf<Spec, T>,
+    T extends TableOf<Ts>,
+    Returned extends ColumnOf<Ts, T>,
   >(options: {
     table: T;
     returning: Returned[];
-    where?: Query<ColumnsOf<Spec, T>>;
-    orderBy?: [ColumnOf<Spec, T>, OrderDirection][];
-  }): JoinChain<Spec, T, Pick<OutRow<ColumnsOf<Spec, T>>, Returned>> {
+    where?: Query<ColumnsOf<Ts, T>>;
+    orderBy?: [ColumnOf<Ts, T>, OrderDirection][];
+  }): JoinChain<Ts, T, Pick<OutRow<ColumnsOf<Ts, T>>, Returned>> {
     throw new Error("join is not yet supported on inmemory db");
   }
 
-  count<T extends TableOf<Spec>>(
+  count<T extends TableOf<Ts>>(
     table: T,
-    where: Query<ColumnsOf<Spec, T>>,
+    where: Query<ColumnsOf<Ts, T>>,
   ): Promise<number> {
     return Promise.resolve(
       this.db.getCollection(table)
@@ -168,23 +168,23 @@ export abstract class InMemoryDB<Spec extends DatabaseSpec>
     );
   }
 
-  insert<T extends TableOf<Spec>>(
+  insert<T extends TableOf<Ts>>(
     tableName: T,
-    rows: InRow<ColumnsOf<Spec, T>>[],
+    rows: InRow<ColumnsOf<Ts, T>>[],
   ): Promise<void>;
 
-  insert<T extends TableOf<Spec>, Returned extends ColumnOf<Spec, T>>(
+  insert<T extends TableOf<Ts>, Returned extends ColumnOf<Ts, T>>(
     tableName: T,
-    rows: InRow<ColumnsOf<Spec, T>>[],
+    rows: InRow<ColumnsOf<Ts, T>>[],
     returning: Returned[],
-  ): Promise<Pick<OutRow<ColumnsOf<Spec, T>>, Returned>[]>;
+  ): Promise<Pick<OutRow<ColumnsOf<Ts, T>>, Returned>[]>;
 
-  insert<T extends TableOf<Spec>, Returned extends ColumnOf<Spec, T>>(
+  insert<T extends TableOf<Ts>, Returned extends ColumnOf<Ts, T>>(
     tableName: T,
-    rows: InRow<ColumnsOf<Spec, T>>[],
-    returning?: ColumnOf<Spec, T>[],
-  ): Promise<void | Pick<OutRow<ColumnsOf<Spec, T>>, Returned>[]> {
-    const spec = this.spec.tables[tableName] as Spec["tables"][T],
+    rows: InRow<ColumnsOf<Ts, T>>[],
+    returning?: ColumnOf<Ts, T>[],
+  ): Promise<void | Pick<OutRow<ColumnsOf<Ts, T>>, Returned>[]> {
+    const spec = this.spec.tables[tableName],
       finalRows = rows.map((inRow) =>
         mapObject(
           spec.columns,
@@ -200,32 +200,32 @@ export abstract class InMemoryDB<Spec extends DatabaseSpec>
     const inserted = this.db.getCollection(tableName).insert(finalRows);
     if (returning) {
       return Promise.resolve(
-        inserted.map((i: OutRow<ColumnsOf<Spec, T>>) =>
+        inserted.map((i: OutRow<ColumnsOf<Ts, T>>) =>
           Object.fromEntries(
             Object.entries(i).filter(([k]) => returning.includes(k)),
-          ) as Pick<OutRow<ColumnsOf<Spec, T>>, Returned>
+          ) as Pick<OutRow<ColumnsOf<Ts, T>>, Returned>
         ),
       );
     }
     return Promise.resolve();
   }
 
-  update<T extends TableOf<Spec>>(
+  update<T extends TableOf<Ts>>(
     tableName: T,
-    where: Query<ColumnsOf<Spec, T>>,
-    fields: Partial<InRow<ColumnsOf<Spec, T>>>,
+    where: Query<ColumnsOf<Ts, T>>,
+    fields: Partial<InRow<ColumnsOf<Ts, T>>>,
   ): Promise<number> {
-    const spec = this.spec.tables[tableName] as Spec["tables"][T];
+    const spec = this.spec.tables[tableName];
     let n = 0;
     this.db.getCollection(tableName).findAndUpdate(
       this.#query(where),
-      (row: OutRow<ColumnsOf<Spec, T>>) => {
+      (row: OutRow<ColumnsOf<Ts, T>>) => {
         n++;
         return {
           ...row,
           ...mapObject(
             fields,
-            (k, v) => inToOut(spec.columns[k as ColumnOf<Spec, T>], v),
+            (k, v) => inToOut(spec.columns[k as ColumnOf<Ts, T>], v),
           ),
         };
       },
@@ -233,15 +233,15 @@ export abstract class InMemoryDB<Spec extends DatabaseSpec>
     return Promise.resolve(n);
   }
 
-  delete<T extends TableOf<Spec>>(
+  delete<T extends TableOf<Ts>>(
     tableName: T,
-    where: Query<ColumnsOf<Spec, T>>,
+    where: Query<ColumnsOf<Ts, T>>,
   ): Promise<number> {
     this.db.getCollection(tableName).findAndRemove(this.#query(where));
     return Promise.resolve(0); // TODO: Return # of deleted rows
   }
 
-  transaction<R>(callback: (t: DBLike<Spec>) => Promise<R>): Promise<R> {
+  transaction<R>(callback: (t: DBLike<Ts>) => Promise<R>): Promise<R> {
     // FIXME: this is not safe
     return callback(this);
   }
@@ -252,11 +252,11 @@ export abstract class InMemoryDB<Spec extends DatabaseSpec>
 }
 
 export class InMemoryDBFactory extends DBFactory {
-  protected construct<Spec extends DatabaseSpec>(
-    spec: Spec,
-  ): Constructor<InMemoryDB<Spec>> {
+  protected construct<Ts extends Tables>(
+    spec: DatabaseSpec<Ts>,
+  ): Constructor<InMemoryDB<Ts>> {
     @Singleton()
-    class InMemoryDBImpl extends InMemoryDB<Spec> {
+    class InMemoryDBImpl extends InMemoryDB<Ts> {
       constructor(ulid: UlidService) {
         super(spec, ulid);
       }

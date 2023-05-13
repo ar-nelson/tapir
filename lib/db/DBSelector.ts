@@ -1,19 +1,18 @@
-import { DatabaseConfig, TapirConfig } from "$/models/TapirConfig.ts";
-import { DatabaseSpec } from "$/lib/sql/mod.ts";
-import { ConditionalResolver, Constructor, Singleton } from "$/lib/inject.ts";
+import { path } from "$/deps.ts";
 import { AbstractDatabaseService, DBFactory } from "$/lib/db/DBFactory.ts";
 import { InMemoryDBFactory } from "$/lib/db/InMemoryDB.ts";
 import { SqliteDBFactory } from "$/lib/db/SqliteDB.ts";
+import { ConditionalResolver, Constructor, Singleton } from "$/lib/inject.ts";
+import { DatabaseSpec, Tables } from "$/lib/sql/mod.ts";
 import { dirExists } from "$/lib/utils.ts";
-import { path } from "$/deps.ts";
+import { DatabaseConfig, TapirConfig } from "$/models/TapirConfig.ts";
 
 export function DBSelector<
-  Spec extends DatabaseSpec,
-  Service extends AbstractDatabaseService<Spec>,
+  Ts extends Tables,
+  Service extends AbstractDatabaseService<Ts>,
 >(
   getConfig: (config: TapirConfig) => Required<DatabaseConfig>,
-  spec: Spec,
-  specVersions: readonly DatabaseSpec[],
+  spec: DatabaseSpec<Ts>,
 ): Constructor<ConditionalResolver<Service>> {
   @Singleton()
   class DBSelectorImpl extends ConditionalResolver<Service> {
@@ -39,7 +38,7 @@ export function DBSelector<
           );
           break;
       }
-      return factory.constructService(spec, specVersions);
+      return factory.constructService(spec);
     }
 
     readonly isSingleton = true;
