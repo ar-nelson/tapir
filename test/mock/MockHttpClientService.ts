@@ -1,7 +1,9 @@
 import { Request as OakRequest, Router, testing } from "$/deps.ts";
+import { Singleton } from "$/lib/inject.ts";
 import { HttpClientService } from "$/services/HttpClientService.ts";
 import { RequestBody } from "oak/body.ts";
 
+@Singleton()
 export class MockHttpClientService extends HttpClientService {
   #routers = new Map<string, Router>();
 

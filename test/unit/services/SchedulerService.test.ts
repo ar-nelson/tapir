@@ -1,3 +1,4 @@
+import { BackgroundTaskService } from "$/services/BackgroundTaskService.ts";
 import {
   Reschedule,
   SchedulerServiceImpl,
@@ -5,10 +6,11 @@ import {
 import { assertEquals } from "asserts";
 
 const sleep = (ms: number): Promise<void> =>
-  new Promise((resolve) => setTimeout(resolve, ms));
+    new Promise((resolve) => setTimeout(resolve, ms)),
+  newScheduler = () => new SchedulerServiceImpl(new BackgroundTaskService());
 
 Deno.test("Runs a task scheduled for now", async () => {
-  const service = new SchedulerServiceImpl();
+  const service = newScheduler();
   let n = 0;
   service.schedule("foo", () => {
     n++;
@@ -18,7 +20,7 @@ Deno.test("Runs a task scheduled for now", async () => {
 });
 
 Deno.test("Runs a task scheduled for 200ms from now (by literal date)", async () => {
-  const service = new SchedulerServiceImpl();
+  const service = newScheduler();
   let n = 0;
   service.schedule("foo", () => {
     n++;
@@ -30,7 +32,7 @@ Deno.test("Runs a task scheduled for 200ms from now (by literal date)", async ()
 });
 
 Deno.test("Runs a task scheduled for 200ms from now (by interval object)", async () => {
-  const service = new SchedulerServiceImpl();
+  const service = newScheduler();
   let n = 0;
   service.schedule("foo", () => {
     n++;
@@ -42,7 +44,7 @@ Deno.test("Runs a task scheduled for 200ms from now (by interval object)", async
 });
 
 Deno.test("Scheduling tasks with two different names runs both of them", async () => {
-  const service = new SchedulerServiceImpl();
+  const service = newScheduler();
   let n = 0;
   service.schedule("foo", () => {
     n++;
@@ -55,7 +57,7 @@ Deno.test("Scheduling tasks with two different names runs both of them", async (
 });
 
 Deno.test("Scheduling a task with the same name runs only once", async () => {
-  const service = new SchedulerServiceImpl();
+  const service = newScheduler();
   let n = 0;
   service.schedule("foo", () => {
     n++;
@@ -68,7 +70,7 @@ Deno.test("Scheduling a task with the same name runs only once", async () => {
 });
 
 Deno.test("When the same task is scheduled twice, the later definition always wins", async () => {
-  const service = new SchedulerServiceImpl();
+  const service = newScheduler();
   let n = 0;
   service.schedule("foo", () => {
     n = 2;
@@ -81,7 +83,7 @@ Deno.test("When the same task is scheduled twice, the later definition always wi
 });
 
 Deno.test("A task can be canceled by name", async () => {
-  const service = new SchedulerServiceImpl();
+  const service = newScheduler();
   let n = 0;
   service.schedule("foo", () => {
     n++;
@@ -92,7 +94,7 @@ Deno.test("A task can be canceled by name", async () => {
 });
 
 Deno.test("Canceling a named task does not affect unrelated tasks", async () => {
-  const service = new SchedulerServiceImpl();
+  const service = newScheduler();
   let n = 0;
   service.schedule("foo", () => {
     n += 1;
@@ -106,7 +108,7 @@ Deno.test("Canceling a named task does not affect unrelated tasks", async () => 
 });
 
 Deno.test("A task can be canceled by prefix", async () => {
-  const service = new SchedulerServiceImpl();
+  const service = newScheduler();
   let n = 0;
   service.schedule("foobar", () => {
     n++;
@@ -117,7 +119,7 @@ Deno.test("A task can be canceled by prefix", async () => {
 });
 
 Deno.test("Canceling tasks by prefix does not affect unrelated tasks", async () => {
-  const service = new SchedulerServiceImpl();
+  const service = newScheduler();
   let n = 0;
   service.schedule("foo", () => {
     n += 1;
@@ -134,7 +136,7 @@ Deno.test("Canceling tasks by prefix does not affect unrelated tasks", async () 
 });
 
 Deno.test("Reschedule.OnlyAsEarlier moves tasks earlier", async () => {
-  const service = new SchedulerServiceImpl();
+  const service = newScheduler();
   let n = 0;
   service.schedule("foo", () => {
     n++;
@@ -154,7 +156,7 @@ Deno.test("Reschedule.OnlyAsEarlier moves tasks earlier", async () => {
 });
 
 Deno.test("Reschedule.OnlyAsEarlier does not move tasks later", async () => {
-  const service = new SchedulerServiceImpl();
+  const service = newScheduler();
   let n = 0;
   service.schedule("foo", () => {
     n++;
@@ -174,7 +176,7 @@ Deno.test("Reschedule.OnlyAsEarlier does not move tasks later", async () => {
 });
 
 Deno.test("Reschedule.OnlyAsEarlier can reschedule to now", async () => {
-  const service = new SchedulerServiceImpl();
+  const service = newScheduler();
   let n = 0;
   service.schedule("foo", () => {
     n++;
@@ -194,7 +196,7 @@ Deno.test("Reschedule.OnlyAsEarlier can reschedule to now", async () => {
 });
 
 Deno.test("Reschedule.OnlyAsEarlier does not prevent rescheduling a completed task", async () => {
-  const service = new SchedulerServiceImpl();
+  const service = newScheduler();
   let n = 0;
   service.schedule("foo", () => {
     n++;
@@ -214,7 +216,7 @@ Deno.test("Reschedule.OnlyAsEarlier does not prevent rescheduling a completed ta
 });
 
 Deno.test("Reschedule.OnlyAsLater moves tasks later", async () => {
-  const service = new SchedulerServiceImpl();
+  const service = newScheduler();
   let n = 0;
   service.schedule("foo", () => {
     n++;
@@ -234,7 +236,7 @@ Deno.test("Reschedule.OnlyAsLater moves tasks later", async () => {
 });
 
 Deno.test("Reschedule.OnlyAsLater does not move tasks earlier", async () => {
-  const service = new SchedulerServiceImpl();
+  const service = newScheduler();
   let n = 0;
   service.schedule("foo", () => {
     n++;

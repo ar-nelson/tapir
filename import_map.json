@@ -16,11 +16,13 @@
     "blurhash": "https://deno.land/x/blurhash@v1.0/mod.ts",
     "cliffy/": "https://deno.land/x/cliffy@v0.25.7/",
     "imagemagick": "https://deno.land/x/imagemagick_deno@0.0.19/mod.ts",
+    "lorem-ipsum": "npm:lorem-ipsum",
     "monocypher": "https://deno.land/x/monocypher@v3.1.3-0/mod.ts",
     "oak": "https://deno.land/x/oak@v12.3.0/mod.ts",
     "oak/": "https://deno.land/x/oak@v12.3.0/",
     "reflect": "https://deno.land/x/reflect_metadata@v0.1.12/mod.ts",
     "spartan-schema": "https://deno.land/x/spartanschema@v1.1.1/mod.ts",
-    "sqlite": "https://deno.land/x/sqlite@v3.7.2/mod.ts"
+    "sqlite": "https://deno.land/x/sqlite@v3.7.2/mod.ts",
+    "vegas": "https://deno.land/x/vegas@v1.3.0/mod.ts"
   }
 }

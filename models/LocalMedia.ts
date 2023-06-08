@@ -1,19 +1,9 @@
 import { log, Status } from "$/deps.ts";
 import { LogLevels, Tag } from "$/lib/error.ts";
 import { InjectableAbstract, Singleton } from "$/lib/inject.ts";
+import { Media } from "$/models/types.ts";
 import { LocalDatabaseService } from "$/services/LocalDatabaseService.ts";
 import { LocalRepoService } from "$/services/LocalRepoService.ts";
-
-export interface LocalMedia {
-  readonly hash: string;
-  readonly mimetype: string;
-  readonly bytes: number;
-  readonly width?: number | null;
-  readonly height?: number | null;
-  readonly duration?: number | null;
-  readonly createdAt: Date;
-  readonly data: Uint8Array;
-}
 
 export const MediaNotFound = new Tag("Local Media Not Found", {
   level: LogLevels.WARNING,
@@ -27,9 +17,9 @@ export abstract class LocalMediaStore {
 
   abstract count(): Promise<number>;
 
-  abstract get(hash: string): Promise<LocalMedia>;
+  abstract get(hash: string): Promise<Media>;
 
-  abstract getMeta(hash: string): Promise<Omit<LocalMedia, "data">>;
+  abstract getMeta(hash: string): Promise<Omit<Media, "data">>;
 
   abstract create(
     data: Uint8Array,

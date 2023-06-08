@@ -32,7 +32,9 @@ export const SettingsEditPersonaPage = view<
             value={persona.linkTitle ?? ""}
           />
           <SettingsRow name="summary" label="Summary blurb">
-            <textarea name="summary" id="summary">{persona.summary}</textarea>
+            <textarea name="summary" id="summary">
+              {persona.summaryHtml}
+            </textarea>
           </SettingsRow>
         </dl>
         <input type="submit" value="refine your identity" />

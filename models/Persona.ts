@@ -70,6 +70,9 @@ export class PersonaStoreImpl extends PersonaStore {
     return {
       ...row,
       type: row.type as ProfileType,
+      summaryHtml: row.summaryHtml ?? undefined,
+      summaryRaw: row.summaryRaw ?? undefined,
+      summaryRawMimetype: row.summaryRawMimetype ?? undefined,
     };
   }
 

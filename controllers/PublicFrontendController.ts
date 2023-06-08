@@ -51,7 +51,7 @@ export class PublicFrontendController {
       addr: { protocol: Protocol.Local, path: persona.name },
       type: persona.type,
       avatarUrl: "/static/tapir-avatar.jpg",
-      summary: persona.summary,
+      summary: persona.summaryHtml,
       postCount: await this.localPostStore.count(persona.name),
       followerCount: await this.inFollowStore.countFollowers(persona.name),
       followingCount: 0,
@@ -69,8 +69,8 @@ export class PublicFrontendController {
       type: post.type,
       createdAt: post.createdAt && datetime(post.createdAt),
       updatedAt: post.updatedAt && datetime(post.updatedAt),
-      content: post.content, // TODO: sanitize html
-      contentWarning: post.collapseSummary,
+      content: post.contentHtml, // TODO: sanitize html
+      contentWarning: post.contentWarning,
       //replyTo: post.replyTo,
       author: {
         name: `@${persona.name}`,

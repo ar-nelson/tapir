@@ -3,10 +3,7 @@ import { InjectableAbstract, Singleton } from "$/lib/inject.ts";
 import { ColumnsOf, OutRow, Q } from "$/lib/sql/mod.ts";
 import { chainFrom } from "$/lib/transducers.ts";
 import { normalizeDomain, protoAddrInstance } from "$/lib/urls.ts";
-import {
-  DomainTrustStore,
-  TRUST_LEVEL_DEFAULT
-} from "$/models/DomainTrust.ts";
+import { DomainTrustStore, TRUST_LEVEL_DEFAULT } from "$/models/DomainTrust.ts";
 import { TapirConfig } from "$/models/TapirConfig.ts";
 import {
   parseProtoAddr,
@@ -14,7 +11,7 @@ import {
   protoAddrToString,
   Protocol,
   TrustLevel,
-  TrustOptions
+  TrustOptions,
 } from "$/models/types.ts";
 import { LocalDatabaseTables } from "$/schemas/tapir/db/local/mod.ts";
 import { LocalDatabaseService } from "$/services/LocalDatabaseService.ts";
@@ -60,17 +57,82 @@ export abstract class ProfileTrustStore {
   abstract reset(addr: ProtoAddr): Promise<void>;
 }
 
+export abstract class DelegatingProfileTrustStore extends ProfileTrustStore {
+  constructor(
+    protected readonly config: TapirConfig,
+    protected readonly domainTrustStore: DomainTrustStore,
+  ) {
+    super();
+  }
+
+  async #getTrustRecursively<Prop extends keyof TrustOptions>(
+    addr: ProtoAddr,
+    prop: Prop,
+  ): Promise<TrustLevel> {
+    if (addr.protocol === Protocol.Local) return TrustLevel.Trust;
+    const instance = protoAddrInstance(addr, this.config),
+      trust = await this.get(addr),
+      domain = trust.domain == null
+        ? (
+          instance == null
+            ? undefined
+            : normalizeDomain(new URL(instance).hostname)
+        )
+        : trust.domain,
+      profileTrust = trust[prop];
+    if (profileTrust === TrustLevel.BlockUnconditional) return profileTrust;
+    if (domain == null) return profileTrust;
+    switch (await this.domainTrustStore[prop](new URL(`https://${domain}`))) {
+      case TrustLevel.BlockUnconditional:
+        return TrustLevel.BlockUnconditional;
+      case TrustLevel.BlockUnlessFollow:
+        return profileTrust === TrustLevel.Trust
+          ? TrustLevel.Trust
+          : TrustLevel.BlockUnlessFollow;
+      case TrustLevel.Trust:
+        return profileTrust < TrustLevel.Unset
+          ? profileTrust
+          : TrustLevel.Trust;
+    }
+    return profileTrust;
+  }
+
+  requestToTrust(addr: ProtoAddr) {
+    return this.#getTrustRecursively(addr, "requestToTrust");
+  }
+
+  requestFromTrust(addr: ProtoAddr) {
+    return this.#getTrustRecursively(addr, "requestFromTrust");
+  }
+
+  mediaTrust(addr: ProtoAddr) {
+    return this.#getTrustRecursively(addr, "mediaTrust");
+  }
+
+  feedTrust(addr: ProtoAddr) {
+    return this.#getTrustRecursively(addr, "feedTrust");
+  }
+
+  dmTrust(addr: ProtoAddr) {
+    return this.#getTrustRecursively(addr, "dmTrust");
+  }
+
+  replyTrust(addr: ProtoAddr) {
+    return this.#getTrustRecursively(addr, "replyTrust");
+  }
+}
+
 // TODO: Resolve proxies
 // Proxies are tricky, and might need to be stored in the local DB
 
 @Singleton(ProfileTrustStore)
-export class ProfileTrustStoreImpl extends ProfileTrustStore {
+export class ProfileTrustStoreImpl extends DelegatingProfileTrustStore {
   constructor(
-    private readonly config: TapirConfig,
     private readonly db: LocalDatabaseService,
-    private readonly domainTrustStore: DomainTrustStore,
+    config: TapirConfig,
+    domainTrustStore: DomainTrustStore,
   ) {
-    super();
+    super(config, domainTrustStore);
   }
 
   #rowToObject(
@@ -134,64 +196,6 @@ export class ProfileTrustStoreImpl extends ProfileTrustStore {
     return { addr, ...TRUST_LEVEL_DEFAULT };
   }
 
-  async #getTrustRecursively<Prop extends keyof TrustOptions>(
-    addr: ProtoAddr,
-    prop: Prop,
-  ): Promise<TrustLevel> {
-    if (addr.protocol === Protocol.Local) return TrustLevel.Trust;
-    const hostname = protoAddrInstance(addr, this.config)?.hostname;
-    let domain = hostname == null ? undefined : normalizeDomain(hostname),
-      profileTrust = TrustLevel.Unset;
-    for await (
-      const row of this.db.get("profileTrust", {
-        where: { addr: protoAddrToString(addr) },
-        returning: ["domain", prop],
-      })
-    ) {
-      domain = row.domain ?? undefined;
-      profileTrust = row[prop] as TrustLevel;
-    }
-    if (profileTrust === TrustLevel.BlockUnconditional) return profileTrust;
-    if (domain == null) return profileTrust;
-    switch (await this.domainTrustStore[prop](new URL(`https://${domain}`))) {
-      case TrustLevel.BlockUnconditional:
-        return TrustLevel.BlockUnconditional;
-      case TrustLevel.BlockUnlessFollow:
-        return profileTrust === TrustLevel.Trust
-          ? TrustLevel.Trust
-          : TrustLevel.BlockUnlessFollow;
-      case TrustLevel.Trust:
-        return profileTrust < TrustLevel.Unset
-          ? profileTrust
-          : TrustLevel.Trust;
-    }
-    return profileTrust;
-  }
-
-  requestToTrust(addr: ProtoAddr) {
-    return this.#getTrustRecursively(addr, "requestToTrust");
-  }
-
-  requestFromTrust(addr: ProtoAddr) {
-    return this.#getTrustRecursively(addr, "requestFromTrust");
-  }
-
-  mediaTrust(addr: ProtoAddr) {
-    return this.#getTrustRecursively(addr, "mediaTrust");
-  }
-
-  feedTrust(addr: ProtoAddr) {
-    return this.#getTrustRecursively(addr, "feedTrust");
-  }
-
-  dmTrust(addr: ProtoAddr) {
-    return this.#getTrustRecursively(addr, "dmTrust");
-  }
-
-  replyTrust(addr: ProtoAddr) {
-    return this.#getTrustRecursively(addr, "replyTrust");
-  }
-
   update(
     fullAddr: ProtoAddr,
     changedFields: Partial<Omit<ProfileTrust, "addr" | "domain" | "updatedAt">>,
@@ -207,13 +211,15 @@ export class ProfileTrustStoreImpl extends ProfileTrustStore {
           await txn.update("profileTrust", { addr }, fields);
           return this.#rowToObject({ ...existing, ...fields });
         } else {
-          const hostname = protoAddrInstance(fullAddr, this.config)?.hostname;
-          const entry = {
-            addr,
-            domain: hostname == null ? undefined : normalizeDomain(hostname),
-            ...TRUST_LEVEL_DEFAULT,
-            ...fields,
-          };
+          const instance = protoAddrInstance(fullAddr, this.config),
+            entry = {
+              addr,
+              domain: instance == null
+                ? undefined
+                : normalizeDomain(new URL(instance).hostname),
+              ...TRUST_LEVEL_DEFAULT,
+              ...fields,
+            };
           await txn.insert("profileTrust", [entry]);
           return { ...entry, addr: fullAddr };
         }

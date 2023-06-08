@@ -17,12 +17,11 @@ import {
   OutFollow,
   OutReaction,
   Persona,
-  PostType,
   ProtoAddr,
   protoAddrToString,
   Protocol,
 } from "$/models/types.ts";
-import { Activity } from "$/schemas/activitypub/mod.ts";
+import { Object } from "$/schemas/activitypub/mod.ts";
 import { Priority } from "$/services/ActivityPubClientService.ts";
 import { ActivityPubGeneratorService } from "$/services/ActivityPubGeneratorService.ts";
 import {
@@ -127,43 +126,24 @@ export class PublisherServiceImpl extends PublisherService {
   }
 
   async createPost(post: LocalPost, attachments: readonly LocalAttachment[]) {
-    let activity: Omit<Activity, "id">;
-    switch (post.type) {
-      case PostType.Note:
-      case PostType.Article:
-        activity = this.apGen.publicActivity(post.persona, {
-          type: "Create",
-          createdAt: post.createdAt,
-          object: this.apGen.publicObject(post.persona, {
-            type: post.type === PostType.Article ? "Article" : "Note",
-            content: post.content,
-            published: post.createdAt.toJSON(),
-            updated: post.createdAt.toJSON(),
-            summary: post.collapseSummary,
-            attachment: await Promise.all(
-              attachments.map(async (a) => {
-                const { width, height, mimetype } = await this.localMediaStore
-                  .getMeta(a.original);
-                this.apGen.attachment({
-                  width,
-                  height,
-                  mimetype,
-                  hash: a.original,
-                  ...a,
-                });
-              }),
-            ),
-          }),
-        });
-        break;
-      case PostType.Boost:
-      case PostType.Reply:
-      case PostType.Poll:
-      case PostType.Link:
-        throw PublishFailed.error("Post type not yet implemented");
-    }
-    // TODO: Visibility restrictions
     try {
+      const activity = this.apGen.localPost(
+        post,
+        await Promise.all(
+          attachments.map(async (a) => {
+            const { width, height, mimetype } = await this.localMediaStore
+              .getMeta(a.original);
+            return {
+              width,
+              height,
+              mimetype,
+              hash: a.original,
+              ...a,
+            };
+          }),
+        ),
+      );
+      // TODO: Visibility restrictions
       await this.activityDispatchStore.createAndDispatch(
         [
           ...await this.#listFollowerActivityPubInboxes(
@@ -184,12 +164,15 @@ export class PublisherServiceImpl extends PublisherService {
   async updatePost(update: LocalPost & { readonly updatedAt: Date }) {
     try {
       const existing = await this.localPostStore.get(update.id),
-        { json: originalJson } = await this.localActivityStore.get(update.id),
-        newJson = {
+        originalJson = await this.localActivityStore.getObject(update.id),
+        newJson: Object = {
           ...originalJson,
           updated: update.updatedAt.toJSON(),
-          content: update.content ?? originalJson.content,
-          summary: update.collapseSummary ?? originalJson.summary,
+          content: update.contentHtml ?? originalJson.content,
+          summary: update.contentWarning ?? originalJson.summary,
+          sensitive: update.contentWarning === undefined
+            ? originalJson.sensitive
+            : update.contentWarning != null,
         };
       await this.activityDispatchStore.createAndDispatch(
         await this.activityDispatchStore.inboxesWhichReceived(update.id),

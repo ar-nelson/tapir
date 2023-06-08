@@ -85,7 +85,9 @@ export class RemotePostStoreImpl extends RemotePostStore {
       return {
         ...existing,
         updatedAt: existing.updatedAt ?? undefined,
-        content: existing.content ?? undefined,
+        contentHtml: existing.contentHtml ?? undefined,
+        contentRaw: existing.contentRaw ?? undefined,
+        contentRawMimetype: existing.contentRawMimetype ?? undefined,
         addr,
         profile: parseProtoAddr(existing.profile),
         targetPost: existing.targetPost == null
@@ -103,7 +105,9 @@ export class RemotePostStoreImpl extends RemotePostStore {
         ).map(({ mentioned }) => parseProtoAddr(mentioned)).toArray(),
         emoji: [],
         attachments: await chainFrom(
-          this.db.get("attachment", { where: { post: addrString } }),
+          this.db.get("attachment", {
+            where: { owner: addrString },
+          }),
         ).toArray(),
       };
     }
@@ -252,12 +256,12 @@ export class RemotePostStoreImpl extends RemotePostStore {
     }
     if (attachments) {
       await txn.delete("attachment", {
-        post: addr,
+        owner: addr,
         originalUrl: Q.notIn(attachments.map((a) => a.originalUrl)),
       });
       const existingAttachments = await chainFrom(
         txn.get("attachment", {
-          where: { post: addr },
+          where: { owner: addr },
           returning: ["id", "originalUrl"],
         }),
       ).map(({ id, originalUrl }) => [originalUrl, id] as const).collect(
@@ -266,7 +270,11 @@ export class RemotePostStoreImpl extends RemotePostStore {
       for (const attachment of attachments) {
         const id = existingAttachments.get(attachment.originalUrl);
         if (id == null) {
-          await txn.insert("attachment", [{ ...attachment, post: addr }]);
+          await txn.insert("attachment", [{
+            ...attachment,
+            owner: addr,
+            ownerIsPost: true,
+          }]);
         } else await txn.update("attachment", { id }, attachment);
       }
     }
@@ -293,7 +301,7 @@ export class RemotePostStoreImpl extends RemotePostStore {
       }
       await txn.delete("tag", { owner: query });
       await txn.delete("mention", { owner: query });
-      await txn.delete("attachment", { post: query });
+      await txn.delete("attachment", { owner: query });
       await txn.delete("post", { addr: query });
     });
   }

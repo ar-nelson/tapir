@@ -116,22 +116,17 @@ export class LruGarbageCollectorService extends GarbageCollectorService {
           profiles = toDelete.get(false) ?? [],
           postAddrs = posts.map((p) => p.addr),
           profileAddrs = profiles.map((p) => p.addr),
-          postMedia = await chainFrom(
+          media = await chainFrom(
             txn.get("attachment", {
-              where: { post: Q.in(postAddrs) },
+              where: { owner: Q.in([...postAddrs, ...profileAddrs]) },
               returning: ["original", "small"],
             }),
           ).flatMap(({ original, small }) => [original, small]).notNull()
-            .toSet(),
-          profileMedia = await chainFrom(
-            txn.get("profile", {
-              where: { addr: Q.in(profileAddrs) },
-              returning: ["avatar", "banner"],
-            }),
-          ).flatMap(({ avatar, banner }) => [avatar, banner]).notNull().toSet(),
-          media = new Set([...postMedia, ...profileMedia]);
+            .toSet();
         await this.media.delete(media);
-        await txn.delete("attachment", { post: Q.in(postAddrs) });
+        await txn.delete("attachment", {
+          owner: Q.in([...postAddrs, ...profileAddrs]),
+        });
         await txn.delete("mention", { owner: Q.in(postAddrs) });
         await txn.delete("tag", {
           owner: Q.in([...postAddrs, ...profileAddrs]),

@@ -7,27 +7,18 @@ import { chainFrom } from "$/lib/transducers.ts";
 import { isSubdomainOf, normalizeDomain } from "$/lib/urls.ts";
 import { DomainTrustStore, MediaBlocked } from "$/models/DomainTrust.ts";
 import { TapirConfig } from "$/models/TapirConfig.ts";
-import { ProtoAddr, RemoteAttachment, TrustLevel } from "$/models/types.ts";
+import {
+  ProtoAddr,
+  RemoteAttachment,
+  RemoteMedia,
+  TrustLevel,
+} from "$/models/types.ts";
 import { Priority } from "$/services/HttpDispatcher.ts";
 import { MediaProcessorService } from "$/services/MediaProcessorService.ts";
 import { RemoteDatabaseService } from "$/services/RemoteDatabaseService.ts";
 import { RemoteRepoService } from "$/services/RemoteRepoService.ts";
 
 export const MediaNotFound = new Tag("Remote Media Not Found");
-export const MediaHashMismatch = new Tag("Remote Media Hash Mismatch");
-
-export interface RemoteMedia {
-  readonly hash: string;
-  readonly domain?: string | null;
-  readonly url?: URL;
-  readonly mimetype: string;
-  readonly bytes: number;
-  readonly width?: number | null;
-  readonly height?: number | null;
-  readonly duration?: number | null;
-  readonly createdAt: Date;
-  readonly data: Uint8Array;
-}
 
 @InjectableAbstract()
 export abstract class RemoteMediaStore {
@@ -108,7 +99,7 @@ export class RemoteMediaStoreImpl extends RemoteMediaStore {
     for await (
       const media of this.db.get("media", { where: { hash }, limit: 1 })
     ) {
-      return { ...media, url: media.url ? new URL(media.url) : undefined };
+      return media;
     }
     throw MediaNotFound.error(`No remote media with hash ${hash}`);
   }
@@ -149,7 +140,6 @@ export class RemoteMediaStoreImpl extends RemoteMediaStore {
         if (data && (!opts.mimetype || media.mimetype === opts.mimetype)) {
           return {
             ...media,
-            url: media.url ? new URL(media.url) : undefined,
             data,
           };
         } else {
@@ -192,7 +182,7 @@ export class RemoteMediaStoreImpl extends RemoteMediaStore {
           };
         await txn.insert("media", [media]);
         this.#cache?.insert(hash, original.data.byteLength, 1);
-        return { ...media, url, data: original.data };
+        return { ...media, data: original.data };
       } catch (e) {
         return MediaNotFound.wrap(e);
       }

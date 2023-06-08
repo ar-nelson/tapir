@@ -1,33 +1,20 @@
+import { Singleton } from "$/lib/inject.ts";
 import { chainFrom } from "$/lib/transducers.ts";
 import { isSubdomainOf, normalizeDomain } from "$/lib/urls.ts";
 import {
   DomainTrust,
   DomainTrustStore,
-  TRUST_LEVEL_BLOCKED,
   TRUST_LEVEL_DEFAULT,
-  TRUST_LEVEL_TRUSTED,
 } from "$/models/DomainTrust.ts";
 import { TrustLevel } from "$/models/types.ts";
+import { DOMAIN_TRUST } from "./mock-data.ts";
 
-export const DEFAULT_SERVERS: readonly DomainTrust[] = [{
-  domain: "blocked.test.",
-  friendly: false,
-  ...TRUST_LEVEL_BLOCKED,
-}, {
-  domain: "default.test.",
-  friendly: false,
-  ...TRUST_LEVEL_DEFAULT,
-}, {
-  domain: "trusted.test.",
-  friendly: true,
-  ...TRUST_LEVEL_TRUSTED,
-}];
-
+@Singleton()
 export class MockDomainTrustStore extends DomainTrustStore {
   async *list(
     where: { friendly?: boolean; blocked?: boolean; trusted?: boolean } = {},
   ) {
-    for (const entry of DEFAULT_SERVERS) {
+    for (const entry of Object.values(DOMAIN_TRUST)) {
       if (where.friendly != null && entry.friendly !== where.friendly) continue;
       if (
         where.blocked != null &&
@@ -50,7 +37,9 @@ export class MockDomainTrustStore extends DomainTrustStore {
 
   get(domain: string): Promise<DomainTrust> {
     domain = normalizeDomain(domain);
-    const found = DEFAULT_SERVERS.find((s) => isSubdomainOf(s.domain, domain));
+    const found = Object.values(DOMAIN_TRUST).find((s) =>
+      isSubdomainOf(s.domain, domain)
+    );
     return Promise.resolve(
       found ?? {
         domain,

@@ -84,6 +84,17 @@ export class FinitePageStream<out T> extends PageStream<T> {
     return new FinitePageStream(() => Promise.resolve({ items: [] }), 0);
   }
 
+  static of<T>(iter: Iterable<T>, pageSize?: number): FinitePageStream<T> {
+    const items = [...iter];
+    if (!pageSize) {
+      return new FinitePageStream(
+        () => Promise.resolve({ items }),
+        items.length,
+      );
+    }
+    return new IterableFinitePageStream(items, pageSize, items.length);
+  }
+
   constructor(
     page: (cursor?: string) => Promise<Page<T>>,
     public readonly totalItems: number,
@@ -99,6 +110,41 @@ export class FinitePageStream<out T> extends PageStream<T> {
     f: (item: T, cursor?: string) => Promise<U>,
   ): FinitePageStream<U> {
     return new FinitePageStream(super.mapItemsAsync(f).page, this.totalItems);
+  }
+}
+
+export class IterableFinitePageStream<out T> extends FinitePageStream<T> {
+  #history: T[] = [];
+
+  constructor(
+    iterable: AsyncIterable<T> | Iterable<T>,
+    pageSize: number,
+    totalItems: number,
+  ) {
+    const iter = ((iterable as AsyncIterable<T>)[Symbol.asyncIterator] ??
+      (iterable as Iterable<T>)[Symbol.iterator])();
+    super(
+      async (cursor = "0") => {
+        const start = +cursor,
+          items: T[] = [];
+        for (let i = start; i < start + pageSize; i++) {
+          if (i < this.#history.length) {
+            items.push(this.#history[i]);
+          } else {
+            const result = await iter.next();
+            if (!result.done || result.value != null) {
+              items.push(result.value);
+              this.#history.push(result.value);
+            }
+            if (result.done) {
+              return { items };
+            }
+          }
+        }
+        return { items, nextCursor: `${start + pageSize}` };
+      },
+      totalItems,
+    );
   }
 }
 

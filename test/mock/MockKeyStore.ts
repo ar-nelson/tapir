@@ -1,3 +1,4 @@
+import { Singleton } from "$/lib/inject.ts";
 import { generateKeyPair } from "$/lib/signatures.ts";
 import * as urls from "$/lib/urls.ts";
 import { Key, KeyNotFound, KeyStore } from "$/models/Key.ts";
@@ -5,6 +6,7 @@ import { KeyAlgorithm } from "$/models/types.ts";
 
 const KEY_NAME = urls.activityPubMainKey("tapir");
 
+@Singleton()
 export class MockKeyStore extends KeyStore {
   #keyPair = generateKeyPair();
 

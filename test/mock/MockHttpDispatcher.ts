@@ -1,4 +1,5 @@
 import { Router } from "$/deps.ts";
+import { Singleton } from "$/lib/inject.ts";
 import { BackgroundTaskService } from "$/services/BackgroundTaskService.ts";
 import {
   DispatchOptions,
@@ -7,15 +8,18 @@ import {
 } from "$/services/HttpDispatcher.ts";
 import { MockHttpClientService } from "$/test/mock/MockHttpClientService.ts";
 
+@Singleton()
 export class MockHttpDispatcher extends HttpDispatcher {
-  #client = new MockHttpClientService();
-
-  constructor(backgroundTaskService: BackgroundTaskService) {
+  constructor(
+    backgroundTaskService: BackgroundTaskService = new BackgroundTaskService(),
+    private readonly client: MockHttpClientService =
+      new MockHttpClientService(),
+  ) {
     super(backgroundTaskService);
   }
 
   route(host: string, router: Router): void {
-    this.#client.route(host, router);
+    this.client.route(host, router);
   }
 
   dispatchAndWait(
@@ -25,7 +29,7 @@ export class MockHttpDispatcher extends HttpDispatcher {
       errorMessage,
     }: DispatchOptions,
   ): Promise<Response> {
-    const response = this.#client.fetch(request);
+    const response = this.client.fetch(request);
     return throwOnError
       ? responseOrThrow(response, request.url, throwOnError, errorMessage)
       : response;

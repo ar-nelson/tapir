@@ -47,7 +47,7 @@ export class LocalFetcherImpl extends LocalFetcher {
       url: urls.localProfile(profilePath, {}, this.config.url),
       createdAt: persona.createdAt,
       updatedAt: persona.updatedAt,
-      summary: persona.summary,
+      summaryHtml: persona.summaryHtml,
       requestToFollow: persona.requestToFollow,
       followerCount: await this.inFollowStore.countFollowers(persona.name),
       followingCount: 0, // TODO: Use OutFollowStore here
@@ -69,6 +69,7 @@ export class LocalFetcherImpl extends LocalFetcher {
       }],
     };
   }
+
   async fetchFollowers(profilePath: string) {
     // TODO: Better pagination
     return new FinitePageStream(
@@ -99,9 +100,11 @@ export class LocalFetcherImpl extends LocalFetcher {
       createdAt: post.createdAt,
       updatedAt: post.updatedAt,
       viewedAt: post.updatedAt ?? post.createdAt,
-      content: post.content,
-      sensitive: !!post.collapseSummary,
-      contentWarning: post.collapseSummary,
+      contentHtml: post.contentHtml,
+      contentRaw: post.contentRaw,
+      contentRawMimetype: post.contentRawMimetype,
+      sensitive: !!post.contentWarning,
+      contentWarning: post.contentWarning,
       proxies: [{
         proxy: {
           protocol: Protocol.ActivityPub,

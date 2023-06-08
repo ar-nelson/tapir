@@ -3,7 +3,7 @@ import { Singleton } from "$/lib/inject.ts";
 import * as urls from "$/lib/urls.ts";
 import { Key } from "$/models/Key.ts";
 import { TapirConfig } from "$/models/TapirConfig.ts";
-import { Persona } from "$/models/types.ts";
+import { LocalPost, Persona, PostType } from "$/models/types.ts";
 import {
   Activity,
   Actor,
@@ -68,7 +68,7 @@ export class ActivityPubGeneratorService {
       name: persona.displayName ?? persona.name,
       preferredUsername: persona.name,
       url: urls.localProfile(persona.name, {}, this.config.url),
-      summary: persona.summary,
+      summary: persona.summaryHtml,
       published: persona.createdAt.toJSON(),
       manuallyApprovesFollowers: persona.requestToFollow,
       discoverable: false,
@@ -115,6 +115,42 @@ ${base64.encode(key.public)}\r
       cc: urls.activityPubFollowers(persona, this.config.url),
       ...props,
     };
+  }
+
+  localPost(
+    post: LocalPost,
+    attachments: readonly {
+      mimetype: string;
+      hash: string;
+      width?: number | null;
+      height?: number | null;
+      blurhash?: string | null;
+      alt?: string | null;
+    }[],
+  ): Omit<Activity, "id"> {
+    // TODO: Visibility restrictions
+    switch (post.type) {
+      case PostType.Note:
+      case PostType.Article:
+        return this.publicActivity(post.persona, {
+          type: "Create",
+          createdAt: post.createdAt,
+          object: this.publicObject(post.persona, {
+            type: post.type === PostType.Article ? "Article" : "Note",
+            content: post.contentHtml,
+            published: post.createdAt.toJSON(),
+            updated: post.createdAt.toJSON(),
+            summary: post.contentWarning,
+            sensitive: post.contentWarning != null,
+            attachment: attachments.map((a) => this.attachment(a)),
+          }),
+        });
+      case PostType.Boost:
+      case PostType.Reply:
+      case PostType.Poll:
+      case PostType.Link:
+        throw new Error("Post type not yet implemented");
+    }
   }
 
   attachment(props: {

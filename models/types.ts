@@ -122,7 +122,9 @@ export interface Profile {
   readonly name: string;
   readonly type: ProfileType;
   readonly displayName?: string;
-  readonly summary?: string;
+  readonly summaryHtml?: string;
+  readonly summaryRaw?: string;
+  readonly summaryRawMimetype?: string;
   readonly requestToFollow?: boolean;
   readonly createdAt?: Date;
   readonly updatedAt?: Date;
@@ -132,7 +134,11 @@ export interface Post {
   readonly type: PostType;
   readonly createdAt: Date;
   readonly updatedAt?: Date;
-  readonly content?: string;
+  readonly contentHtml?: string;
+  readonly contentRaw?: string;
+  readonly contentRawMimetype?: string;
+  readonly lang?: string | null;
+  readonly targetPost?: ProtoAddr | null;
 }
 
 export interface Attachment {
@@ -141,6 +147,17 @@ export interface Attachment {
   readonly small?: string | null;
   readonly blurhash?: string | null;
   readonly alt?: string | null;
+}
+
+export interface Media {
+  readonly hash: string;
+  readonly mimetype: string;
+  readonly bytes: number;
+  readonly width?: number | null;
+  readonly height?: number | null;
+  readonly duration?: number | null;
+  readonly createdAt: Date;
+  readonly data: Uint8Array;
 }
 
 export interface Reaction {
@@ -161,18 +178,19 @@ export interface Persona extends Profile {
   readonly linkTitle?: string | null;
   readonly main: boolean;
   readonly createdAt: Date;
+  readonly avatarAttachment?: string;
+  readonly bannerAttachment?: string;
 }
 
 export interface LocalPost extends Post {
   readonly id: string;
   readonly persona: string;
-  readonly collapseSummary?: string;
-  readonly replyTo?: string;
+  readonly contentWarning?: string;
 }
 
 export interface LocalAttachment extends Attachment {
   readonly id: string;
-  readonly postId: string;
+  readonly postId?: string;
   readonly original: string;
 }
 
@@ -217,12 +235,8 @@ export interface RemoteProfile extends Profile {
   readonly postCount: number;
   readonly apInbox?: string | null;
   readonly apSharedInbox?: string | null;
-  readonly avatar?: string | null;
-  readonly avatarBlurhash?: string | null;
-  readonly avatarUrl?: string | null;
-  readonly banner?: string | null;
-  readonly bannerBlurhash?: string | null;
-  readonly bannerUrl?: string | null;
+  readonly avatarUrl?: string;
+  readonly bannerUrl?: string;
 }
 
 export interface RemotePost extends Post {
@@ -232,8 +246,6 @@ export interface RemotePost extends Post {
   readonly url?: string | null;
   readonly canonical: boolean;
   readonly viewedAt?: Date | null;
-  readonly lang?: string | null;
-  readonly targetPost?: ProtoAddr | null;
   readonly sensitive: boolean;
   readonly contentWarning?: string | null;
 }
@@ -275,7 +287,8 @@ export interface RemoteEmoji {
 }
 
 export interface RemoteAttachment extends Attachment {
-  readonly post: ProtoAddr;
+  readonly owner: ProtoAddr;
+  readonly ownerIsPost: boolean;
   readonly originalUrl: string;
   readonly smallUrl?: string | null;
   readonly sensitive: boolean;
@@ -288,7 +301,14 @@ export interface RemotePublicKey {
   readonly key: Uint8Array;
 }
 
+export interface RemoteMedia extends Media {
+  readonly domain?: string | null;
+  readonly url?: string | null;
+}
+
 export interface RemoteProfileFull extends RemoteProfile {
+  readonly avatar?: Omit<RemoteAttachment, "owner" | "ownerIsPost">;
+  readonly banner?: Omit<RemoteAttachment, "owner" | "ownerIsPost">;
   readonly proxies: readonly Omit<RemoteProxy, "original">[];
   readonly publicKeys: readonly Omit<RemotePublicKey, "owner">[];
   readonly tags: readonly Omit<RemoteTag, "post">[];
@@ -300,7 +320,10 @@ export interface RemotePostFull extends RemotePost {
   readonly tags: readonly Omit<RemoteTag, "post">[];
   readonly mentions: readonly ProtoAddr[];
   readonly emoji: readonly Omit<RemoteEmoji, "post" | "profile">[];
-  readonly attachments: readonly Omit<RemoteAttachment, "post">[];
+  readonly attachments: readonly Omit<
+    RemoteAttachment,
+    "owner" | "ownerIsPost"
+  >[];
 }
 
 export interface InstanceFeatures {
@@ -340,6 +363,5 @@ export interface RemoteInstance {
   readonly logo?: string | null;
   readonly logoBlurhash?: string | null;
   readonly logoUrl?: string | null;
-  readonly apSharedInbox?: string | null;
   readonly lastSeen: Date;
 }

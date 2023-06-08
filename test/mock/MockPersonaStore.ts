@@ -1,34 +1,26 @@
+import { Singleton } from "$/lib/inject.ts";
 import { PersonaNotFound, PersonaStore } from "$/models/Persona.ts";
-import { Persona, ProfileType } from "$/models/types.ts";
+import { MockPersonaName, PERSONAS } from "./mock-data.ts";
 
-const MOCK_PERSONA: Persona = {
-  name: "tapir",
-  displayName: "tapir",
-  type: ProfileType.Person,
-  summary: "look at me. i'm the fediverse now.",
-  requestToFollow: true,
-  createdAt: new Date("2023-02-03T19:35:27-0500"),
-  main: true,
-};
-
+@Singleton()
 export class MockPersonaStore extends PersonaStore {
   async *list() {
-    yield MOCK_PERSONA;
+    yield* Object.values(PERSONAS);
   }
 
   count() {
-    return Promise.resolve(1);
+    return Promise.resolve(Object.values(PERSONAS).length);
   }
 
   getMain() {
-    return Promise.resolve(MOCK_PERSONA);
+    return Promise.resolve(Object.values(PERSONAS).find((it) => it.main)!);
   }
 
   get(name: string) {
-    if (name !== "tapir") {
-      throw PersonaNotFound.error(`No persona named ${JSON.stringify(name)}`);
-    }
-    return Promise.resolve(MOCK_PERSONA);
+    const persona = PERSONAS[name as MockPersonaName];
+    return persona ? Promise.resolve(persona) : Promise.reject(
+      PersonaNotFound.error(`No persona named ${JSON.stringify(name)}`),
+    );
   }
 
   create(): Promise<void> {

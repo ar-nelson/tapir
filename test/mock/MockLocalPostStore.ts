@@ -1,80 +1,40 @@
+import { Singleton } from "$/lib/inject.ts";
 import { LocalPostStore, PostNotFound } from "$/models/LocalPost.ts";
-import { LocalPost, PostType } from "$/models/types.ts";
+import { LocalPost } from "$/models/types.ts";
+import { LOCAL_POSTS, MockPersonaName } from "$/test/mock/mock-data.ts";
 
-const MOCK_POSTS: readonly LocalPost[] = [{
-  id: "01GS3EACBSFYB8C1FMHTSEWJZY",
-  type: PostType.Note,
-  persona: "tapir",
-  createdAt: new Date("2023-02-11T21:32:14-0500"),
-  updatedAt: new Date("2023-02-12T08:52:15-0500"),
-  content:
-    `Tapir Fact: Tapirs don't like to be followed. In fact, you could say they "reject all follow requests" because they "don't support that feature yet". Please don't take it personally.`,
-}, {
-  id: "01GS3E7MSAE3C7E68YGED07CF7",
-  type: PostType.Note,
-  persona: "tapir",
-  createdAt: new Date("2023-02-11T21:11:57-0500"),
-  updatedAt: new Date("2023-02-12T08:52:15-0500"),
-  content: "oops, my timeline is backwards",
-}, {
-  id: "01GS3E7MAH1NMKRRMT1GKZ28GK",
-  type: PostType.Note,
-  persona: "tapir",
-  createdAt: new Date("2023-02-11T20:51:23-0500"),
-  updatedAt: new Date("2023-02-12T08:52:15-0500"),
-  content: "is this a xonk",
-}, {
-  id: "01GS3E7KVNSK7CS4HDAFA2P2GS",
-  type: PostType.Note,
-  persona: "tapir",
-  createdAt: new Date("2023-02-07T17:44:52-0500"),
-  updatedAt: new Date("2023-02-12T08:52:15-0500"),
-  content: "tapir has learned to communicate with activitypub",
-}, {
-  id: "01GS3E7KAKEBBKSK424XCSQPHV",
-  type: PostType.Note,
-  persona: "tapir",
-  createdAt: new Date("2023-02-05T22:33:19-0500"),
-  updatedAt: new Date("2023-02-12T08:52:15-0500"),
-  content: "tapir has learned to communicate with elk",
-}, {
-  id: "01GS3E7JB1FCC03SKGHJ3V294A",
-  type: PostType.Note,
-  persona: "tapir",
-  createdAt: new Date("2023-02-04T12:02:13-0500"),
-  updatedAt: new Date("2023-02-12T08:52:15-0500"),
-  content:
-    `Tapir is based on Deno (<a rel="nofollow noopener noreferrer" href="https://fosstodon.org/@deno_land">@deno_land</a>) and the Fresh web framework. The goal is to be installable from a URL with a single command.`,
-}, {
-  id: "01GS3E7HHDRQRPN8YVEPK091SF",
-  type: PostType.Note,
-  persona: "tapir",
-  createdAt: new Date("2023-02-03T19:42:26-0500"),
-  updatedAt: new Date("2023-02-12T08:52:15-0500"),
-  content: "just setting up my tpir",
-}];
-
+@Singleton()
 export class MockLocalPostStore extends LocalPostStore {
   async *list(options: {
     persona?: string;
     limit?: number;
     beforeId?: string;
   } = {}): AsyncIterable<LocalPost> {
-    if (options.persona == null || options.persona === "tapir") {
-      for (let i = 0; i < (options.limit ?? MOCK_POSTS.length); i++) {
-        yield MOCK_POSTS[i];
+    if (
+      options.persona == null || Object.hasOwn(LOCAL_POSTS, options.persona)
+    ) {
+      const posts = options.persona
+        ? LOCAL_POSTS[options.persona as MockPersonaName]
+        : Object.values(LOCAL_POSTS).flat();
+      for (
+        let i = 0;
+        i < Math.min(options.limit ?? posts.length, posts.length);
+        i++
+      ) {
+        yield posts[i];
       }
     }
   }
 
   count(persona?: string): Promise<number> {
-    return Promise.resolve(
-      persona == null || persona === "tapir" ? MOCK_POSTS.length : 0,
-    );
+    const posts = persona
+      ? LOCAL_POSTS[persona as MockPersonaName]
+      : Object.values(LOCAL_POSTS).flat();
+    return Promise.resolve(posts ? posts.length : 0);
   }
 
   get(id: string): Promise<LocalPost> {
-    const post = MOCK_POSTS.find((it) => it.id === id);
+    const post = Object.values(LOCAL_POSTS).flat().find((it) => it.id === id);
     return post
       ? Promise.resolve(post)
       : Promise.reject(PostNotFound.error(`No post with ID ${id}`));

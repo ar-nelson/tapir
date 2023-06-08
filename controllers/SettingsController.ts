@@ -98,7 +98,9 @@ export class SettingsController {
     await this.personaStore.update(personaName, {
       displayName: form.fields.displayName,
       linkTitle: form.fields.linkTitle,
-      summary: form.fields.summary,
+      summaryHtml: form.fields.summary,
+      summaryRaw: form.fields.summary,
+      summaryRawMimetype: "text/html",
     });
   }
 
@@ -142,7 +144,9 @@ export class SettingsController {
     const id = await this.localPostStore.create({
       type: PostType.Note,
       persona: form.fields.persona!,
-      content: form.fields.content!,
+      contentHtml: form.fields.content!,
+      contentRaw: form.fields.content!,
+      contentRawMimetype: "text/html",
     }, async (postId) => {
       const imageFile = form.files?.find((f) => f.name === "image");
       if (imageFile && imageFile.content) {

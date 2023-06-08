@@ -339,6 +339,30 @@
     "https://deno.land/x/sqlite@v3.7.2/src/error.ts": "f7a15cb00d7c3797da1aefee3cf86d23e0ae92e73f0ba3165496c3816ab9503a",
     "https://deno.land/x/sqlite@v3.7.2/src/function.ts": "e4c83b8ec64bf88bafad2407376b0c6a3b54e777593c70336fb40d43a79865f2",
     "https://deno.land/x/sqlite@v3.7.2/src/query.ts": "d58abda928f6582d77bad685ecf551b1be8a15e8e38403e293ec38522e030cad",
-    "https://deno.land/x/sqlite@v3.7.2/src/wasm.ts": "e79d0baa6e42423257fb3c7cc98091c54399254867e0f34a09b5bdef37bd9487"
+    "https://deno.land/x/sqlite@v3.7.2/src/wasm.ts": "e79d0baa6e42423257fb3c7cc98091c54399254867e0f34a09b5bdef37bd9487",
+    "https://deno.land/x/vegas@v1.3.0/mod.ts": "122b3c826dc6c5de5d95389f397c5ff69fcd7a3dfca75cc010b41017b2245817",
+    "https://deno.land/x/vegas@v1.3.0/seedrandom.d.ts": "a57cf3cedabf87b87d8fe36dd2e846dd4bdbb878caf6e3e9c7d4848b73267523",
+    "https://jspm.dev/npm:seedrandom@3.0.5!cjs": "b726cc1a41e99691c25d6af1711b75353494b59e7d530d8e93c1b40a002ce9a1",
+    "https://jspm.dev/npm:seedrandom@3.0.5/lib/alea!cjs": "a5f648ecf27278fa971c3a5c9c97de3451b91f814106b6dfa03d3fdff7ab62f5",
+    "https://jspm.dev/npm:seedrandom@3.0.5/lib/xor4096.js!cjs": "e2792a8423247a660ff36e4686d19e338293d7adf3cd23d5eead032f2a204ade",
+    "https://jspm.dev/npm:seedrandom@3.0.5/seedrandom!cjs": "90156324b6b69efad145fb802607a81c977e0633089758a388f28d2f72c72d91",
+    "https://jspm.dev/seedrandom": "dce9ea596ca9b58319a2a159e24ccfae3d7400dd0b8b4d6aa896db98cc2d6896"
+  },
+  "npm": {
+    "specifiers": {
+      "lorem-ipsum": "lorem-ipsum@2.0.8"
+    },
+    "packages": {
+      "commander@9.5.0": {
+        "integrity": "sha512-KRs7WVDKg86PWiuAqhDrAQnTXZKraVcCc6vFdL14qrZ/DcWwuRo7VoiYXalXO7S5GKpqYiVEwCbgFDfxNHKJBQ==",
+        "dependencies": {}
+      },
+      "lorem-ipsum@2.0.8": {
+        "integrity": "sha512-5RIwHuCb979RASgCJH0VKERn9cQo/+NcAi2BMe9ddj+gp7hujl6BI+qdOG4nVsLDpwWEJwTVYXNKP6BGgbcoGA==",
+        "dependencies": {
+          "commander": "commander@9.5.0"
+        }
+      }
+    }
   }
 }

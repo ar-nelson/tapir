@@ -1,15 +1,23 @@
 import { Status } from "$/deps.ts";
 import { logError, LogLevels, Tag } from "$/lib/error.ts";
 import { InjectableAbstract, Singleton } from "$/lib/inject.ts";
-import { OrderDirection, Q } from "$/lib/sql/mod.ts";
-import { LocalAttachment, LocalPost } from "$/models/types.ts";
+import { ColumnsOf, OrderDirection, OutRow, Q } from "$/lib/sql/mod.ts";
+import {
+  LocalAttachment,
+  LocalPost,
+  parseProtoAddr,
+  protoAddrToString,
+} from "$/models/types.ts";
+import { LocalDatabaseTables } from "$/schemas/tapir/db/local/mod.ts";
 import { LocalDatabaseService } from "$/services/LocalDatabaseService.ts";
 import { PublisherService } from "$/services/PublisherService.ts";
 import { UlidService } from "$/services/UlidService.ts";
 
 export interface PostUpdate {
-  readonly content: string;
-  readonly collapseSummary?: string;
+  readonly contentHtml: string;
+  readonly contentRaw?: string;
+  readonly contentRawMimetype?: string;
+  readonly contentWarning?: string | null;
 }
 
 export const PostNotFound = new Tag("Local Post Not Found", {
@@ -54,6 +62,18 @@ export class LocalPostStoreImpl extends LocalPostStore {
     super();
   }
 
+  #rowToObject(row: OutRow<ColumnsOf<LocalDatabaseTables, "post">>): LocalPost {
+    return {
+      ...row,
+      contentHtml: row.contentHtml ?? undefined,
+      contentRaw: row.contentRaw ?? undefined,
+      contentRawMimetype: row.contentRawMimetype ?? undefined,
+      contentWarning: row.contentWarning ?? undefined,
+      targetPost: row.targetPost ? parseProtoAddr(row.targetPost) : undefined,
+      updatedAt: row.updatedAt ?? undefined,
+    };
+  }
+
   async *list({ persona, limit, beforeId, order = "DESC" }: {
     persona?: string;
     limit?: number;
@@ -70,13 +90,7 @@ export class LocalPostStoreImpl extends LocalPostStore {
         limit,
       })
     ) {
-      yield {
-        ...p,
-        content: p.content ?? undefined,
-        collapseSummary: p.collapseSummary ?? undefined,
-        createdAt: p.createdAt,
-        updatedAt: p.updatedAt ?? undefined,
-      };
+      yield this.#rowToObject(p);
     }
   }
 
@@ -88,13 +102,7 @@ export class LocalPostStoreImpl extends LocalPostStore {
 
   async get(id: string): Promise<LocalPost> {
     for await (const p of this.db.get("post", { where: { id } })) {
-      return {
-        ...p,
-        content: p.content ?? undefined,
-        collapseSummary: p.collapseSummary ?? undefined,
-        createdAt: p.createdAt,
-        updatedAt: p.updatedAt ?? undefined,
-      };
+      return this.#rowToObject(p);
     }
     throw PostNotFound.error(`No local post with ID ${id}`);
   }
@@ -106,7 +114,12 @@ export class LocalPostStoreImpl extends LocalPostStore {
     const id = this.ulid.next(), createdAt = new Date();
     let attachments: readonly LocalAttachment[] = [];
     try {
-      await this.db.insert("post", [{ ...post, id, createdAt }]);
+      await this.db.insert("post", [{
+        ...post,
+        targetPost: post.targetPost && protoAddrToString(post.targetPost),
+        id,
+        createdAt,
+      }]);
       attachments = createAttachments ? await createAttachments(id) : [];
       await this.publisherService.createPost(
         { ...post, id, createdAt },
@@ -134,7 +147,7 @@ export class LocalPostStoreImpl extends LocalPostStore {
   async update(id: string, update: PostUpdate): Promise<void> {
     try {
       const existing = await this.get(id);
-      if (existing.content == null) {
+      if (existing.contentHtml == null) {
         throw UpdatePostFailed.error(
           `Post ${id} does not have text content, thus cannot be updated`,
         );
@@ -142,13 +155,17 @@ export class LocalPostStoreImpl extends LocalPostStore {
       const updatedAt = new Date(),
         newPost = {
           ...existing,
-          content: update.content ?? existing.content,
-          collapseSummary: update.collapseSummary ?? existing.collapseSummary,
+          contentHtml: update.contentHtml ?? existing.contentHtml,
+          contentRaw: update.contentRaw ?? existing.contentRaw,
+          contentRawMimetype: update.contentRawMimetype ??
+            existing.contentRawMimetype,
+          contentWarning: update.contentWarning === undefined
+            ? existing.contentWarning
+            : (update.contentWarning ?? undefined),
           updatedAt,
         };
       await this.db.update("post", { id }, {
-        content: update.content,
-        collapseSummary: update.collapseSummary,
+        ...update,
         updatedAt,
       });
       await this.publisherService.updatePost(newPost);

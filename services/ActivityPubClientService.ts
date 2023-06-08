@@ -227,7 +227,7 @@ export abstract class ActivityPubClientService {
         ? undefined
         : new Date(actor.published),
       updatedAt: actor.updated == null ? undefined : new Date(actor.updated),
-      summary: actor.summary ?? "",
+      summaryHtml: actor.summary ?? undefined,
       requestToFollow: !!actor.manuallyApprovesFollowers,
       profileMetadata: {
         ap: {
@@ -473,7 +473,7 @@ export abstract class ActivityPubClientService {
 
   objectToRemoteAttachment(
     a: string | Link | Object,
-  ): Omit<RemoteAttachment, "post"> | undefined {
+  ): Omit<RemoteAttachment, "owner" | "ownerIsPost"> | undefined {
     if (typeof a !== "string" && "url" in a) {
       const link = this.getOneLink(a.url);
       if (!link) return undefined;

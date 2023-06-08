@@ -20,22 +20,22 @@ export enum Compress {
 }
 
 export interface MediaConfig {
-  maxMediaBytes: number;
-  maxImageBytes: number;
-  maxImagePixels: number;
-  maxVideoBytes: number;
-  maxVideoPixels: number;
-  maxVideoFramerate: number;
-  compressImages: Compress;
-  smallMaxBytes: number;
-  smallMaxPixels: number;
+  readonly maxMediaBytes: number;
+  readonly maxImageBytes: number;
+  readonly maxImagePixels: number;
+  readonly maxVideoBytes: number;
+  readonly maxVideoPixels: number;
+  readonly maxVideoFramerate: number;
+  readonly compressImages: Compress;
+  readonly smallMaxBytes: number;
+  readonly smallMaxPixels: number;
 }
 
 export interface Media {
-  data: Uint8Array;
-  width?: number;
-  height?: number;
-  mimetype: string;
+  readonly data: Uint8Array;
+  readonly width?: number;
+  readonly height?: number;
+  readonly mimetype: string;
 }
 
 export const UnsupportedMediaType = new Tag("Unsupported Media Type", {

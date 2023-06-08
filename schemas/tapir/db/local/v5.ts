@@ -92,8 +92,23 @@ const {
   activityDispatch,
   inFollowTemp,
   outFollowTemp,
+  post: {
+    columns: {
+      content: _c,
+      collapseSummary: _cs,
+      targetLocalPost: _tlp,
+      targetRemotePost: _trp,
+      ...postColumns
+    },
+    ...post
+  },
   persona: {
-    columns: { publicKey: _p1, privateKey: _p2, ...personaColumns },
+    columns: {
+      publicKey: _p1,
+      privateKey: _p2,
+      summary: _s,
+      ...personaColumns
+    },
     ...persona
   },
   inReact: { columns: { actor: _a1, ...inReactColumns }, ...inReact },
@@ -141,11 +156,33 @@ const Spec = v4_5.newVersion(5, {
       },
     },
   },
+  post: {
+    ...post,
+    columns: {
+      ...postColumns,
+      contentHtml: { type: String, renamedFrom: "content", nullable: true },
+      contentRaw: { type: String, nullable: true },
+      contentRawMimetype: { type: String, nullable: true },
+      contentWarning: {
+        type: String,
+        renamedFrom: "collapseSummary",
+        nullable: true,
+      },
+      targetPost: {
+        type: String,
+        renamedFrom: "targetRemotePost",
+        nullable: true,
+      },
+    },
+  },
   persona: {
     ...persona,
     columns: {
       ...personaColumns,
       type: { type: String, default: ProfileType.Person },
+      summaryHtml: { type: String, renamedFrom: "summary", nullable: true },
+      summaryRaw: { type: String, nullable: true },
+      summaryRawMimetype: { type: String, nullable: true },
     },
   },
   activityDispatch: {

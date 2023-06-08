@@ -92,8 +92,13 @@ export class RemoteProfileStoreImpl extends RemoteProfileStore {
         return {
           ...existing,
           displayName: existing.displayName ?? undefined,
+          summaryHtml: existing.summaryHtml ?? undefined,
+          summaryRaw: existing.summaryRaw ?? undefined,
+          summaryRawMimetype: existing.summaryRawMimetype ?? undefined,
           createdAt: existing.createdAt ?? undefined,
           updatedAt: existing.updatedAt ?? undefined,
+          avatarUrl: existing.avatarUrl ?? undefined,
+          bannerUrl: existing.bannerUrl ?? undefined,
           addr,
           type: existing.type as ProfileType,
           proxies,

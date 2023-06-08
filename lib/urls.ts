@@ -5,7 +5,6 @@ import {
   protoAddrToString,
   Protocol,
 } from "$/models/types.ts";
-import { TapirConfig } from "../models/TapirConfig.ts";
 
 const extensionByMimetype: Record<string, string> = {
   "image/png": ".png",
@@ -336,20 +335,18 @@ export const nodeInfoV2_0 = "/nodeinfo/2.0" as const;
 
 export function protoAddrInstance(
   addr: ProtoAddr,
-  config: TapirConfig,
-): URL | undefined {
+  config: { readonly url: string },
+): string | undefined {
   switch (addr.protocol) {
     case Protocol.Local:
-      return new URL(config.url);
+      return config.url;
     case Protocol.ActivityPub:
-      return new URL("", addr.path);
+      return new URL("", addr.path).href;
     case Protocol.Mastodon:
       if (addr.path.includes(":")) {
-        return new URL("", addr.path);
+        return new URL("", addr.path).href;
       } else if (addr.path.includes("@")) {
-        return new URL(
-          `https://${addr.path.slice(addr.path.lastIndexOf("@") + 1)}`,
-        );
+        return `https://${addr.path.slice(addr.path.lastIndexOf("@") + 1)}`;
       }
   }
 }
