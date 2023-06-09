@@ -5,8 +5,9 @@ import {
   PublicGlobalNav,
   PublicPostFeed,
   ServerDetail,
-  view,
 } from "$/views/components/mod.ts";
+import { View, view } from "$/lib/html.ts";
+import { sanitizer } from "$/lib/sanitizeHtml.ts";
 import { sprintf } from "$/deps.ts";
 
 export const PublicProfilePage = view<
@@ -34,7 +35,10 @@ export const PublicProfilePage = view<
               {profile.displayName}{" "}
               <span class="profile-name-username">({profile.name})</span>
             </h2>
-            <div class="summary">{profile.summary}</div>
+            <div class="summary">
+              {profile.summary &&
+                new View(() => sanitizer.clean(profile.summary!))}
+            </div>
             <dl class="profile-stats">
               {profile.createdAt && (
                 <div>

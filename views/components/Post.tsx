@@ -1,9 +1,10 @@
-import { view } from "$/lib/html.ts";
+import { View, view } from "$/lib/html.ts";
 import { PostDetail } from "$/views/types.ts";
 import { Attachment } from "$/views/components/Attachment.tsx";
 import { RelativeDateTime } from "$/views/components/RelativeDateTime.tsx";
 import { Icon } from "$/views/components/Icon.tsx";
 import { sprintf } from "$/deps.ts";
+import { sanitizer } from "$/lib/sanitizeHtml.ts";
 
 export const Post = view<
   { post: PostDetail; controls?: boolean; big?: boolean }
@@ -11,7 +12,7 @@ export const Post = view<
   const body = (
     <>
       <div class="post-body">
-        {post.content}
+        {post.content && new View(() => sanitizer.clean(post.content!))}
       </div>
       {(post.attachments ?? []).map((attachment) => (
         <Attachment attachment={attachment} />

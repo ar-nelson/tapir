@@ -13,6 +13,7 @@
     "path": "https://deno.land/std@0.183.0/path/mod.ts",
     "asserts": "https://deno.land/std@0.183.0/testing/asserts.ts",
 
+    "ammonia": "https://deno.land/x/ammonia@0.3.1/mod.ts",
     "blurhash": "https://deno.land/x/blurhash@v1.0/mod.ts",
     "cliffy/": "https://deno.land/x/cliffy@v0.25.7/",
     "imagemagick": "https://deno.land/x/imagemagick_deno@0.0.19/mod.ts",
